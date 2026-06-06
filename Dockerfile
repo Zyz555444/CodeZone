@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
@@ -14,9 +14,7 @@ RUN npm install
 
 COPY . .
 
-# 构建前端和后端
-RUN cd frontend && npm run build
-RUN cd backend && npx prisma generate && npx prisma migrate deploy
+# 不需要构建，直接运行开发模式
 
 EXPOSE 3000 4000
 
