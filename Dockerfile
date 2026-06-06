@@ -4,7 +4,7 @@ FROM node:26-alpine AS frontend-builder
 WORKDIR /app/frontend
 
 COPY frontend/package*.json ./
-RUN npm ci
+RUN npm install
 
 COPY frontend/ ./
 RUN npm run build
@@ -16,7 +16,7 @@ WORKDIR /app/backend
 
 # 先复制依赖文件安装
 COPY backend/package*.json ./
-RUN npm ci
+RUN npm install
 
 COPY backend/tsconfig.json ./
 COPY backend/prisma ./prisma/
@@ -40,9 +40,9 @@ COPY package*.json ./
 COPY frontend/package*.json ./frontend/
 COPY backend/package*.json ./backend/
 
-RUN npm ci --omit=dev && \
-    cd frontend && npm ci --omit=dev && \
-    cd ../backend && npm ci --omit=dev
+RUN npm install --omit=dev && \
+    cd frontend && npm install --omit=dev && \
+    cd ../backend && npm install --omit=dev
 
 # 复制构建产物
 COPY --from=frontend-builder /app/frontend/.next ./
