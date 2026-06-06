@@ -32,7 +32,7 @@ export class WebSocketHandler {
         return next(new Error('认证 token 缺失'));
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret-key') as { userId: string };
       socket.userId = decoded.userId;
       next();
     } catch (error) {
