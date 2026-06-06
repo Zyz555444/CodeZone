@@ -9,8 +9,8 @@ COPY package*.json ./
 COPY backend/package*.json ./backend/
 COPY frontend/package*.json ./frontend/
 
-# 安装所有依赖
-RUN npm install
+# 安装所有依赖（包括 devDependencies）
+RUN npm install && cd backend && npm install
 
 COPY . .
 
