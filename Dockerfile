@@ -16,7 +16,7 @@ WORKDIR /app/backend
 
 # 先复制依赖文件安装
 COPY backend/package*.json ./
-RUN npm install
+RUN npm install && npm install -D @types/uuid
 
 COPY backend/tsconfig.json ./
 COPY backend/prisma ./prisma/
