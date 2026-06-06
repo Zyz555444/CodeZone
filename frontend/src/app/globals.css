@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+/*
+ * Yohaku Design System for CodeZone
+ * 一种主色，三档中性灰，剩下都是留白
+ */
+
+@theme {
+  /* ==================== 色彩系统 ==================== */
+  
+  /* 中性灰 - 三档暖灰 (60% 暖度) */
+  --color-neutral-1: #F9F8F5;
+  --color-neutral-2: #F0EFEB;
+  --color-neutral-3: #E3E1DB;
+  --color-neutral-4: #D0CEC6;
+  --color-neutral-5: #A8A69F;
+  --color-neutral-6: #787670;
+  --color-neutral-7: #5C5A55;
+  --color-neutral-8: #403F3A;
+  --color-neutral-9: #24231F;
+  --color-neutral-10: #141312;
+
+  /* 主色 - 梅红 */
+  --color-accent: #C56473;
+  --color-accent-light: #E095A4;
+  --color-accent-subtle: rgba(197, 100, 115, 0.08);
+
+  /* 语义色 - 日本传统色 */
+  --color-info: #3D6896;
+  --color-success: #5E9F7E;
+  --color-warning: #A87A3D;
+  --color-error: #A64953;
+
+  /* ==================== 字体系统 ==================== */
+  
+  /* Sans - UI 主体 */
+  --font-sans: Inter, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  
+  /* Serif - 标题/长文 */
+  --font-serif: "Noto Serif CJK SC", "Source Han Serif", "SongTi SC", Georgia, serif;
+  
+  /* Mono - 代码 */
+  --font-mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
+
+  /* ==================== 间距系统 ==================== */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+
+  /* ==================== 圆角 ==================== */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+
+  /* ==================== 阴影 ==================== */
+  --shadow-whisper: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-float: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  /* ==================== 动画 ==================== */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  html {
+    font-size: 14px;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-neutral-9);
+    background: var(--color-neutral-1);
+    line-height: 1.55;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    color: var(--color-neutral-10);
+  }
+
+  code, pre {
+    font-family: var(--font-mono);
+  }
+
+  ::selection {
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-neutral-2);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-neutral-6);
+    border-radius: 3px;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .animate-fade-in {
+    animation: fade-in 0.25s var(--ease-out-expo);
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.25s var(--ease-out-expo);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

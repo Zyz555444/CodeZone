@@ -1,0 +1,335 @@
+import { Request, Response } from 'express';
+import { prisma } from '../lib/prisma';
+import { z } from 'zod';
+import { AuthRequest } from '../middleware/auth';
+
+const createProjectSchema = z.object({
+  name: z.string().min(1, '项目名称不能为空'),
+  description: z.string().optional(),
+  visibility: z.enum(['public', 'private']).default('private'),
+});
+
+export const getProjects = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const projects = await prisma.project.findMany({
+      where: {
+        OR: [
+          { ownerId: req.userId },
+          {
+            members: {
+              some: {
+                userId: req.userId,
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+          },
+        },
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            tasks: true,
+            members: true,
+            files: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({ projects });
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const createProject = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const body = createProjectSchema.parse(req.body);
+
+    const project = await prisma.project.create({
+      data: {
+        ...body,
+        ownerId: req.userId!,
+        members: {
+          create: {
+            userId: req.userId!,
+            role: 'OWNER',
+          },
+        },
+      },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+
+    res.status(201).json({ project });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: '验证失败', details: error.errors });
+      return;
+    }
+    throw error;
+  }
+};
+
+export const getProject = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const project = await prisma.project.findUnique({
+      where: { id },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+          },
+        },
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            tasks: true,
+            members: true,
+            files: true,
+            repositories: true,
+          },
+        },
+      },
+    });
+
+    if (!project) {
+      res.status(404).json({ error: '项目不存在' });
+      return;
+    }
+
+    // 检查权限
+    const member = await prisma.projectMember.findFirst({
+      where: {
+        projectId: id,
+        userId: req.userId,
+      },
+    });
+
+    const isOwner = project.ownerId === req.userId;
+    
+    if (!member && !isOwner && project.visibility === 'private') {
+      res.status(403).json({ error: '无权访问该项目' });
+      return;
+    }
+
+    res.json({ project });
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const updateProject = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const body = createProjectSchema.partial().parse(req.body);
+
+    // 检查是否是所有者
+    const project = await prisma.project.findUnique({
+      where: { id },
+    });
+
+    if (!project) {
+      res.status(404).json({ error: '项目不存在' });
+      return;
+    }
+
+    if (project.ownerId !== req.userId) {
+      res.status(403).json({ error: '无权修改项目' });
+      return;
+    }
+
+    const updatedProject = await prisma.project.update({
+      where: { id },
+      data: body,
+    });
+
+    res.json({ project: updatedProject });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: '验证失败', details: error.errors });
+      return;
+    }
+    throw error;
+  }
+};
+
+export const deleteProject = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const project = await prisma.project.findUnique({
+      where: { id },
+    });
+
+    if (!project) {
+      res.status(404).json({ error: '项目不存在' });
+      return;
+    }
+
+    if (project.ownerId !== req.userId) {
+      res.status(403).json({ error: '无权删除项目' });
+      return;
+    }
+
+    await prisma.project.delete({
+      where: { id },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getProjectMembers = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const members = await prisma.projectMember.findMany({
+      where: { projectId: id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            avatar: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    res.json({ members });
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const addMember = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { userId, role } = req.body;
+
+    if (!userId) {
+      res.status(400).json({ error: '用户 ID 不能为空' });
+      return;
+    }
+
+    // 检查项目是否存在
+    const project = await prisma.project.findUnique({
+      where: { id },
+    });
+
+    if (!project) {
+      res.status(404).json({ error: '项目不存在' });
+      return;
+    }
+
+    // 检查是否有权限
+    if (project.ownerId !== req.userId) {
+      res.status(403).json({ error: '无权添加成员' });
+      return;
+    }
+
+    // 添加成员
+    const member = await prisma.projectMember.create({
+      data: {
+        projectId: id,
+        userId,
+        role: role || 'MEMBER',
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+
+    res.status(201).json({ member });
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const removeMember = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id, userId } = req.params;
+
+    const project = await prisma.project.findUnique({
+      where: { id },
+    });
+
+    if (!project) {
+      res.status(404).json({ error: '项目不存在' });
+      return;
+    }
+
+    if (project.ownerId !== req.userId) {
+      res.status(403).json({ error: '无权移除成员' });
+      return;
+    }
+
+    // 不能移除所有者自己
+    if (userId === project.ownerId) {
+      res.status(400).json({ error: '不能移除项目所有者' });
+      return;
+    }
+
+    await prisma.projectMember.deleteMany({
+      where: {
+        projectId: id,
+        userId,
+      },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    throw error;
+  }
+};

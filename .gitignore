@@ -1,0 +1,40 @@
+# 生产环境
+node_modules/
+dist/
+.env
+.env.local
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 测试
+coverage/
+.jest/
+
+# 临时文件
+tmp/
+temp/
+.cache/
+
+# 构建产物
+.next/
+out/
+
+# Prisma
+prisma/migrations/
+
+# 日志
+logs/

@@ -1,0 +1,297 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  OWNER
+  MANAGER
+  MEMBER
+  GUEST
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+  BLOCKED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum FileType {
+  FILE
+  DIRECTORY
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String    @unique
+  password      String?
+  avatar        String?
+  bio           String?
+  role          UserRole  @default(MEMBER)
+  isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
+  emailVerified Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // 关系
+  ownedProjects    Project[]     @relation("ProjectOwner")
+  projectMembers   ProjectMember[]
+  assignedTasks    Task[]        @relation("AssignedTasks")
+  createdTasks     Task[]        @relation("CreatedTasks")
+  comments         Comment[]
+  reviews          CodeReview[]
+  reviewComments   ReviewComment[]
+  notifications    Notification[]
+  sessions         Session[]
+
+  @@index([email])
+  @@index([username])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  ipAddress    String?
+  userAgent    String?
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  avatar      String?
+  visibility  String   @default("private")
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 关系
+  owner        Owner           @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members      ProjectMember[]
+  tasks        Task[]
+  files        CodeFile[]
+  repositories Repository[]
+  reviews      CodeReview[]
+  activities   Activity[]
+
+  @@index([ownerId])
+  @@index([visibility])
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      UserRole @default(MEMBER)
+  joinedAt  DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+}
+
+model Repository {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  url       String?
+  provider  String   @default("internal")
+  branch    String   @default("main")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  commits Commit[]
+
+  @@index([projectId])
+  @@unique([projectId, name])
+}
+
+model Commit {
+  id           String   @id @default(cuid())
+  repositoryId String
+  hash         String
+  message      String
+  authorId     String
+  branch       String
+  timestamp    DateTime @default(now())
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@index([repositoryId])
+  @@index([hash])
+}
+
+model Task {
+  id          String      @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  status      TaskStatus  @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  assigneeId  String?
+  creatorId   String
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee     User?         @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  creator      User          @relation("CreatedTasks", fields: [creatorId], references: [id])
+  comments     Comment[]
+  subtasks     SubTask[]
+
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([status])
+}
+
+model SubTask {
+  id        String   @id @default(cuid())
+  taskId    String
+  title     String
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+model CodeFile {
+  id        String    @id @default(cuid())
+  projectId String
+  parentId  String?
+  name      String
+  path      String
+  type      FileType  @default(FILE)
+  content   String?
+  language  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  project  Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent   CodeFile?       @relation(fields: [parentId], references: [id])
+  children CodeFile[]      @relation("CodeFileHierarchy")
+
+  @@index([projectId])
+  @@index([path])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([userId])
+}
+
+model CodeReview {
+  id        String   @id @default(cuid())
+  projectId String
+  title     String
+  authorId  String
+  status    String   @default("open")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author       User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments     ReviewComment[]
+
+  @@index([projectId])
+  @@index([authorId])
+  @@index([status])
+}
+
+model ReviewComment {
+  id        String   @id @default(cuid())
+  reviewId  String
+  userId    String
+  fileId    String?
+  line      Int?
+  content   String
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  review CodeReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@index([userId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  content   String?
+  type      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  type      String
+  content   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([createdAt])
+}
+
+model Owner {
+  id   String  @id @default(cuid())
+  user User   @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  projects Project[] @relation("ProjectOwner")
+
+  @@index([id])
+}
