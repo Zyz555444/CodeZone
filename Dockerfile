@@ -9,9 +9,6 @@ RUN npm install
 COPY frontend/ ./
 RUN npm run build
 
-# 保留 node_modules 用于运行
-RUN cp -r node_modules /app/frontend/node_modules
-
 # 阶段2: 构建后端
 FROM node:26-alpine AS backend-builder
 
