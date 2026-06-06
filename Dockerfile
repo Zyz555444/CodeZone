@@ -9,6 +9,9 @@ RUN npm install
 COPY frontend/ ./
 RUN npm run build
 
+# 保留 node_modules 用于运行
+RUN cp -r node_modules /app/frontend/node_modules
+
 # 阶段2: 构建后端
 FROM node:26-alpine AS backend-builder
 
@@ -46,16 +49,19 @@ RUN npm install --omit=dev && \
 
 # 复制构建产物
 COPY --from=frontend-builder /app/frontend/.next ./
-COPY --from=backend-builder /app/backend/dist ./
-COPY --from=backend-builder /app/backend/node_modules/.prisma ./
-COPY --from=backend-builder /app/backend/node_modules/@prisma ./node_modules/@prisma
+COPY --from=frontend-builder /app/frontend/node_modules ./frontend/node_modules
+COPY --from=backend-builder /app/backend/dist ./backend/dist/
+COPY --from=backend-builder /app/backend/node_modules/.prisma ./backend/node_modules/.prisma
+COPY --from=backend-builder /app/backend/node_modules/@prisma ./backend/node_modules/@prisma
 COPY --from=backend-builder /app/backend/prisma ./backend/prisma/
 
 # 复制源代码（用于运行时）
 COPY backend/src ./backend/src/
 COPY frontend/src ./frontend/src/
-COPY frontend/next.config.js ./
-COPY frontend/next-env.d.ts ./
+COPY frontend/next.config.js ./frontend/
+COPY frontend/next-env.d.ts ./frontend/
+COPY frontend/package.json ./frontend/
+COPY frontend/.next ./frontend/.next
 
 EXPOSE 3000 4000
 
@@ -68,5 +74,5 @@ CMD ["sh", "-c", "\
     cd /app/backend && npx prisma db push --skip-generate; \
     echo 'Starting services...'; \
     node /app/backend/dist/index.js & \
-    node /app/frontend/node_modules/next/dist/bin/next start -p 3000 & \
+    cd /app/frontend && node node_modules/next/dist/bin/next start -p 3000 & \
     tail -f /dev/null"]
