@@ -61,7 +61,6 @@ COPY frontend/src ./frontend/src/
 COPY frontend/next.config.js ./frontend/
 COPY frontend/next-env.d.ts ./frontend/
 COPY frontend/package.json ./frontend/
-COPY frontend/.next ./frontend/.next
 
 EXPOSE 3000 4000
 
