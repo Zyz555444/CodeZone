@@ -46,7 +46,6 @@ RUN npm install --omit=dev && \
 
 # 复制构建产物
 COPY --from=frontend-builder /app/frontend/.next ./
-COPY --from=frontend-builder /app/frontend/public ./
 COPY --from=backend-builder /app/backend/dist ./
 COPY --from=backend-builder /app/backend/node_modules/.prisma ./
 COPY --from=backend-builder /app/backend/node_modules/@prisma ./node_modules/@prisma
