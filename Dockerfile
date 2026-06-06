@@ -14,8 +14,15 @@ RUN npm install
 
 COPY . .
 
-# 不需要构建，直接运行开发模式
+# 构建前端
+RUN cd frontend && npm run build
+
+# 生成 Prisma 客户端
+RUN cd backend && npx prisma generate
 
 EXPOSE 3000 4000
 
-CMD ["npm", "run", "dev"]
+# 生产模式
+ENV NODE_ENV=production
+
+CMD ["sh", "-c", "cd backend && npx prisma migrate deploy && npm run start"]
