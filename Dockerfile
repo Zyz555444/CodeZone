@@ -67,8 +67,6 @@ CMD ["sh", "-c", "\
     echo 'Database ready, running prisma db push...'; \
     cd /app/backend && npx prisma db push --skip-generate; \
     echo 'Starting services...'; \
-    # 启动后端
     node /app/backend/dist/index.js & \
-    # 启动前端
     node /app/frontend/node_modules/next/dist/bin/next start -p 3000 & \
-    wait"
+    tail -f /dev/null"]
