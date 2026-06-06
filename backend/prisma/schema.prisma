@@ -51,6 +51,7 @@ model User {
 
   // 关系
   ownedProjects    Project[]     @relation("ProjectOwner")
+  owner            Owner?
   projectMembers   ProjectMember[]
   assignedTasks    Task[]        @relation("AssignedTasks")
   createdTasks     Task[]        @relation("CreatedTasks")
@@ -90,7 +91,7 @@ model Project {
   updatedAt   DateTime @updatedAt
 
   // 关系
-  owner        Owner           @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  owner        User           @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members      ProjectMember[]
   tasks        Task[]
   files        CodeFile[]
@@ -199,7 +200,7 @@ model CodeFile {
   updatedAt DateTime  @updatedAt
 
   project  Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  parent   CodeFile?       @relation(fields: [parentId], references: [id])
+  parent   CodeFile?       @relation("CodeFileHierarchy", fields: [parentId], references: [id])
   children CodeFile[]      @relation("CodeFileHierarchy")
 
   @@index([projectId])
@@ -289,7 +290,7 @@ model Activity {
 
 model Owner {
   id   String  @id @default(cuid())
-  user User   @relation(fields: [id], references: [id], onDelete: Cascade)
+  user User    @relation(fields: [id], references: [id], onDelete: Cascade)
 
   projects Project[] @relation("ProjectOwner")
 
