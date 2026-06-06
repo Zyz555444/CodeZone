@@ -64,9 +64,11 @@ ENV NODE_ENV=production
 CMD ["sh", "-c", "\
     echo 'Waiting for database...'; \
     until nc -z postgres 5432; do sleep 2; done; \
-    cd backend && npx prisma db push; \
+    echo 'Database ready, running prisma db push...'; \
+    cd /app/backend && npx prisma db push --skip-generate; \
+    echo 'Starting services...'; \
     # 启动后端
-    node dist/index.js & \
+    node /app/backend/dist/index.js & \
     # 启动前端
-    cd /app && npm run start -w frontend & \
+    node /app/frontend/node_modules/next/dist/bin/next start -p 3000 & \
     wait"
