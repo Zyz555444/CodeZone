@@ -64,7 +64,7 @@ ENV NODE_ENV=production
 CMD ["sh", "-c", "\
     echo 'Waiting for database...'; \
     until nc -z postgres 5432; do sleep 2; done; \
-    cd backend && npx prisma migrate deploy; \
+    cd backend && npx prisma db push; \
     # 启动后端
     node dist/index.js & \
     # 启动前端
