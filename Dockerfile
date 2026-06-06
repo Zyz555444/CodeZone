@@ -3,7 +3,7 @@ FROM node:26-alpine
 WORKDIR /app
 
 # 安装必要的工具
-RUN apk add --no-cache git openssl nc
+RUN apk add --no-cache git openssl netcat-openbsd
 
 COPY package*.json ./
 COPY backend/package*.json ./backend/
