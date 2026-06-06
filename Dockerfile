@@ -17,6 +17,9 @@ COPY . .
 # 构建前端
 RUN cd frontend && npm run build
 
+# 构建后端
+RUN cd backend && npm run build
+
 # 生成 Prisma 客户端
 RUN cd backend && npx prisma generate
 
