@@ -65,4 +65,8 @@ CMD ["sh", "-c", "\
     echo 'Waiting for database...'; \
     until nc -z postgres 5432; do sleep 2; done; \
     cd backend && npx prisma migrate deploy; \
-    npm run start"]
+    # 启动后端
+    node dist/index.js & \
+    # 启动前端
+    cd /app && npm run start -w frontend & \
+    wait"

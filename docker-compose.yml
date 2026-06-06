@@ -10,6 +10,8 @@ services:
       - DATABASE_URL=postgresql://codezone:codezone_password@postgres:5432/codezone
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=dev-secret-key-change-in-production
+      - NEXT_PUBLIC_API_URL=http://localhost:4000/api
+      - NEXT_PUBLIC_WS_URL=ws://localhost:4000
     depends_on:
       - postgres
       - redis
