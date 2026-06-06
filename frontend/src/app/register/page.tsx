@@ -30,6 +30,7 @@ export default function RegisterPage() {
       const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, formData);
       const { user, token } = response.data;
       
+      document.cookie = `auth-token=${token}; path=/; max-age=${7 * 24 * 60 * 60}`;
       login(user, token);
       wsService.connect(token);
       
