@@ -1,39 +1,69 @@
+# 阶段1: 构建前端
+FROM node:26-alpine AS frontend-builder
+
+WORKDIR /app/frontend
+
+COPY frontend/package*.json ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build
+
+# 阶段2: 构建后端
+FROM node:26-alpine AS backend-builder
+
+WORKDIR /app/backend
+
+# 先复制依赖文件安装
+COPY backend/package*.json ./
+RUN npm ci
+
+COPY backend/tsconfig.json ./
+COPY backend/prisma ./prisma/
+RUN npx prisma generate
+
+COPY backend/src ./src/
+RUN npm run build
+
+# 阶段3: 运行
 FROM node:26-alpine
 
 WORKDIR /app
 
 # 安装必要的工具
-RUN apk add --no-cache git openssl netcat-openbsd
+RUN apk add --no-cache openssl netcat-openbsd
 
+# 复制 package.json
 COPY package*.json ./
-COPY backend/package*.json ./backend/
+
+# 复制并安装生产依赖
 COPY frontend/package*.json ./frontend/
+COPY backend/package*.json ./backend/
 
-# 安装所有依赖（包括 devDependencies）
-RUN npm install && cd backend && npm install
+RUN npm ci --omit=dev && \
+    cd frontend && npm ci --omit=dev && \
+    cd ../backend && npm ci --omit=dev
 
-COPY . .
+# 复制构建产物
+COPY --from=frontend-builder /app/frontend/.next ./
+COPY --from=frontend-builder /app/frontend/public ./
+COPY --from=backend-builder /app/backend/dist ./
+COPY --from=backend-builder /app/backend/node_modules/.prisma ./
+COPY --from=backend-builder /app/backend/node_modules/@prisma ./node_modules/@prisma
+COPY --from=backend-builder /app/backend/prisma ./backend/prisma/
 
-# 构建前端
-RUN cd frontend && npm run build
-
-# 构建后端
-RUN cd backend && npm run build
-
-# 生成 Prisma 客户端
-RUN cd backend && npx prisma generate
+# 复制源代码（用于运行时）
+COPY backend/src ./backend/src/
+COPY frontend/src ./frontend/src/
+COPY frontend/next.config.js ./
+COPY frontend/next-env.d.ts ./
 
 EXPOSE 3000 4000
 
-# 生产模式
 ENV NODE_ENV=production
-ENV NODE_OPTIONS="--openssl-legacy-provider"
 
-# 启动脚本：等待数据库就绪后再启动
 CMD ["sh", "-c", "\
     echo 'Waiting for database...'; \
     until nc -z postgres 5432; do sleep 2; done; \
-    echo 'Database ready, running migrations...'; \
     cd backend && npx prisma migrate deploy; \
-    echo 'Starting application...'; \
     npm run start"]
