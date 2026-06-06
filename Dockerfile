@@ -17,8 +17,8 @@ COPY . .
 # 构建前端
 RUN cd frontend && npm run build
 
-# 生成 Prisma 客户端（跳过数据库连接检查）
-RUN cd backend && npx prisma generate --skip-generate
+# 生成 Prisma 客户端
+RUN cd backend && npx prisma generate
 
 EXPOSE 3000 4000
 
