@@ -1,18 +1,22 @@
 # 阶段1: 构建前端
-FROM node:26-alpine AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
+ENV NODE_OPTIONS="--max-old-space-size=1024"
+
 COPY frontend/package*.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 COPY frontend/ ./
 RUN npm run build
 
 # 阶段2: 构建后端
-FROM node:26-alpine AS backend-builder
+FROM node:20-alpine AS backend-builder
 
 WORKDIR /app/backend
+
+ENV NODE_OPTIONS="--max-old-space-size=1024"
 
 # 先复制依赖文件安装
 COPY backend/package*.json ./
@@ -26,9 +30,11 @@ COPY backend/src ./src/
 RUN npm run build
 
 # 阶段3: 运行
-FROM node:26-alpine
+FROM node:20-alpine
 
 WORKDIR /app
+
+ENV NODE_OPTIONS="--max-old-space-size=512"
 
 # 安装必要的工具
 RUN apk add --no-cache openssl netcat-openbsd
