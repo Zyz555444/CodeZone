@@ -23,7 +23,7 @@ dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 10101;
 
 // 安全中间件配置
 app.use(helmet({
@@ -39,7 +39,7 @@ app.use(helmet({
 }));
 
 // CORS 配置
-const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
+const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:12321';
 app.use(cors({
   origin: corsOrigin,
   credentials: true,

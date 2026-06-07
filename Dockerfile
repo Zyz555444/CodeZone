@@ -164,8 +164,8 @@ FRONTEND_PID=$!
 
 echo "=========================================="
 echo "服务已启动:"
-echo "  - 前端: http://0.0.0.0:3000"
-echo "  - 后端: http://0.0.0.0:4000"
+echo "  - 前端: http://0.0.0.0:12321"
+echo "  - 后端: http://0.0.0.0:10101"
 echo "=========================================="
 
 # 等待子进程
@@ -175,11 +175,11 @@ EOF
 RUN chmod +x start.sh
 
 # 暴露端口
-EXPOSE 3000 4000
+EXPOSE 12321 10101
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:4000/health || exit 1
+    CMD curl -f http://localhost:10101/health || exit 1
 
 # 启动命令
 CMD ["./start.sh"]
