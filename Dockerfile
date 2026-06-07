@@ -23,6 +23,9 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
+# 安装 pnpm（Next.js 16 需要 pnpm 下载 SWC 包）
+RUN npm install -g pnpm
+
 # 限制内存使用
 ENV NODE_OPTIONS="--max-old-space-size=768"
 ENV NEXT_TELEMETRY_DISABLED=1
