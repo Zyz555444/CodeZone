@@ -87,7 +87,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=512"
 
 # 安装必要的系统工具
-RUN apk add --no-cache openssl netcat-openbsd curl
+RUN apk add --no-cache openssl netcat-openbsd curl psmisc
 
 # 创建非 root 用户
 RUN addgroup --system --gid 1001 nodejs && \
@@ -179,6 +179,13 @@ echo "=========================================="
 echo "CodeZone 服务启动脚本"
 echo "=========================================="
 
+# 清理占用端口的进程
+echo "清理端口..."
+for port in 10101 12321; do
+  fuser -k $port/tcp 2>/dev/null || true
+done
+sleep 2
+
 # 等待数据库
 until nc -z postgres 5432; do
   echo "等待 PostgreSQL..."
@@ -198,7 +205,8 @@ npx prisma db push --skip-generate --accept-data-loss || true
 
 echo "启动后端..."
 node dist/index.js &
-sleep 2
+BACKEND_PID=$!
+sleep 3
 
 echo "启动前端..."
 cd /app/frontend
