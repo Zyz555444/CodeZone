@@ -87,7 +87,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=512"
 
 # 安装必要的系统工具
-RUN apk add --no-cache openssl netcat-openbsd curl lsof
+RUN apk add --no-cache openssl netcat-openbsd curl lsof psmisc
 
 # 创建非 root 用户
 RUN addgroup --system --gid 1001 nodejs && \
@@ -203,8 +203,9 @@ echo "数据库已就绪"
 cd /app/backend
 npx prisma db push --skip-generate --accept-data-loss || true
 
+# 启动后端（使用 exec 成为主进程）
 echo "启动后端..."
-node dist/index.js &
+exec node dist/index.js
 BACKEND_PID=$!
 sleep 3
 
