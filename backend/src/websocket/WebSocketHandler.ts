@@ -7,9 +7,17 @@ interface AuthenticatedSocket extends Socket {
   projectId?: string;
 }
 
+// JWT Secret validation
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('JWT_SECRET must be configured in production');
+}
+const SECRET = JWT_SECRET || 'dev-secret-key-not-for-production';
+
 export class WebSocketHandler {
   private io: Server;
   private connectedUsers: Map<string, Set<string>> = new Map();
+  private readonly MAX_PROJECT_USERS = 100;
 
   constructor(io: Server) {
     this.io = io;
@@ -21,7 +29,7 @@ export class WebSocketHandler {
       this.handleConnection(socket);
     });
 
-    logger.info('WebSocket 服务已初始化');
+    logger.info('WebSocket service initialized');
   }
 
   private authenticate(socket: AuthenticatedSocket, next: (err?: Error) => void): void {
@@ -29,70 +37,142 @@ export class WebSocketHandler {
       const token = socket.handshake.auth.token || socket.handshake.query.token as string;
       
       if (!token) {
-        return next(new Error('认证 token 缺失'));
+        logger.warn('WebSocket authentication failed: token missing');
+        return next(new Error('Missing authentication token'));
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret-key') as { userId: string };
+      if (token.length < 10) {
+        logger.warn('WebSocket authentication failed: invalid token format');
+        return next(new Error('Invalid token format'));
+      }
+
+      const decoded = jwt.verify(token, SECRET) as { userId: string };
       socket.userId = decoded.userId;
       next();
     } catch (error) {
-      next(new Error('认证失败'));
+      if (error instanceof jwt.TokenExpiredError) {
+        logger.warn('WebSocket authentication failed: token expired');
+        return next(new Error('Token expired'));
+      }
+      logger.warn('WebSocket authentication failed', { error });
+      next(new Error('Authentication failed'));
     }
   }
 
   private handleConnection(socket: AuthenticatedSocket): void {
-    logger.info(`用户 ${socket.userId} 已连接 WebSocket`);
+    logger.info(`User ${socket.userId} connected to WebSocket`);
 
-    // 加入房间
+    const connectionTimeout = setTimeout(() => {
+      if (!socket.projectId) {
+        logger.warn(`User ${socket.userId} connection timeout`);
+        socket.disconnect(true);
+      }
+    }, 30000);
+
     socket.on('join-project', (projectId: string) => {
-      socket.join(`project:${projectId}`);
-      socket.projectId = projectId;
-      this.trackUser(socket.userId!, projectId);
-      this.broadcastOnlineUsers(projectId);
-      logger.info(`用户 ${socket.userId} 加入项目 ${projectId}`);
+      try {
+        const currentUsers = this.connectedUsers.get(projectId)?.size || 0;
+        if (currentUsers >= this.MAX_PROJECT_USERS) {
+          socket.emit('error', { message: 'Project user limit reached' });
+          return;
+        }
+
+        socket.join(`project:${projectId}`);
+        socket.projectId = projectId;
+        clearTimeout(connectionTimeout);
+        this.trackUser(socket.userId!, projectId);
+        this.broadcastOnlineUsers(projectId);
+        logger.info(`User ${socket.userId} joined project ${projectId}`);
+      } catch (error) {
+        logger.error('Error joining project', { error, userId: socket.userId, projectId });
+        socket.emit('error', { message: 'Failed to join project' });
+      }
     });
 
-    // 离开房间
     socket.on('leave-project', (projectId: string) => {
-      socket.leave(`project:${projectId}`);
-      this.untrackUser(socket.userId!, projectId);
-      this.broadcastOnlineUsers(projectId);
+      try {
+        socket.leave(`project:${projectId}`);
+        this.untrackUser(socket.userId!, projectId);
+        this.broadcastOnlineUsers(projectId);
+        logger.info(`User ${socket.userId} left project ${projectId}`);
+      } catch (error) {
+        logger.error('Error leaving project', { error, userId: socket.userId, projectId });
+      }
     });
 
-    // 代码协作事件
+    let lastCodeChange = 0;
     socket.on('code-change', (data: { projectId: string; fileId: string; content: string }) => {
-      socket.to(`project:${data.projectId}`).emit('code-change', data);
+      try {
+        const now = Date.now();
+        if (now - lastCodeChange < 100) return;
+        lastCodeChange = now;
+
+        if (!data.projectId || !data.fileId || typeof data.content !== 'string') return;
+        if (data.content.length > 100000) {
+          socket.emit('error', { message: 'Content too large' });
+          return;
+        }
+
+        socket.to(`project:${data.projectId}`).emit('code-change', {
+          ...data,
+          userId: socket.userId,
+        });
+      } catch (error) {
+        logger.error('Error handling code change', { error, userId: socket.userId });
+      }
     });
 
-    // 协作光标
+    let lastCursorMove = 0;
     socket.on('cursor-move', (data: { projectId: string; fileId: string; position: any }) => {
-      socket.to(`project:${data.projectId}`).emit('cursor-move', {
-        userId: socket.userId,
-        ...data,
-      });
+      try {
+        const now = Date.now();
+        if (now - lastCursorMove < 50) return;
+        lastCursorMove = now;
+
+        socket.to(`project:${data.projectId}`).emit('cursor-move', {
+          userId: socket.userId,
+          ...data,
+        });
+      } catch (error) {
+        logger.error('Error handling cursor move', { error, userId: socket.userId });
+      }
     });
 
-    // 聊天消息
     socket.on('send-message', (data: { projectId: string; content: string }) => {
-      this.io.to(`project:${data.projectId}`).emit('receive-message', {
-        userId: socket.userId,
-        content: data.content,
-        timestamp: new Date(),
-      });
+      try {
+        if (!data.content || typeof data.content !== 'string') return;
+
+        const trimmedContent = data.content.trim();
+        if (trimmedContent.length === 0 || trimmedContent.length > 2000) {
+          socket.emit('error', { message: 'Message must be 1-2000 characters' });
+          return;
+        }
+
+        this.io.to(`project:${data.projectId}`).emit('receive-message', {
+          userId: socket.userId,
+          content: trimmedContent,
+          timestamp: new Date(),
+        });
+      } catch (error) {
+        logger.error('Error handling message', { error, userId: socket.userId });
+      }
     });
 
-    // 断开连接
-    socket.on('disconnect', () => {
+    socket.on('error', (error) => {
+      logger.error('Socket error', { error, userId: socket.userId });
+    });
+
+    socket.on('disconnect', (reason) => {
+      clearTimeout(connectionTimeout);
       if (socket.projectId) {
         this.untrackUser(socket.userId!, socket.projectId);
         this.broadcastOnlineUsers(socket.projectId);
       }
-      logger.info(`用户 ${socket.userId} 断开 WebSocket 连接`);
+      logger.info(`User ${socket.userId} disconnected`, { reason });
     });
   }
 
   private trackUser(userId: string, projectId: string): void {
-    const key = `${projectId}:${userId}`;
     if (!this.connectedUsers.has(projectId)) {
       this.connectedUsers.set(projectId, new Set());
     }
@@ -114,12 +194,10 @@ export class WebSocketHandler {
     this.io.to(`project:${projectId}`).emit('online-users', { users });
   }
 
-  // 发送通知
   sendNotification(userId: string, data: any): void {
     this.io.to(`user:${userId}`).emit('notification', data);
   }
 
-  // 广播到项目
   broadcastToProject(projectId: string, event: string, data: any): void {
     this.io.to(`project:${projectId}`).emit(event, data);
   }

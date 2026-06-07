@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { wsService } from '@/lib/websocket';
 import { Send, Users, Smile } from 'lucide-react';
@@ -31,27 +31,36 @@ export function ChatRoom({ roomId, roomName, projectId }: ChatRoomProps) {
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // 存储回调函数引用以便正确移除
+  const messageCallbackRef = useRef<(data: any) => void>(() => {});
+  const onlineUsersCallbackRef = useRef<(data: any) => void>(() => {});
+
   useEffect(() => {
     if (!token) return;
 
     wsService.connect(token);
     wsService.joinProject(roomId);
 
-    wsService.onReceiveMessage((data) => {
+    // 定义回调函数并存储引用
+    messageCallbackRef.current = (data: any) => {
       setMessages((prev) => [...prev, {
         ...data,
         timestamp: new Date(data.timestamp),
       }]);
-    });
+    };
 
-    wsService.onOnlineUsers((data) => {
+    onlineUsersCallbackRef.current = (data: any) => {
       setOnlineUsers(data.users || []);
-    });
+    };
+
+    // 注册监听器
+    wsService.onReceiveMessage(messageCallbackRef.current);
+    wsService.onOnlineUsers(onlineUsersCallbackRef.current);
 
     return () => {
       wsService.leaveProject(roomId);
-      wsService.offReceiveMessage(() => {});
-      wsService.offOnlineUsers(() => {});
+      wsService.offReceiveMessage(messageCallbackRef.current);
+      wsService.offOnlineUsers(onlineUsersCallbackRef.current);
     };
   }, [roomId, token]);
 
