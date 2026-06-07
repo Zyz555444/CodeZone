@@ -87,7 +87,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=512"
 
 # 安装必要的系统工具
-RUN apk add --no-cache openssl netcat-openbsd curl psmisc
+RUN apk add --no-cache openssl netcat-openbsd curl lsof
 
 # 创建非 root 用户
 RUN addgroup --system --gid 1001 nodejs && \
@@ -182,7 +182,7 @@ echo "=========================================="
 # 清理占用端口的进程
 echo "清理端口..."
 for port in 10101 12321; do
-  fuser -k $port/tcp 2>/dev/null || true
+  lsof -ti:$port | xargs -r kill -9 2>/dev/null || true
 done
 sleep 2
 
