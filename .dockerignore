@@ -1,15 +1,85 @@
-node_modules
+# 依赖目录
+**/node_modules
+**/npm-debug.log
+**/yarn-debug.log
+**/yarn-error.log
+**/.pnpm-debug.log
+
+# 构建产物
+**/.next
+**/dist
+**/build
+**/out
+**/.nuxt
+
+# 源码控制
 .git
 .gitignore
+.gitattributes
+**/.git
+
+# 文档
 *.md
 README*
 LICENSE
-.dockerignore
+CHANGELOG
+CONTRIBUTING
+
+# Docker 相关
 Dockerfile
 docker-compose*
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+.dockerignore
+
+# 编辑器配置
+.vscode
+.idea
+*.swp
+*.swo
+*~
 .DS_Store
 Thumbs.db
+
+# 测试和开发
+**/.env.local
+**/.env.development
+**/.env.test
+**/coverage
+**/.nyc_output
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+
+# 日志
+*.log
+logs
+
+# 缓存
+.npm
+.pnpm-store
+.yarn/cache
+.parcel-cache
+.cache
+
+# 类型定义生成
+**/*.d.ts.map
+
+# Prisma 生成（会在容器中生成）
+backend/node_modules/.prisma
+
+# 前端开发文件
+frontend/.next
+frontend/node_modules
+frontend/out
+
+# 后端开发文件
+backend/dist
+backend/node_modules
+backend/coverage
+
+# 项目特定
+.github
+.github/workflows
+*.yml
+*.yaml
+!.yarnrc.yml

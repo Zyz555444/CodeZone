@@ -24,6 +24,20 @@ const app = express();
 const httpServer = createServer(app);
 const port = process.env.PORT || 4000;
 
+// Express 中间件配置
+app.use(helmet({
+  contentSecurityPolicy: false, // 允许前端加载资源
+}));
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+app.use(compression());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 // Socket.IO 初始化
 const io = new Server(httpServer, {
   cors: {
