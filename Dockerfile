@@ -179,11 +179,11 @@ echo "=========================================="
 echo "CodeZone 服务启动脚本"
 echo "=========================================="
 
-# 清理占用端口的进程
-echo "清理端口..."
-for port in 10101 12321; do
-  lsof -ti:$port | xargs -r kill -9 2>/dev/null || true
-done
+# 强制杀死所有 node 进程
+echo "清理所有 node 进程..."
+killall -9 node 2>/dev/null || true
+sleep 2
+pkill -9 node 2>/dev/null || true
 sleep 2
 
 # 等待数据库
