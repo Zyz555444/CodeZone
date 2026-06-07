@@ -122,7 +122,55 @@ COPY --from=backend-builder --chown=backend:nodejs /app/backend/prisma ./prisma
 # ============================================
 WORKDIR /app
 
-# 创建启动脚本
+# 创建后端启动脚本
+RUN cat > start-backend.sh << 'EOF'
+#!/bin/sh
+set -e
+
+echo "=========================================="
+echo "等待数据库就绪..."
+echo "=========================================="
+
+until nc -z postgres 5432; do
+  sleep 1
+done
+echo "PostgreSQL 已就绪"
+
+until nc -z redis 6379; do
+  sleep 1
+done
+echo "Redis 已就绪"
+
+echo "执行 Prisma 数据库同步..."
+npx prisma db push --skip-generate --accept-data-loss || true
+
+echo "=========================================="
+echo "启动后端 API 服务..."
+echo "=========================================="
+
+exec node dist/index.js
+EOF
+
+# 创建前端启动脚本
+RUN cat > start-frontend.sh << 'EOF'
+#!/bin/sh
+set -e
+
+echo "=========================================="
+echo "启动前端 Next.js 服务..."
+echo "=========================================="
+
+# 等待后端启动
+until nc -z localhost 10101; do
+  echo "等待后端就绪..."
+  sleep 1
+done
+
+echo "后端已就绪，启动前端..."
+exec node server.js
+EOF
+
+# 创建主启动脚本（使用后台进程管理）
 RUN cat > start.sh << 'EOF'
 #!/bin/sh
 set -e
@@ -131,66 +179,19 @@ echo "=========================================="
 echo "CodeZone 服务启动脚本"
 echo "=========================================="
 
-# 彻底清理残留进程
+# 清理所有可能的残留进程
 echo "清理残留进程..."
+killall -9 node 2>/dev/null || true
 pkill -9 -f "node" 2>/dev/null || true
-sleep 3
+sleep 2
 
-# 等待端口释放
-echo "等待端口释放..."
-for i in $(seq 1 10); do
-  if ! nc -z localhost 10101 2>/dev/null && ! nc -z localhost 12321 2>/dev/null; then
-    echo "端口已释放"
-    break
-  fi
-  echo "等待端口释放... ($i/10)"
-  sleep 1
-done
-
-# 等待数据库就绪
-echo "等待 PostgreSQL 就绪..."
-until nc -z postgres 5432; do
-  sleep 1
-done
-echo "PostgreSQL 已就绪"
-
-# 等待 Redis就绪
-echo "等待 Redis 就绪..."
-until nc -z redis 6379; do
-  sleep 1
-done
-echo "Redis 已就绪"
-
-# 执行数据库同步
-echo "执行 Prisma 数据库同步..."
+# 使用 supervisord 风格的进程管理
 cd /app/backend
-npx prisma db push --skip-generate --accept-data-loss || true
-
-# 启动后端服务（后台）
-echo "启动后端 API 服务..."
-cd /app/backend
-node dist/index.js &
+./start-backend.sh &
 BACKEND_PID=$!
 
-# 等待后端启动
-echo "等待后端启动..."
-sleep 3
-
-# 设置信号处理，确保后端进程能被终止
-cleanup() {
-  echo "正在停止服务..."
-  if kill -0 $BACKEND_PID 2>/dev/null; then
-    kill -TERM $BACKEND_PID 2>/dev/null || true
-    wait $BACKEND_PID 2>/dev/null || true
-  fi
-  exit 0
-}
-trap cleanup TERM INT
-
-# 启动前端服务（前台，作为主进程）
-echo "启动前端 Next.js 服务..."
 cd /app/frontend
-node server.js &
+./start-frontend.sh &
 FRONTEND_PID=$!
 
 echo "=========================================="
@@ -203,7 +204,7 @@ echo "=========================================="
 wait $BACKEND_PID $FRONTEND_PID
 EOF
 
-RUN chmod +x start.sh
+RUN chmod +x start.sh start-backend.sh start-frontend.sh
 
 # 暴露端口
 EXPOSE 12321 10101
