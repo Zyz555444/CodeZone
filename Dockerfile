@@ -170,7 +170,7 @@ echo "后端已就绪，启动前端..."
 exec node server.js
 EOF
 
-# 创建主启动脚本（使用后台进程管理）
+# 创建主启动脚本
 RUN cat > start.sh << 'EOF'
 #!/bin/sh
 set -e
@@ -179,20 +179,30 @@ echo "=========================================="
 echo "CodeZone 服务启动脚本"
 echo "=========================================="
 
-# 清理所有可能的残留进程
-echo "清理残留进程..."
-killall -9 node 2>/dev/null || true
-pkill -9 -f "node" 2>/dev/null || true
+# 等待数据库
+until nc -z postgres 5432; do
+  echo "等待 PostgreSQL..."
+  sleep 1
+done
+
+until nc -z redis 6379; do
+  echo "等待 Redis..."
+  sleep 1
+done
+
+echo "数据库已就绪"
+
+# 执行 Prisma 同步
+cd /app/backend
+npx prisma db push --skip-generate --accept-data-loss || true
+
+echo "启动后端..."
+node dist/index.js &
 sleep 2
 
-# 使用 supervisord 风格的进程管理
-cd /app/backend
-./start-backend.sh &
-BACKEND_PID=$!
-
+echo "启动前端..."
 cd /app/frontend
-./start-frontend.sh &
-FRONTEND_PID=$!
+node server.js &
 
 echo "=========================================="
 echo "服务已启动:"
@@ -200,11 +210,11 @@ echo "  - 前端: http://0.0.0.0:12321"
 echo "  - 后端: http://0.0.0.0:10101"
 echo "=========================================="
 
-# 等待任一进程结束
-wait $BACKEND_PID $FRONTEND_PID
+# 保持脚本运行
+tail -f /dev/null
 EOF
 
-RUN chmod +x start.sh start-backend.sh start-frontend.sh
+RUN chmod +x start.sh
 
 # 暴露端口
 EXPOSE 12321 10101
