@@ -203,15 +203,38 @@ echo "数据库已就绪"
 cd /app/backend
 npx prisma db push --skip-generate --accept-data-loss || true
 
-# 启动后端（使用 exec 成为主进程）
+# 启动后端
 echo "启动后端..."
-exec node dist/index.js
+node dist/index.js > /tmp/backend.log 2>&1 &
 BACKEND_PID=$!
-sleep 3
+echo "后端 PID: $BACKEND_PID"
 
+# 等待后端启动
+echo "等待后端就绪..."
+for i in $(seq 1 30); do
+  if nc -z localhost 10101; then
+    echo "后端已就绪"
+    break
+  fi
+  sleep 1
+done
+
+# 启动前端
 echo "启动前端..."
 cd /app/frontend
-node server.js &
+node server.js > /tmp/frontend.log 2>&1 &
+FRONTEND_PID=$!
+echo "前端 PID: $FRONTEND_PID"
+
+# 等待前端启动
+echo "等待前端就绪..."
+for i in $(seq 1 30); do
+  if nc -z localhost 12321; then
+    echo "前端已就绪"
+    break
+  fi
+  sleep 1
+done
 
 echo "=========================================="
 echo "服务已启动:"
@@ -219,8 +242,8 @@ echo "  - 前端: http://0.0.0.0:12321"
 echo "  - 后端: http://0.0.0.0:10101"
 echo "=========================================="
 
-# 保持脚本运行
-tail -f /dev/null
+# 保持脚本运行，监控进程
+wait
 EOF
 
 RUN chmod +x start.sh
