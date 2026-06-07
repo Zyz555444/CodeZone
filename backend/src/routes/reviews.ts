@@ -1,4 +1,3 @@
-import express from 'express';
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
 import { getReviews, createReview, updateReview } from '../controllers/reviewController';
@@ -6,8 +5,9 @@ import { getReviews, createReview, updateReview } from '../controllers/reviewCon
 const router = Router();
 router.use(authenticate);
 
-router.get('/reviews', getReviews);
-router.post('/reviews', createReview);
-router.patch('/reviews/:id', updateReview);
+// 注意：这些路由会被挂载到 /api/reviews，所以这里不需要 /reviews 前缀
+router.get('/', getReviews);
+router.post('/', createReview);
+router.patch('/:id', updateReview);
 
 export default router;

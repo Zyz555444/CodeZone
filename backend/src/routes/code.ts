@@ -1,4 +1,3 @@
-import express from 'express';
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
 import { getFiles, getFile, updateFile, getFilesTree } from '../controllers/codeController';

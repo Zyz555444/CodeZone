@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
 import { useTheme } from 'next-themes';
 import { wsService } from '@/lib/websocket';
-import { cn } from '@/lib/utils';
 
 interface CodeEditorProps {
   projectId: string;
@@ -23,6 +22,28 @@ interface RemoteCursor {
     lineNumber: number;
     column: number;
   };
+}
+
+interface CodeChangeData {
+  projectId: string;
+  fileId: string;
+  content: string;
+  userId: string;
+}
+
+interface CursorMoveData {
+  projectId: string;
+  fileId: string;
+  position: {
+    lineNumber: number;
+    column: number;
+  };
+  userId: string;
+  userName?: string;
+}
+
+interface OnlineUsersData {
+  users: string[];
 }
 
 const COLORS = [
@@ -45,31 +66,42 @@ export function CodeEditor({
   height = '600px',
 }: CodeEditorProps) {
   const { theme } = useTheme();
-  const editorRef = useRef<any>(null);
+  const editorRef = useRef<unknown>(null);
   const [content, setContent] = useState(initialContent);
   const [remoteCursors, setRemoteCursors] = useState<RemoteCursor[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
 
+  // 存储回调函数引用以便正确移除
+  const codeChangeCallbackRef = useRef<(data: CodeChangeData) => void>(() => {});
+  const cursorMoveCallbackRef = useRef<(data: CursorMoveData) => void>(() => {});
+  const onlineUsersCallbackRef = useRef<(data: OnlineUsersData) => void>(() => {});
+
+  const getCurrentUserId = useCallback(() => {
+    // TODO: 从 auth store 获取当前用户 ID
+    return 'current-user';
+  }, []);
+
   useEffect(() => {
     wsService.joinProject(projectId);
 
-    wsService.onCodeChange((data) => {
+    // 定义回调函数并存储引用
+    codeChangeCallbackRef.current = (data: CodeChangeData) => {
       if (data.fileId === fileId && editorRef.current) {
         // 忽略自己的更改
         if (data.userId !== getCurrentUserId()) {
           setContent(data.content);
         }
       }
-    });
+    };
 
-    wsService.onCursorMove((data) => {
+    cursorMoveCallbackRef.current = (data: CursorMoveData) => {
       if (data.fileId === fileId && data.userId !== getCurrentUserId()) {
         setRemoteCursors((prev) => {
           const existing = prev.findIndex((c) => c.userId === data.userId);
-          const newCursor = {
+          const newCursor: RemoteCursor = {
             userId: data.userId,
             userName: data.userName || '用户',
-            color: COLORS[parseInt(data.userId.slice(-1), 16) % COLORS.length],
+            color: COLORS[parseInt(data.userId.slice(-1) || '0', 16) % COLORS.length],
             position: data.position,
           };
 
@@ -81,19 +113,24 @@ export function CodeEditor({
           return [...prev, newCursor];
         });
       }
-    });
+    };
 
-    wsService.onOnlineUsers((data) => {
+    onlineUsersCallbackRef.current = (data: OnlineUsersData) => {
       setOnlineUsers(data.users || []);
-    });
+    };
+
+    // 注册监听器
+    wsService.onCodeChange(codeChangeCallbackRef.current);
+    wsService.onCursorMove(cursorMoveCallbackRef.current);
+    wsService.onOnlineUsers(onlineUsersCallbackRef.current);
 
     return () => {
       wsService.leaveProject(projectId);
-      wsService.offCodeChange(() => {});
-      wsService.offCursorMove(() => {});
-      wsService.offOnlineUsers(() => {});
+      wsService.offCodeChange(codeChangeCallbackRef.current);
+      wsService.offCursorMove(cursorMoveCallbackRef.current);
+      wsService.offOnlineUsers(onlineUsersCallbackRef.current);
     };
-  }, [projectId, fileId]);
+  }, [projectId, fileId, getCurrentUserId]);
 
   const handleEditorMount: OnMount = (editor) => {
     editorRef.current = editor;
@@ -119,11 +156,6 @@ export function CodeEditor({
       fileId,
       content: newContent,
     });
-  };
-
-  const getCurrentUserId = () => {
-    // TODO: 从 auth store 获取当前用户 ID
-    return 'current-user';
   };
 
   return (
@@ -182,19 +214,17 @@ export function CodeEditor({
               key={userId}
               className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-white"
               style={{
-                backgroundColor: COLORS[parseInt(userId.slice(-1), 16) % COLORS.length],
-                zIndex: index,
+                backgroundColor: COLORS[index % COLORS.length],
               }}
             >
               {userId.slice(0, 2).toUpperCase()}
             </div>
           ))}
         </div>
-        {onlineUsers.length > 0 && (
-          <span className="text-xs text-muted-foreground">
-            {onlineUsers.length} 人在线
-          </span>
+        {onlineUsers.length > 5 && (
+          <span className="text-xs text-neutral-6">+{onlineUsers.length - 5}</span>
         )}
+        <span className="text-xs text-neutral-6">{onlineUsers.length} 在线</span>
       </div>
     </div>
   );

@@ -1,4 +1,3 @@
-import express from 'express';
 import { Router } from 'express';
 import { login, register, logout, getCurrentUser } from '../controllers/authController';
 import { authenticate } from '../middleware/auth';
