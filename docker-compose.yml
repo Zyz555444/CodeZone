@@ -14,10 +14,10 @@ services:
       - "12321:12321"
       - "10101:10101"
     environment:
-      # 数据库配置（host 模式使用 localhost）
-      - DATABASE_URL=postgresql://codezone:codezone_password@127.0.0.1:5432/codezone
-      # Redis 配置（host 模式使用 localhost）
-      - REDIS_URL=redis://127.0.0.1:6379
+      # 数据库配置
+      - DATABASE_URL=postgresql://codezone:codezone_password@postgres:5432/codezone
+      # Redis 配置
+      - REDIS_URL=redis://redis:6379
       # JWT 配置
       - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
       - JWT_EXPIRES_IN=7d
@@ -37,8 +37,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    network_mode: host
+    networks:
+      - codezone-network
     restart: unless-stopped
+    init: true
     # 资源限制
     deploy:
       resources:
@@ -61,7 +63,6 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: codezone-postgres
-    network_mode: host
     environment:
       - POSTGRES_USER=codezone
       - POSTGRES_PASSWORD=codezone_password
@@ -69,6 +70,8 @@ services:
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - codezone-network
     restart: unless-stopped
     # 资源限制
     deploy:
@@ -92,10 +95,11 @@ services:
   redis:
     image: redis:7-alpine
     container_name: codezone-redis
-    network_mode: host
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
+    networks:
+      - codezone-network
     restart: unless-stopped
     # 资源限制
     deploy:
