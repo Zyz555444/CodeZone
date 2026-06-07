@@ -98,7 +98,7 @@ export function CodeEditor({
   const handleEditorMount: OnMount = (editor) => {
     editorRef.current = editor;
 
-    editor.onDidChangeCursorPosition((e) => {
+    editor.onDidChangeCursorPosition((e: { position: { lineNumber: number; column: number } }) => {
       wsService.sendCursorMove({
         projectId,
         fileId,
