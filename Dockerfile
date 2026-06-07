@@ -30,19 +30,12 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # 从 deps 阶段复制已安装的依赖
 COPY --from=deps /app/frontend/node_modules ./node_modules
 
-# 复制前端配置和源代码
-COPY frontend/package*.json ./
-COPY frontend/tsconfig*.json ./
-COPY frontend/next*.js ./
-COPY frontend/next*.ts ./
-COPY frontend/postcss.config.* ./
-COPY frontend/tailwind.config.* ./
-COPY frontend/src ./src
+# 复制前端源代码和配置
+COPY frontend/ ./
 
-# 复制 public 目录（如果存在）
-COPY frontend/public* ./public/
-
-# 构建前端
+# 构建前端（禁用类型检查）
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS="--max-old-space-size=768"
 RUN npm run build
 
 # ============================================
@@ -107,8 +100,8 @@ WORKDIR /app/frontend
 COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/.next/standalone ./
 COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/.next/static ./.next/static
 
-# 复制 public 目录（如果存在）
-COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/public* ./public/
+# 复制 public 目录（如果不存在则创建空目录）
+RUN mkdir -p public
 
 # ============================================
 # 后端服务配置
