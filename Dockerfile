@@ -39,8 +39,11 @@ COPY frontend/next*.js ./
 COPY frontend/next*.ts ./
 COPY frontend/postcss.config.* ./
 COPY frontend/tailwind.config.* ./
-COPY frontend/public ./public
 COPY frontend/src ./src
+
+# 如果有 public 目录则复制（可选）
+RUN mkdir -p public
+COPY frontend/public ./public 2>/dev/null || true
 
 # 构建前端
 RUN --mount=type=cache,target=/app/frontend/.next/cache \
@@ -104,7 +107,10 @@ WORKDIR /app/frontend
 # 从构建阶段复制前端产物（standalone 模式）
 COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/.next/standalone ./
 COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/.next/static ./.next/static
-COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/public ./public
+
+# 如果有 public 目录则复制（可选）
+RUN mkdir -p public
+COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/public ./public 2>/dev/null || true
 
 # ============================================
 # 后端服务配置
