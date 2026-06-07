@@ -3,7 +3,6 @@
 # ============================================
 FROM node:20-alpine AS deps
 
-# 设置工作目录
 WORKDIR /app
 
 # 只安装必要的系统依赖
@@ -13,9 +12,8 @@ RUN apk add --no-cache libc6-compat
 COPY frontend/package*.json ./frontend/
 COPY backend/package*.json ./backend/
 
-# 安装依赖（使用缓存挂载）
-RUN --mount=type=cache,target=/root/.npm \
-    cd frontend && npm install --legacy-peer-deps && \
+# 安装依赖
+RUN cd frontend && npm install --legacy-peer-deps && \
     cd ../backend && npm install
 
 # ============================================
@@ -41,13 +39,11 @@ COPY frontend/postcss.config.* ./
 COPY frontend/tailwind.config.* ./
 COPY frontend/src ./src
 
-# 如果有 public 目录则复制（可选）
-RUN mkdir -p public
-COPY frontend/public ./public 2>/dev/null || true
+# 复制 public 目录（如果存在）
+COPY frontend/public* ./public/
 
 # 构建前端
-RUN --mount=type=cache,target=/app/frontend/.next/cache \
-    npm run build
+RUN npm run build
 
 # ============================================
 # 阶段3: 后端构建
@@ -79,6 +75,9 @@ COPY backend/src ./src/
 # 构建后端
 RUN npm run build
 
+# 清理开发依赖
+RUN npm prune --production
+
 # ============================================
 # 阶段4: 生产镜像
 # ============================================
@@ -108,17 +107,16 @@ WORKDIR /app/frontend
 COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/.next/standalone ./
 COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/.next/static ./.next/static
 
-# 如果有 public 目录则复制（可选）
-RUN mkdir -p public
-COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/public ./public 2>/dev/null || true
+# 复制 public 目录（如果存在）
+COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/public* ./public/
 
 # ============================================
 # 后端服务配置
 # ============================================
 WORKDIR /app/backend
 
-# 复制生产依赖
-COPY --from=deps --chown=backend:nodejs /app/backend/node_modules ./node_modules
+# 复制生产依赖和构建产物
+COPY --from=backend-builder --chown=backend:nodejs /app/backend/node_modules ./node_modules
 COPY --from=backend-builder --chown=backend:nodejs /app/backend/dist ./dist
 COPY --from=backend-builder --chown=backend:nodejs /app/backend/node_modules/.prisma ./node_modules/.prisma
 COPY --from=backend-builder --chown=backend:nodejs /app/backend/prisma ./prisma
@@ -151,7 +149,7 @@ until nc -z redis 6379; do
 done
 echo "Redis 已就绪"
 
-# 执行数据库迁移
+# 执行数据库同步
 echo "执行 Prisma 数据库同步..."
 cd /app/backend
 npx prisma db push --skip-generate --accept-data-loss || true
