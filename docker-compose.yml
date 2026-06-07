@@ -6,9 +6,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      # BuildKit 并行构建优化
-      additional_contexts:
-        - cache=/tmp/docker-cache
       args:
         - BUILDKIT_INLINE_CACHE=1
     image: codezone:latest
