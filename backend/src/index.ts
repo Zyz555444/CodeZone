@@ -181,7 +181,10 @@ process.on('SIGINT', () => {
 });
 
 // 启动服务器
-httpServer.listen(port, '0.0.0.0', () => {
+httpServer.listen({
+  port: Number(port),
+  host: '0.0.0.0',
+}, () => {
   logger.info(`CodeZone Backend started`, {
     port,
     host: '0.0.0.0',
