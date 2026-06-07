@@ -131,6 +131,12 @@ echo "=========================================="
 echo "CodeZone 服务启动脚本"
 echo "=========================================="
 
+# 清理可能残留的进程
+echo "清理残留进程..."
+pkill -f "node dist/index.js" 2>/dev/null || true
+pkill -f "node server.js" 2>/dev/null || true
+sleep 2
+
 # 等待数据库就绪
 echo "等待 PostgreSQL 就绪..."
 until nc -z postgres 5432; do
@@ -138,7 +144,7 @@ until nc -z postgres 5432; do
 done
 echo "PostgreSQL 已就绪"
 
-# 等待 Redis 就绪
+# 等待 Redis就绪
 echo "等待 Redis 就绪..."
 until nc -z redis 6379; do
   sleep 1
