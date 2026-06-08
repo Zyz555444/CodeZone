@@ -41,6 +41,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=512"
+ENV PORT=12321
 
 RUN apk add --no-cache curl
 
