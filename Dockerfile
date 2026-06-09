@@ -48,11 +48,15 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=512"
 ENV PORT=12321
+ENV NEXT_PUBLIC_API_URL=/api
+ENV NEXT_PUBLIC_WS_URL=ws://backend:10101
 
 RUN apk add --no-cache curl
 
 COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/.next/standalone ./
 COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/.next/static ./.next/static
+COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/next.config.js ./
+COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/package.json ./
 RUN mkdir -p public
 
 EXPOSE 12321
