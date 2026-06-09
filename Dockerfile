@@ -94,7 +94,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=512"
 
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl openssl
 
 COPY --from=backend-builder --chown=nodejs:nodejs /app/backend/node_modules ./node_modules
 COPY --from=backend-builder --chown=nodejs:nodejs /app/backend/dist ./dist
