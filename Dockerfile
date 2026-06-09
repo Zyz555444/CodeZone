@@ -18,6 +18,12 @@ RUN cd frontend && npm install --legacy-peer-deps && \
 # ============================================
 FROM node:20-alpine AS frontend-builder
 
+ARG NEXT_PUBLIC_API_URL=/api
+ARG NEXT_PUBLIC_WS_URL=ws://localhost:10101
+
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
+
 WORKDIR /app/frontend
 
 RUN npm install -g pnpm

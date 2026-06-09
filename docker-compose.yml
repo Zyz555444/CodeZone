@@ -7,6 +7,9 @@ services:
       context: .
       dockerfile: Dockerfile
       target: frontend
+      args:
+        - NEXT_PUBLIC_API_URL=/api
+        - NEXT_PUBLIC_WS_URL=ws://backend:10101
     image: codezone:frontend
     container_name: codezone-frontend
     ports:
@@ -14,8 +17,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=12321
-      - NEXT_PUBLIC_API_URL=http://localhost/api
-      - NEXT_PUBLIC_WS_URL=ws://localhost:10101
+      - NEXT_PUBLIC_API_URL=/api
+      - NEXT_PUBLIC_WS_URL=ws://backend:10101
     depends_on:
       backend:
         condition: service_started
