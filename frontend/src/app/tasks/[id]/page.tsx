@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import axios from 'axios';
+import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
@@ -74,12 +74,7 @@ export default function TaskDetailPage() {
 
   const fetchTask = async () => {
     try {
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/tasks/${params.id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const response = await api.get(`/tasks/${params.id}`);
       setTask(response.data.task);
     } catch (error) {
       console.error('获取任务失败:', error);
@@ -119,10 +114,9 @@ export default function TaskDetailPage() {
     if (!newComment.trim() || !task) return;
     
     try {
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/tasks/${task.id}/comments`,
-        { content: newComment },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await api.post(
+        `/tasks/${task.id}/comments`,
+        { content: newComment }
       );
       fetchTask();
       setNewComment('');

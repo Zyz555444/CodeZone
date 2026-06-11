@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import axios from 'axios';
+import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { Header } from '@/components/Header';
@@ -41,9 +41,7 @@ export default function ProjectsPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/projects`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await api.get('/projects');
       setProjects(response.data.projects);
     } catch (error) {
       console.error('获取项目失败:', error);

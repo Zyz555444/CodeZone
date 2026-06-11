@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
+import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
@@ -28,13 +28,7 @@ export default function NewProjectPage() {
     setError('');
 
     try {
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/projects`,
-        formData,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const response = await api.post('/projects', formData);
       router.push(`/projects/${response.data.project.id}`);
     } catch (err: any) {
       setError(err.response?.data?.error || '创建项目失败');

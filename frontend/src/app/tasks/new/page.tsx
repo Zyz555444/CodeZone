@@ -2,7 +2,7 @@
 
 import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import axios from 'axios';
+import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
@@ -32,13 +32,7 @@ function NewTaskForm() {
     setError('');
 
     try {
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/tasks`,
-        formData,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await api.post('/tasks', formData);
       router.push('/tasks');
       router.refresh();
     } catch (err: any) {

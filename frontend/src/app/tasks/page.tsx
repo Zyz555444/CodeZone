@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import axios from 'axios';
+import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
@@ -55,11 +55,8 @@ function TasksContent() {
 
   const fetchTasks = async () => {
     try {
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/tasks${projectId ? `?projectId=${projectId}` : ''}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+      const response = await api.get(
+        `/tasks${projectId ? `?projectId=${projectId}` : ''}`
       );
       let filteredTasks = response.data.tasks || [];
       
@@ -83,11 +80,7 @@ function TasksContent() {
 
   const handleStatusChange = async (taskId: string, newStatus: Task['status']) => {
     try {
-      await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL}/tasks/${taskId}`,
-        { status: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.patch(`/tasks/${taskId}`, { status: newStatus });
       fetchTasks();
     } catch (error) {
       console.error('更新任务状态失败:', error);

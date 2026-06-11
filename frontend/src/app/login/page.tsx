@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import axios from 'axios';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -26,7 +26,7 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, formData);
+      const response = await api.post('/auth/login', formData);
       const { user, token } = response.data;
       
       document.cookie = `auth-token=${token}; path=/; max-age=${7 * 24 * 60 * 60}`;
