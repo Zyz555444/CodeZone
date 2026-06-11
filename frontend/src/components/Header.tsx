@@ -22,7 +22,10 @@ export function Header() {
   useEffect(() => {
     if (!user) return;
 
-    const handleConnect = () => setConnected(true);
+    const handleConnect = () => {
+      setConnected(true);
+      setOnlineCount(0);
+    };
     const handleDisconnect = () => setConnected(false);
     const handleOnlineUsers = (data: { count: number }) => setOnlineCount(data.count);
 
