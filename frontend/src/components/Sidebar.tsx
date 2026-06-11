@@ -92,24 +92,6 @@ export function Sidebar() {
             );
           })}
         </nav>
-
-        {/* Bottom Section */}
-        <div className="border-t border-neutral-5 pt-4 mt-4">
-          <div className="rounded-xl bg-neutral-2 p-4">
-            <h4 className="font-serif text-sm font-medium text-neutral-10 mb-2">
-              升级到 Pro
-            </h4>
-            <p className="text-xs text-neutral-7 mb-3">
-              解锁更多功能和无限制使用
-            </p>
-            <Link
-              href="/pricing"
-              className="block text-center text-xs text-accent hover:underline"
-            >
-              查看方案 →
-            </Link>
-          </div>
-        </div>
       </div>
     </aside>
   );

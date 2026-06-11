@@ -56,6 +56,18 @@ class WebSocketService {
     this.socket?.emit('send-message', data);
   }
 
+  get socket(): Socket | null {
+    return this.socket;
+  }
+
+  on(event: string, callback: (...args: any[]) => void): void {
+    this.socket?.on(event, callback);
+  }
+
+  off(event: string, callback: (...args: any[]) => void): void {
+    this.socket?.off(event, callback);
+  }
+
   onOnlineUsers(callback: (data: any) => void): void {
     this.socket?.on('online-users', callback);
   }

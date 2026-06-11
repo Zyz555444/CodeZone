@@ -1,58 +1,67 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
+import { useProjectStore } from '@/stores/projectStore';
+import { useWebSocketStore } from '@/stores/websocketStore';
 import { Button } from '@/components/ui/Button';
-import { Moon, Sun, LogOut, User, Menu, X } from 'lucide-react';
+import { Moon, Sun, LogOut, User, Menu, X, Wifi, WifiOff, Users } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { cn } from '@/lib/utils';
+import { wsService } from '@/lib/websocket';
 
 export function Header() {
   const { user, logout } = useAuthStore();
+  const { currentProject } = useProjectStore();
+  const { isConnected, onlineCount, setConnected, setOnlineCount } = useWebSocketStore();
   const { setTheme, theme } = useTheme();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
+  useEffect(() => {
+    if (!user) return;
+
+    const handleConnect = () => setConnected(true);
+    const handleDisconnect = () => setConnected(false);
+    const handleOnlineUsers = (data: { count: number }) => setOnlineCount(data.count);
+
+    wsService.on('connect', handleConnect);
+    wsService.on('disconnect', handleDisconnect);
+    wsService.on('online-users', handleOnlineUsers);
+
+    if (wsService.socket?.connected) {
+      setConnected(true);
+    }
+
+    return () => {
+      wsService.off('connect', handleConnect);
+      wsService.off('disconnect', handleDisconnect);
+      wsService.off('online-users', handleOnlineUsers);
+    };
+  }, [user, setConnected, setOnlineCount]);
+
   const handleLogout = () => {
+    wsService.disconnect();
     logout();
   };
-
-  const navItems = [
-    { href: '/dashboard', label: '仪表板' },
-    { href: '/projects', label: '项目' },
-    { href: '/tasks', label: '任务' },
-    { href: '/code', label: '代码' },
-    { href: '/reviews', label: '审查' },
-  ];
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-neutral-5 bg-neutral-1/80 backdrop-blur-md">
       <div className="container mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-        {/* Logo */}
+        {/* Left: Logo */}
         <div className="flex items-center gap-6">
           <Link href="/" className="font-serif text-xl font-medium tracking-tight">
             CodeZone
           </Link>
-          
-          {user && (
-            <nav className="hidden md:flex items-center gap-1">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "px-3 py-2 text-sm rounded-lg transition-colors",
-                    pathname === item.href
-                      ? "bg-neutral-2 text-neutral-10 font-medium"
-                      : "text-neutral-7 hover:text-neutral-9 hover:bg-neutral-2"
-                  )}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
+        </div>
+
+        {/* Center: Team/Project Name */}
+        <div className="hidden md:flex items-center justify-center flex-1">
+          {user && currentProject && (
+            <span className="text-sm font-medium text-neutral-7">
+              {currentProject.name}
+            </span>
           )}
         </div>
 
@@ -60,6 +69,22 @@ export function Header() {
         <div className="flex items-center gap-2">
           {user ? (
             <>
+              {/* WebSocket Status */}
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-neutral-2">
+                {isConnected ? (
+                  <Wifi className="h-3.5 w-3.5 text-green-6" />
+                ) : (
+                  <WifiOff className="h-3.5 w-3.5 text-neutral-5" />
+                )}
+                <span className="text-xs text-neutral-7">
+                  {isConnected ? '已连接' : '未连接'}
+                </span>
+                <div className="flex items-center gap-1 ml-1 border-l border-neutral-4 pl-1">
+                  <Users className="h-3.5 w-3.5 text-neutral-6" />
+                  <span className="text-xs text-neutral-7">{onlineCount}</span>
+                </div>
+              </div>
+
               {/* Theme Toggle */}
               <Button
                 variant="ghost"
@@ -112,29 +137,6 @@ export function Header() {
           )}
         </div>
       </div>
-
-      {/* Mobile Menu */}
-      {mobileMenuOpen && user && (
-        <div className="md:hidden border-t border-neutral-5 bg-neutral-1 px-4 py-4 animate-slide-up">
-          <nav className="flex flex-col gap-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className={cn(
-                  "px-3 py-2.5 text-sm rounded-lg transition-colors",
-                  pathname === item.href
-                    ? "bg-neutral-2 text-neutral-10 font-medium"
-                    : "text-neutral-7 hover:text-neutral-9 hover:bg-neutral-2"
-                )}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      )}
     </header>
   );
 }
