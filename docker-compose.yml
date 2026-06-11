@@ -44,7 +44,7 @@ services:
     ports:
       - "10101:10101"
     environment:
-      - DATABASE_URL=postgresql://codezone:codezone_password@postgres:5432/codezone
+      - DATABASE_URL=postgresql://${DB_USER:-codezone}:${DB_PASSWORD:-codezone_password}@postgres:5432/${DB_NAME:-codezone}
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
       - JWT_EXPIRES_IN=7d
@@ -73,9 +73,9 @@ services:
     image: postgres:15-alpine
     container_name: codezone-postgres
     environment:
-      - POSTGRES_USER=codezone
-      - POSTGRES_PASSWORD=codezone_password
-      - POSTGRES_DB=codezone
+      - POSTGRES_USER=${DB_USER:-codezone}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-codezone_password}
+      - POSTGRES_DB=${DB_NAME:-codezone}
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -83,7 +83,7 @@ services:
       - codezone-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U codezone -d codezone"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-codezone} -d ${DB_NAME:-codezone}"]
       interval: 10s
       timeout: 5s
       retries: 5
