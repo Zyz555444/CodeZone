@@ -13,17 +13,26 @@ class WebSocketService {
       return;
     }
 
+    console.log('[WebSocket] 正在连接...', this.url);
+
     this.socket = io(this.url, {
       auth: { token },
       transports: ['websocket'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
 
     this.socket.on('connect', () => {
       console.log('[WebSocket] 已连接');
     });
 
-    this.socket.on('disconnect', () => {
-      console.log('[WebSocket] 已断开');
+    this.socket.on('connect_error', (error) => {
+      console.error('[WebSocket] 连接错误:', error.message);
+    });
+
+    this.socket.on('disconnect', (reason) => {
+      console.log('[WebSocket] 已断开:', reason);
     });
 
     this.socket.on('error', (error: any) => {

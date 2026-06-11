@@ -18,22 +18,37 @@ export function Header() {
   const { setTheme, theme } = useTheme();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
 
-  useEffect(() => {
-    if (!user) return;
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (!user || !mounted) return;
+
+    console.log('[Header] 用户已登录，检查 WebSocket 状态:', wsService.socketInstance?.connected);
 
     const handleConnect = () => {
+      console.log('[Header] WebSocket 连接成功');
       setConnected(true);
       setOnlineCount(0);
     };
-    const handleDisconnect = () => setConnected(false);
-    const handleOnlineUsers = (data: { count: number }) => setOnlineCount(data.count);
+    const handleDisconnect = () => {
+      console.log('[Header] WebSocket 断开');
+      setConnected(false);
+    };
+    const handleOnlineUsers = (data: { count: number }) => {
+      console.log('[Header] 在线用户数:', data.count);
+      setOnlineCount(data.count);
+    };
 
     wsService.on('connect', handleConnect);
     wsService.on('disconnect', handleDisconnect);
     wsService.on('online-users', handleOnlineUsers);
 
     if (wsService.socketInstance?.connected) {
+      console.log('[Header] WebSocket 已连接');
       setConnected(true);
     }
 
@@ -42,7 +57,7 @@ export function Header() {
       wsService.off('disconnect', handleDisconnect);
       wsService.off('online-users', handleOnlineUsers);
     };
-  }, [user, setConnected, setOnlineCount]);
+  }, [user, mounted, setConnected, setOnlineCount]);
 
   const handleLogout = () => {
     wsService.disconnect();
