@@ -56,7 +56,7 @@ class WebSocketService {
     this.socket?.emit('send-message', data);
   }
 
-  get socket(): Socket | null {
+  get socketInstance(): Socket | null {
     return this.socket;
   }
 

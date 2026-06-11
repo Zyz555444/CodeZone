@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -68,7 +68,7 @@ const generalLimiter = rateLimit({
   message: { error: '请求过于频繁，请稍后重试' },
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req, res) => {
+  handler: (req: Request, res: Response) => {
     logger.warn('Rate limit exceeded', { ip: req.ip, path: req.path });
     res.status(429).json({ error: '请求过于频繁，请稍后重试' });
   },
@@ -80,7 +80,7 @@ const strictLimiter = rateLimit({
   max: 5, // 每个 IP 限制 5 次请求
   message: { error: '登录尝试次数过多，请 15 分钟后重试' },
   skipSuccessfulRequests: true,
-  handler: (req, res) => {
+  handler: (req: Request, res: Response) => {
     logger.warn('Auth rate limit exceeded', { ip: req.ip, path: req.path });
     res.status(429).json({ error: '登录尝试次数过多，请 15 分钟后重试' });
   },

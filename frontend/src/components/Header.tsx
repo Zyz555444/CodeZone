@@ -30,7 +30,7 @@ export function Header() {
     wsService.on('disconnect', handleDisconnect);
     wsService.on('online-users', handleOnlineUsers);
 
-    if (wsService.socket?.connected) {
+    if (wsService.socketInstance?.connected) {
       setConnected(true);
     }
 
