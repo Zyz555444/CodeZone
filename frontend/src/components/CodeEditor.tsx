@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
 import { useTheme } from 'next-themes';
 import { wsService } from '@/lib/websocket';
+import { useAuthStore } from '@/stores/authStore';
 
 interface CodeEditorProps {
   projectId: string;
@@ -66,6 +67,7 @@ export function CodeEditor({
   height = '600px',
 }: CodeEditorProps) {
   const { theme } = useTheme();
+  const { user } = useAuthStore();
   const editorRef = useRef<unknown>(null);
   const [content, setContent] = useState(initialContent);
   const [remoteCursors, setRemoteCursors] = useState<RemoteCursor[]>([]);
@@ -76,30 +78,35 @@ export function CodeEditor({
   const cursorMoveCallbackRef = useRef<(data: CursorMoveData) => void>(() => {});
   const onlineUsersCallbackRef = useRef<(data: OnlineUsersData) => void>(() => {});
 
-  const getCurrentUserId = useCallback(() => {
-    // TODO: 从 auth store 获取当前用户 ID
-    return 'current-user';
-  }, []);
+  const getCursorColor = (userId: string) => {
+    let hash = 0;
+    for (let i = 0; i < userId.length; i++) {
+      hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return COLORS[Math.abs(hash) % COLORS.length];
+  };
 
   useEffect(() => {
+    const currentUserId = user?.id;
+
     // 定义回调函数并存储引用
     codeChangeCallbackRef.current = (data: CodeChangeData) => {
       if (data.fileId === fileId && editorRef.current) {
         // 忽略自己的更改
-        if (data.userId !== getCurrentUserId()) {
+        if (currentUserId && data.userId !== currentUserId) {
           setContent(data.content);
         }
       }
     };
 
     cursorMoveCallbackRef.current = (data: CursorMoveData) => {
-      if (data.fileId === fileId && data.userId !== getCurrentUserId()) {
+      if (data.fileId === fileId && currentUserId && data.userId !== currentUserId) {
         setRemoteCursors((prev) => {
           const existing = prev.findIndex((c) => c.userId === data.userId);
           const newCursor: RemoteCursor = {
             userId: data.userId,
             userName: data.userName || '用户',
-            color: COLORS[parseInt(data.userId.slice(-1) || '0', 16) % COLORS.length],
+            color: getCursorColor(data.userId),
             position: data.position,
           };
 
@@ -127,7 +134,7 @@ export function CodeEditor({
       wsService.offCursorMove(cursorMoveCallbackRef.current);
       wsService.offOnlineUsers(onlineUsersCallbackRef.current);
     };
-  }, [projectId, fileId, getCurrentUserId]);
+  }, [projectId, fileId, user?.id]);
 
   const handleEditorMount: OnMount = (editor) => {
     editorRef.current = editor;

@@ -17,7 +17,12 @@ interface ChatMessage {
   type: 'text' | 'system';
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-not-for-production';
+// 与 WebSocketHandler 保持一致
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('JWT_SECRET must be configured in production');
+}
+const SECRET = JWT_SECRET || 'dev-secret-key-not-for-production';
 
 export class ChatWebSocketHandler {
   private io: Server;
@@ -46,24 +51,25 @@ export class ChatWebSocketHandler {
         return;
       }
 
-      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+      const decoded = jwt.verify(token, SECRET) as { userId: string };
       socket.userId = decoded.userId;
-      socket.userName = '加载中...';
+      // 使用 userId 前缀作为初始名称，异步更新为真实用户名
+      socket.userName = decoded.userId.slice(0, 8);
     } catch (error) {
       logger.warn('聊天 WebSocket 认证失败', { error });
       socket.disconnect(true);
       return;
     }
 
-    // 异步获取真实用户名
+    // 异步获取真实用户名（失败不影响功能）
     prisma.user.findUnique({
       where: { id: socket.userId! },
       select: { username: true },
     }).then((dbUser) => {
-      socket.userName = dbUser?.username || socket.userId!.slice(0, 8);
-    }).catch(() => {
-      socket.userName = socket.userId!.slice(0, 8);
-    });
+      if (dbUser?.username) {
+        socket.userName = dbUser.username;
+      }
+    }).catch(() => {});
 
     socket.join(`user:${socket.userId}`);
     logger.info(`用户 ${socket.userName} (${socket.userId}) 已连接聊天`);
@@ -83,13 +89,13 @@ export class ChatWebSocketHandler {
           count: users.length,
         });
 
-        // 从数据库加载最近 50 条历史消息
+        // 从数据库加载最近 50 条消息（desc 取最新，再反转）
         const historyRecords = await prisma.chatMessage.findMany({
           where: { roomId },
-          orderBy: { createdAt: 'asc' },
+          orderBy: { createdAt: 'desc' },
           take: 50,
         });
-        const history: ChatMessage[] = historyRecords.map((m) => ({
+        const history: ChatMessage[] = historyRecords.reverse().map((m) => ({
           id: m.id,
           userId: m.userId,
           userName: m.userName,
@@ -99,7 +105,7 @@ export class ChatWebSocketHandler {
         }));
         socket.emit('room-history', { roomId, messages: history });
 
-        // 广播加入消息
+        // 广播加入消息（系统消息不存数据库）
         const joinMsg: ChatMessage = {
           id: `sys-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           userId: 'system',
@@ -118,36 +124,42 @@ export class ChatWebSocketHandler {
 
     // 离开聊天房间
     socket.on('leave-room', (roomId: string) => {
+      if (!roomId || !socket.userId) return;
       socket.leave(`room:${roomId}`);
-      this.handleLeaveRoom(roomId, socket.userId!, socket.userName || '未知用户');
+      this.handleLeaveRoom(roomId, socket.userId, socket.userName || '未知用户');
     });
 
     // 发送消息
     socket.on('send-message', async (data: { roomId: string; content: string }) => {
       if (!data.roomId || !data.content?.trim() || !socket.userId) return;
 
+      const userName = socket.userName || socket.userId.slice(0, 8);
       const message: ChatMessage = {
-        id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        id: '', // 由 Prisma 自动生成 cuid()
         userId: socket.userId,
-        userName: socket.userName || socket.userId.slice(0, 8),
+        userName,
         content: data.content.trim(),
         timestamp: new Date(),
         type: 'text',
       };
 
-      // 持久化到数据库（异步，不阻塞广播）
-      prisma.chatMessage.create({
-        data: {
-          id: message.id,
-          roomId: data.roomId,
-          userId: socket.userId,
-          userName: message.userName,
-          content: data.content.trim(),
-          type: 'text',
-        },
-      }).catch((error) => {
+      // 持久化到数据库并获取真实 ID
+      try {
+        const saved = await prisma.chatMessage.create({
+          data: {
+            roomId: data.roomId,
+            userId: socket.userId,
+            userName,
+            content: data.content.trim(),
+            type: 'text',
+          },
+        });
+        message.id = saved.id;
+      } catch (error) {
         logger.error('保存消息失败', { error });
-      });
+        // 使用临时 ID 继续广播
+        message.id = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      }
 
       this.io.to(`room:${data.roomId}`).emit('receive-message', message);
     });
@@ -175,11 +187,17 @@ export class ChatWebSocketHandler {
       if (!socket.userId) return;
       logger.info(`用户 ${socket.userName} 断开聊天连接`);
 
+      // 收集要处理的房间，避免遍历时修改 Map
+      const roomsToLeave: string[] = [];
       this.rooms.forEach((users, roomId) => {
         if (users.has(socket.userId!)) {
-          this.handleLeaveRoom(roomId, socket.userId!, socket.userName || '未知用户');
+          roomsToLeave.push(roomId);
         }
       });
+
+      for (const roomId of roomsToLeave) {
+        this.handleLeaveRoom(roomId, socket.userId!, socket.userName || '未知用户');
+      }
     });
   }
 
@@ -218,7 +236,6 @@ export class ChatWebSocketHandler {
     this.rooms.get(roomId)!.add(userId);
   }
 
-  // 发送通知给指定用户
   sendNotification(userId: string, notification: any): void {
     this.io.to(`user:${userId}`).emit('notification', notification);
   }

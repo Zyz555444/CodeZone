@@ -15,6 +15,8 @@ export function Header() {
   const { setTheme, theme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [mounted, setMounted] = React.useState(false);
+  const teamsRef = React.useRef(teams);
+  teamsRef.current = teams;
 
   React.useEffect(() => {
     setMounted(true);
@@ -23,7 +25,6 @@ export function Header() {
   React.useEffect(() => {
     if (!user || !mounted || !token) return;
 
-    // 先建立连接（确保 this.socket 非 null，后续 on() 才能注册成功）
     if (!wsService.socketInstance?.connected) {
       wsService.connect(token);
     }
@@ -31,8 +32,8 @@ export function Header() {
     const handleConnect = () => {
       setConnected(true);
       setOnlineCount(0);
-      if (teams.length > 0) {
-        wsService.joinTeam(teams[0].id);
+      if (teamsRef.current.length > 0) {
+        wsService.joinTeam(teamsRef.current[0].id);
       }
     };
     const handleDisconnect = () => setConnected(false);
@@ -40,16 +41,14 @@ export function Header() {
       setOnlineCount(data.count);
     };
 
-    // 现在注册监听器（this.socket 已在 connect 中创建）
     wsService.on('connect', handleConnect);
     wsService.on('disconnect', handleDisconnect);
     wsService.on('online-users', handleOnlineUsers);
 
-    // 如果已经连接成功（复用已有连接），手动更新状态
     if (wsService.socketInstance?.connected) {
       setConnected(true);
-      if (teams.length > 0) {
-        wsService.joinTeam(teams[0].id);
+      if (teamsRef.current.length > 0) {
+        wsService.joinTeam(teamsRef.current[0].id);
       }
     }
 
@@ -58,9 +57,11 @@ export function Header() {
       wsService.off('disconnect', handleDisconnect);
       wsService.off('online-users', handleOnlineUsers);
     };
-  }, [user, mounted, token, teams, setConnected, setOnlineCount]);
+  }, [user, mounted, token, setConnected, setOnlineCount]);
 
   const handleLogout = () => {
+    setConnected(false);
+    setOnlineCount(0);
     wsService.disconnect();
     logout();
   };

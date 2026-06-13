@@ -13,6 +13,9 @@ class WebSocketService {
       return;
     }
 
+    // 清理旧连接
+    this.disconnect();
+
     this.socket = io(this.url, {
       auth: { token },
       transports: ['websocket'],
@@ -31,10 +34,6 @@ class WebSocketService {
 
     this.socket.on('disconnect', (reason) => {
       console.log('[WebSocket] 已断开:', reason);
-    });
-
-    this.socket.on('error', (error: any) => {
-      console.error('[WebSocket] 错误:', error);
     });
   }
 

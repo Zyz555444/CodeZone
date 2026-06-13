@@ -32,7 +32,9 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const typingClearTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const isTypingRef = useRef(false);
+  const messageIdsRef = useRef<Set<string>>(new Set());
 
   // 建立连接 + 加入房间
   useEffect(() => {
@@ -60,6 +62,10 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
       wsService.leaveRoom(roomId);
       wsService.off('connect', onConnect);
       wsService.off('disconnect', onDisconnect);
+      // 清理输入 typing 定时器
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current);
+      }
     };
   }, [roomId, token]);
 
@@ -83,6 +89,9 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
     };
 
     const handleReceiveMessage = (data: ChatMessage) => {
+      // 消息去重
+      if (messageIdsRef.current.has(data.id)) return;
+      messageIdsRef.current.add(data.id);
       setMessages((prev) => [...prev, {
         ...data,
         timestamp: new Date(data.timestamp),
@@ -92,13 +101,18 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
     const handleUserTyping = (data: { userId: string; userName: string; roomId: string }) => {
       if (data.roomId !== roomId) return;
       setTypingUsers((prev) => ({ ...prev, [data.userId]: data.userName }));
-      setTimeout(() => {
+      // 清理旧定时器
+      const existing = typingClearTimersRef.current.get(data.userId);
+      if (existing) clearTimeout(existing);
+      const timer = setTimeout(() => {
         setTypingUsers((prev) => {
           const next = { ...prev };
           delete next[data.userId];
           return next;
         });
+        typingClearTimersRef.current.delete(data.userId);
       }, 3000);
+      typingClearTimersRef.current.set(data.userId, timer);
     };
 
     const handleUserStopTyping = (data: { userId: string; roomId: string }) => {
@@ -122,6 +136,11 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
       wsService.offReceiveMessage(handleReceiveMessage);
       wsService.offUserTyping(handleUserTyping);
       wsService.offUserStopTyping(handleUserStopTyping);
+      // 清理所有 typing 定时器
+      typingClearTimersRef.current.forEach((timer) => clearTimeout(timer));
+      typingClearTimersRef.current.clear();
+      // 切换房间时重置消息 ID 集合
+      messageIdsRef.current.clear();
     };
   }, [roomId]);
 
