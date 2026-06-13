@@ -35,6 +35,17 @@ enum FileType {
   DIRECTORY
 }
 
+enum TeamRole {
+  ADMIN
+  MEMBER
+}
+
+enum JoinStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -59,9 +70,43 @@ model User {
   reviewComments ReviewComment[]
   notifications  Notification[]
   sessions       Session[]
+  teamMembers    TeamMember[]
+  ownedTeams     Team[]          @relation("TeamOwner")
 
   @@index([email])
   @@index([username])
+}
+
+model Team {
+  id         String   @id @default(cuid())
+  name       String
+  inviteCode String   @unique
+  ownerId    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  owner    User          @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members  TeamMember[]
+  projects Project[]
+
+  @@index([ownerId])
+  @@index([inviteCode])
+}
+
+model TeamMember {
+  id       String     @id @default(cuid())
+  teamId   String
+  userId   String
+  role     TeamRole   @default(MEMBER)
+  status   JoinStatus @default(PENDING)
+  joinedAt DateTime   @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
 }
 
 model Session {
@@ -86,11 +131,13 @@ model Project {
   avatar      String?
   visibility  String   @default("private")
   ownerId     String
+  teamId      String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // 关系
   owner        User            @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  team         Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
   members      ProjectMember[]
   tasks        Task[]
   files        CodeFile[]
@@ -99,6 +146,7 @@ model Project {
   activities   Activity[]
 
   @@index([ownerId])
+  @@index([teamId])
   @@index([visibility])
 }
 

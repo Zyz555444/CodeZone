@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ArrowLeft } from 'lucide-react';
+import { TeamGuard } from '@/components/TeamGuard';
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function NewProjectPage() {
   };
 
   return (
+    <TeamGuard>
     <div className="flex h-screen overflow-hidden">
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
@@ -164,5 +166,6 @@ export default function NewProjectPage() {
         </div>
       </div>
     </div>
+    </TeamGuard>
   );
 }

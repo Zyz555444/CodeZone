@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Bell, Check, Trash2, MessageSquare, Users, GitBranch, AlertCircle } from 'lucide-react';
+import { TeamGuard } from '@/components/TeamGuard';
 import { cn } from '@/lib/utils';
 
 const notifications = [
@@ -54,6 +55,7 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
+    <TeamGuard>
     <div className="flex h-screen overflow-hidden">
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
@@ -144,5 +146,6 @@ export default function NotificationsPage() {
         </div>
       </div>
     </div>
+    </TeamGuard>
   );
 }

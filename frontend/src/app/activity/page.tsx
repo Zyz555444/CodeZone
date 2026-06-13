@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Activity, FileEdit, MessageSquare, UserPlus, GitCommit, CheckCircle2, XCircle } from 'lucide-react';
+import { TeamGuard } from '@/components/TeamGuard';
 
 const activities = [
   {
@@ -75,6 +76,7 @@ const typeLabels: Record<string, string> = {
 
 export default function ActivityPage() {
   return (
+    <TeamGuard>
     <div className="flex h-screen overflow-hidden">
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
@@ -140,5 +142,6 @@ export default function ActivityPage() {
         </div>
       </div>
     </div>
+    </TeamGuard>
   );
 }

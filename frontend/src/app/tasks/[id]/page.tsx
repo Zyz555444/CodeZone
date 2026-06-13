@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ArrowLeft, Plus, Trash2, Check, Clock, User, MessageSquare, Calendar } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { TeamGuard } from '@/components/TeamGuard';
 
 interface SubTask {
   id: string;
@@ -147,6 +148,7 @@ export default function TaskDetailPage() {
     : 0;
 
   return (
+    <TeamGuard>
     <div className="flex h-screen overflow-hidden">
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
@@ -353,5 +355,6 @@ export default function TaskDetailPage() {
         </div>
       </div>
     </div>
+    </TeamGuard>
   );
 }

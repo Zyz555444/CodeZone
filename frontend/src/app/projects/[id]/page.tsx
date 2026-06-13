@@ -20,6 +20,7 @@ import {
   Settings
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { TeamGuard } from '@/components/TeamGuard';
 
 export default function ProjectDetailPage() {
   const router = useRouter();
@@ -61,6 +62,7 @@ export default function ProjectDetailPage() {
   }
 
   return (
+    <TeamGuard>
     <div className="flex h-screen overflow-hidden">
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
@@ -214,5 +216,6 @@ export default function ProjectDetailPage() {
         </div>
       </div>
     </div>
+    </TeamGuard>
   );
 }

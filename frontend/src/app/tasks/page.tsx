@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Plus, Search, Filter, Calendar, User } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { TeamGuard } from '@/components/TeamGuard';
 
 interface Task {
   id: string;
@@ -182,6 +183,7 @@ function TasksContent() {
   );
 
   return (
+    <TeamGuard>
     <div className="flex h-screen overflow-hidden">
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
@@ -233,6 +235,7 @@ function TasksContent() {
         </div>
       </div>
     </div>
+    </TeamGuard>
   );
 }
 

@@ -12,6 +12,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Plus, FolderGit2, Users, Calendar, Globe, Lock, MoreHorizontal } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { TeamGuard } from '@/components/TeamGuard';
 
 interface Project {
   id: string;
@@ -55,6 +56,7 @@ export default function ProjectsPage() {
   }
 
   return (
+    <TeamGuard>
     <div className="flex h-screen overflow-hidden">
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
@@ -168,6 +170,7 @@ export default function ProjectsPage() {
           </main>
         </div>
       </div>
-    </div>
+      </div>
+    </TeamGuard>
   );
 }

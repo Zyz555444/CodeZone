@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Send, CheckCircle2, MessageSquare, Bug, Zap, MoreHorizontal } from 'lucide-react';
+import { TeamGuard } from '@/components/TeamGuard';
 
 const feedbackTypes = [
   { value: 'feature', label: '功能建议', icon: MessageSquare },
@@ -28,6 +29,7 @@ export default function FeedbackPage() {
   };
 
   return (
+    <TeamGuard>
     <div className="flex h-screen overflow-hidden">
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
@@ -148,5 +150,6 @@ export default function FeedbackPage() {
         </div>
       </div>
     </div>
+    </TeamGuard>
   );
 }

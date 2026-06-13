@@ -18,6 +18,7 @@ import codeRoutes from './routes/code';
 import reviewRoutes from './routes/reviews';
 import commentRoutes from './routes/comments';
 import notificationRoutes from './routes/notifications';
+import teamRoutes from './routes/teams';
 
 dotenv.config();
 
@@ -134,6 +135,7 @@ app.use('/api/code', codeRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/teams', teamRoutes);
 
 // 健康检查 - 不记录日志
 app.get('/health', (req, res) => {

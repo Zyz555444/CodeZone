@@ -34,7 +34,7 @@ export default function RegisterPage() {
       login(user, token);
       wsService.connect(token);
       
-      router.push('/dashboard');
+      router.push('/team-setup');
     } catch (err: any) {
       setError(err.response?.data?.error || '注册失败，请重试');
     } finally {

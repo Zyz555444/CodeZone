@@ -13,7 +13,11 @@ export default function Home() {
         try {
           const { state } = JSON.parse(authData);
           if (state?.isAuthenticated) {
-            router.replace('/dashboard');
+            if (state?.hasTeam) {
+              router.replace('/dashboard');
+            } else {
+              router.replace('/team-setup');
+            }
             return;
           }
         } catch (e) {}

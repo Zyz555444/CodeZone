@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Bell, User, Lock, Palette, BellOff, Trash2, Check } from 'lucide-react';
+import { TeamGuard } from '@/components/TeamGuard';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profile');
@@ -19,6 +20,7 @@ export default function SettingsPage() {
   ];
 
   return (
+    <TeamGuard>
     <div className="flex h-screen overflow-hidden">
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
@@ -192,5 +194,6 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
+    </TeamGuard>
   );
 }

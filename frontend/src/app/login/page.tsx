@@ -33,7 +33,7 @@ export default function LoginPage() {
       login(user, token);
       wsService.connect(token);
       
-      router.push('/dashboard');
+      router.push('/team-setup');
     } catch (err: any) {
       setError(err.response?.data?.error || '登录失败，请重试');
     } finally {

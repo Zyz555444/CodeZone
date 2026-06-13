@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ArrowLeft, User } from 'lucide-react';
+import { TeamGuard } from '@/components/TeamGuard';
 
 function NewTaskForm() {
   const router = useRouter();
@@ -43,6 +44,7 @@ function NewTaskForm() {
   };
 
   return (
+    <TeamGuard>
     <div className="flex h-screen overflow-hidden">
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
@@ -165,6 +167,7 @@ function NewTaskForm() {
         </div>
       </div>
     </div>
+    </TeamGuard>
   );
 }
 

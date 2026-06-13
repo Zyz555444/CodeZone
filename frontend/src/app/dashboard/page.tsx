@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
+import { TeamGuard } from '@/components/TeamGuard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { FolderGit2, CheckSquare, Users, Activity, Plus, ArrowRight } from 'lucide-react';
@@ -12,7 +13,7 @@ import Link from 'next/link';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, hasTeam } = useAuthStore();
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -32,12 +33,13 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header />
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar />
-          <main className="flex-1 overflow-y-auto bg-neutral-1">
+    <TeamGuard>
+      <div className="flex h-screen overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Header />
+          <div className="flex flex-1 overflow-hidden">
+            <Sidebar />
+            <main className="flex-1 overflow-y-auto bg-neutral-1">
             <div className="container mx-auto max-w-6xl px-6 py-8">
               {/* Header */}
               <div className="flex items-center justify-between mb-8">
@@ -155,6 +157,7 @@ export default function DashboardPage() {
           </main>
         </div>
       </div>
-    </div>
+      </div>
+    </TeamGuard>
   );
 }

@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Plus, File, Folder, FolderOpen, ChevronRight, ChevronDown, Save, MoreHorizontal, Search } from 'lucide-react';
+import { TeamGuard } from '@/components/TeamGuard';
 
 interface FileNode {
   id: string;
@@ -138,6 +139,7 @@ export default function CodePage() {
   })();
 
   return (
+    <TeamGuard>
     <div className="flex h-screen overflow-hidden">
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
@@ -227,5 +229,6 @@ export function ${selectedFileNode.name.replace(/\.\w+$/, '')}() {
         </div>
       </div>
     </div>
+    </TeamGuard>
   );
 }

@@ -205,7 +205,26 @@ export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    res.json({ user });
+    // 获取用户所属的活跃团队
+    const activeTeams = await prisma.teamMember.findMany({
+      where: {
+        userId: req.userId,
+        status: 'ACTIVE',
+      },
+      include: {
+        team: {
+          select: {
+            id: true,
+            name: true,
+            inviteCode: true,
+          },
+        },
+      },
+    });
+
+    const hasTeam = activeTeams.length > 0;
+
+    res.json({ user, hasTeam, teams: activeTeams.map(tm => tm.team) });
   } catch (error) {
     logger.error('获取当前用户失败', { error, userId: req.userId });
     res.status(500).json({ error: '获取用户信息失败' });

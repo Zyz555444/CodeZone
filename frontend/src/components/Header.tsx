@@ -12,7 +12,7 @@ import { useTheme } from 'next-themes';
 import { wsService } from '@/lib/websocket';
 
 export function Header() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, teams } = useAuthStore();
   const { currentProject } = useProjectStore();
   const { isConnected, onlineCount, setConnected, setOnlineCount } = useWebSocketStore();
   const { setTheme, theme } = useTheme();
@@ -74,11 +74,11 @@ export function Header() {
           </Link>
         </div>
 
-        {/* Center: Team/Project Name */}
+        {/* Center: Team Name */}
         <div className="hidden md:flex items-center justify-center flex-1">
-          {user && currentProject && (
+          {user && teams.length > 0 && (
             <span className="text-sm font-medium text-neutral-7">
-              {currentProject.name}
+              {teams[0].name}
             </span>
           )}
         </div>
