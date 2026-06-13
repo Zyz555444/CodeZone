@@ -1,6 +1,25 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 
+async function fetchChildrenRecursive(projectId: string, parentId: string | null): Promise<any> {
+  const files = await prisma.codeFile.findMany({
+    where: { projectId, parentId },
+    orderBy: { name: 'asc' },
+  });
+
+  return Promise.all(
+    files.map(async (file) => {
+      if (file.type === 'DIRECTORY') {
+        return {
+          ...file,
+          children: await fetchChildrenRecursive(projectId, file.id),
+        };
+      }
+      return file;
+    })
+  );
+}
+
 export const getFilesTree = async (req: Request, res: Response): Promise<void> => {
   try {
     const { projectId } = req.query;
@@ -10,24 +29,11 @@ export const getFilesTree = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    const files = await prisma.codeFile.findMany({
-      where: {
-        projectId: projectId as string,
-        parentId: null,
-      },
-      include: {
-        children: {
-          include: {
-            children: true,
-          },
-        },
-      },
-      orderBy: { name: 'asc' },
-    });
+    const files = await fetchChildrenRecursive(projectId as string, null);
 
     res.json({ files });
   } catch (error) {
-    throw error;
+    res.status(500).json({ error: '获取文件树失败' });
   }
 };
 
@@ -46,7 +52,7 @@ export const getFile = async (req: Request, res: Response): Promise<void> => {
 
     res.json({ file });
   } catch (error) {
-    throw error;
+    res.status(500).json({ error: '获取文件失败' });
   }
 };
 
@@ -55,6 +61,12 @@ export const updateFile = async (req: Request, res: Response): Promise<void> => 
     const { id } = req.params;
     const { content } = req.body;
 
+    const existing = await prisma.codeFile.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ error: '文件不存在' });
+      return;
+    }
+
     const file = await prisma.codeFile.update({
       where: { id },
       data: { content },
@@ -62,7 +74,7 @@ export const updateFile = async (req: Request, res: Response): Promise<void> => 
 
     res.json({ file });
   } catch (error) {
-    throw error;
+    res.status(500).json({ error: '更新文件失败' });
   }
 };
 
@@ -94,6 +106,6 @@ export const getFiles = async (req: Request, res: Response): Promise<void> => {
 
     res.json({ files });
   } catch (error) {
-    throw error;
+    res.status(500).json({ error: '获取文件列表失败' });
   }
 };

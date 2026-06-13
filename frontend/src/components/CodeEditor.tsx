@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
 import { useTheme } from 'next-themes';
 import { wsService } from '@/lib/websocket';
@@ -45,6 +45,7 @@ interface CursorMoveData {
 
 interface OnlineUsersData {
   users: string[];
+  count: number;
 }
 
 const COLORS = [
@@ -58,6 +59,8 @@ const COLORS = [
   '#F7DC6F',
 ];
 
+const DEBOUNCE_MS = 150;
+
 export function CodeEditor({
   projectId,
   fileId,
@@ -68,38 +71,48 @@ export function CodeEditor({
 }: CodeEditorProps) {
   const { theme } = useTheme();
   const { user } = useAuthStore();
-  const editorRef = useRef<unknown>(null);
+  const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+  const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
   const [content, setContent] = useState(initialContent);
   const [remoteCursors, setRemoteCursors] = useState<RemoteCursor[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
+  const [onlineCount, setOnlineCount] = useState(0);
+  const [cursorPosition, setCursorPosition] = useState({ lineNumber: 1, column: 1 });
 
-  // 存储回调函数引用以便正确移除
-  const codeChangeCallbackRef = useRef<(data: CodeChangeData) => void>(() => {});
-  const cursorMoveCallbackRef = useRef<(data: CursorMoveData) => void>(() => {});
-  const onlineUsersCallbackRef = useRef<(data: OnlineUsersData) => void>(() => {});
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isRemoteChangeRef = useRef(false);
+  const decorationsRef = useRef<string[]>([]);
 
-  const getCursorColor = (userId: string) => {
+  const getCursorColor = useCallback((userId: string) => {
     let hash = 0;
     for (let i = 0; i < userId.length; i++) {
       hash = userId.charCodeAt(i) + ((hash << 5) - hash);
     }
     return COLORS[Math.abs(hash) % COLORS.length];
-  };
+  }, []);
+
+  useEffect(() => {
+    setContent(initialContent);
+  }, [initialContent, fileId]);
 
   useEffect(() => {
     const currentUserId = user?.id;
 
-    // 定义回调函数并存储引用
-    codeChangeCallbackRef.current = (data: CodeChangeData) => {
-      if (data.fileId === fileId && editorRef.current) {
-        // 忽略自己的更改
-        if (currentUserId && data.userId !== currentUserId) {
-          setContent(data.content);
+    const handleCodeChange = (data: CodeChangeData) => {
+      if (data.fileId === fileId && editorRef.current && currentUserId && data.userId !== currentUserId) {
+        isRemoteChangeRef.current = true;
+        const editor = editorRef.current;
+        const currentPosition = editor.getPosition();
+        editor.setValue(data.content);
+        if (currentPosition) {
+          editor.setPosition(currentPosition);
         }
+        setContent(data.content);
+        isRemoteChangeRef.current = false;
       }
     };
 
-    cursorMoveCallbackRef.current = (data: CursorMoveData) => {
+    const handleCursorMove = (data: CursorMoveData) => {
       if (data.fileId === fileId && currentUserId && data.userId !== currentUserId) {
         setRemoteCursors((prev) => {
           const existing = prev.findIndex((c) => c.userId === data.userId);
@@ -120,47 +133,119 @@ export function CodeEditor({
       }
     };
 
-    onlineUsersCallbackRef.current = (data: OnlineUsersData) => {
+    const handleOnlineUsers = (data: OnlineUsersData) => {
       setOnlineUsers(data.users || []);
+      setOnlineCount(data.count || data.users?.length || 0);
     };
 
-    // 注册监听器
-    wsService.onCodeChange(codeChangeCallbackRef.current);
-    wsService.onCursorMove(cursorMoveCallbackRef.current);
-    wsService.onOnlineUsers(onlineUsersCallbackRef.current);
+    wsService.onCodeChange(handleCodeChange);
+    wsService.onCursorMove(handleCursorMove);
+    wsService.onOnlineUsers(handleOnlineUsers);
 
     return () => {
-      wsService.offCodeChange(codeChangeCallbackRef.current);
-      wsService.offCursorMove(cursorMoveCallbackRef.current);
-      wsService.offOnlineUsers(onlineUsersCallbackRef.current);
+      wsService.offCodeChange(handleCodeChange);
+      wsService.offCursorMove(handleCursorMove);
+      wsService.offOnlineUsers(handleOnlineUsers);
     };
-  }, [projectId, fileId, user?.id]);
+  }, [fileId, user?.id, getCursorColor]);
 
-  const handleEditorMount: OnMount = (editor) => {
+  useEffect(() => {
+    if (!editorRef.current || !monacoRef.current) return;
+
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+
+    const oldDecorations = decorationsRef.current.slice();
+    decorationsRef.current = [];
+
+    remoteCursors.forEach((cursor) => {
+      const className = `remote-cursor-decoration-${cursor.userId}`;
+      const decos = editor.deltaDecorations(oldDecorations, [
+        {
+          range: new monaco.Range(
+            cursor.position.lineNumber,
+            cursor.position.column,
+            cursor.position.lineNumber,
+            cursor.position.column
+          ),
+          options: {
+            className,
+            beforeContentClassName: `remote-cursor-before-${cursor.userId}`,
+            stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+          },
+        },
+      ]);
+      decorationsRef.current = [...decorationsRef.current, ...decos];
+    });
+
+    return () => {
+      if (editorRef.current) {
+        editorRef.current.deltaDecorations(decorationsRef.current, []);
+        decorationsRef.current = [];
+      }
+    };
+  }, [remoteCursors]);
+
+  const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
+    monacoRef.current = monaco;
 
     editor.onDidChangeCursorPosition((e: { position: { lineNumber: number; column: number } }) => {
+      const pos = {
+        lineNumber: e.position.lineNumber,
+        column: e.position.column,
+      };
+      setCursorPosition(pos);
+
       wsService.sendCursorMove({
         projectId,
         fileId,
-        position: {
-          lineNumber: e.position.lineNumber,
-          column: e.position.column,
-        },
+        position: pos,
       });
     });
   };
 
-  const handleChange = (value: string | undefined) => {
-    const newContent = value || '';
-    setContent(newContent);
-    
-    wsService.sendCodeChange({
-      projectId,
-      fileId,
-      content: newContent,
-    });
-  };
+  const debouncedSendCodeChange = useCallback(
+    (newContent: string) => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      debounceTimerRef.current = setTimeout(() => {
+        wsService.sendCodeChange({
+          projectId,
+          fileId,
+          content: newContent,
+        });
+      }, DEBOUNCE_MS);
+    },
+    [projectId, fileId]
+  );
+
+  const handleChange = useCallback(
+    (value: string | undefined) => {
+      const newContent = value || '';
+      setContent(newContent);
+
+      if (!isRemoteChangeRef.current) {
+        debouncedSendCodeChange(newContent);
+      }
+    },
+    [debouncedSendCodeChange]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const editorTheme = useMemo(() => {
+    return theme === 'dark' ? 'vs-dark' : 'light';
+  }, [theme]);
 
   return (
     <div className="relative" style={{ height }}>
@@ -168,7 +253,7 @@ export function CodeEditor({
         height={height}
         language={language}
         value={content}
-        theme={theme === 'dark' ? 'vs-dark' : 'light'}
+        theme={editorTheme}
         onChange={handleChange}
         onMount={handleEditorMount}
         options={{
@@ -186,31 +271,35 @@ export function CodeEditor({
           wordBasedSuggestions: 'currentDocument',
         }}
       />
-      
-      {/* Remote Cursors */}
-      {remoteCursors.map((cursor) => (
-        <div
-          key={cursor.userId}
-          className="remote-cursor"
-          style={{
-            top: `${(cursor.position.lineNumber - 1) * 20}px`,
-            left: `${cursor.position.column * 8.4}px`,
-          }}
-        >
-          <div
-            className="remote-cursor-label"
-            style={{ backgroundColor: cursor.color }}
-          >
-            {cursor.userName}
-          </div>
-          <div
-            className="w-px h-5"
-            style={{ backgroundColor: cursor.color }}
-          />
-        </div>
-      ))}
 
-      {/* Online Users Indicator */}
+      <style jsx global>{`
+        ${remoteCursors
+          .map(
+            (cursor) => `
+          .remote-cursor-decoration-${cursor.userId} {
+            background-color: ${cursor.color}33;
+            border-left: 2px solid ${cursor.color};
+            width: 100% !important;
+          }
+          .remote-cursor-before-${cursor.userId}::before {
+            content: '${cursor.userName}';
+            position: absolute;
+            top: -1.2em;
+            left: 0;
+            background-color: ${cursor.color};
+            color: white;
+            padding: 0 4px;
+            font-size: 10px;
+            line-height: 16px;
+            border-radius: 2px;
+            white-space: nowrap;
+            z-index: 10;
+          }
+        `
+          )
+          .join('\n')}
+      `}</style>
+
       <div className="absolute top-2 right-2 flex items-center gap-2 bg-background/80 backdrop-blur px-3 py-1.5 rounded-md border">
         <div className="flex -space-x-2">
           {onlineUsers.slice(0, 5).map((userId, index) => (
@@ -228,7 +317,7 @@ export function CodeEditor({
         {onlineUsers.length > 5 && (
           <span className="text-xs text-neutral-6">+{onlineUsers.length - 5}</span>
         )}
-        <span className="text-xs text-neutral-6">{onlineUsers.length} 在线</span>
+        <span className="text-xs text-neutral-6">{onlineCount} 在线</span>
       </div>
     </div>
   );

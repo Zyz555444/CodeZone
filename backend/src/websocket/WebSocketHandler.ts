@@ -92,6 +92,25 @@ export class WebSocketHandler {
       }
     });
 
+    socket.on('code-change', (data: { projectId: string; fileId: string; content: string }) => {
+      if (socket.teamId) {
+        socket.to(`team:${socket.teamId}`).emit('code-change', {
+          ...data,
+          userId: socket.userId,
+        });
+      }
+    });
+
+    socket.on('cursor-move', (data: { projectId: string; fileId: string; position: { lineNumber: number; column: number } }) => {
+      if (socket.teamId) {
+        socket.to(`team:${socket.teamId}`).emit('cursor-move', {
+          ...data,
+          userId: socket.userId,
+          userName: socket.userId,
+        });
+      }
+    });
+
     socket.on('disconnect', (reason) => {
       if (socket.teamId) {
         this.untrackTeamUser(socket.userId!, socket.teamId);
