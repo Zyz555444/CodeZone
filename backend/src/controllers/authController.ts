@@ -216,7 +216,6 @@ export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<v
           select: {
             id: true,
             name: true,
-            inviteCode: true,
           },
         },
       },

@@ -1,10 +1,8 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
-import { useProjectStore } from '@/stores/projectStore';
 import { useWebSocketStore } from '@/stores/websocketStore';
 import { Button } from '@/components/ui/Button';
 import { Moon, Sun, LogOut, User, Menu, X, Wifi, WifiOff, Users } from 'lucide-react';
@@ -13,10 +11,8 @@ import { wsService } from '@/lib/websocket';
 
 export function Header() {
   const { user, logout, teams } = useAuthStore();
-  const { currentProject } = useProjectStore();
   const { isConnected, onlineCount, setConnected, setOnlineCount } = useWebSocketStore();
   const { setTheme, theme } = useTheme();
-  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [mounted, setMounted] = React.useState(false);
 

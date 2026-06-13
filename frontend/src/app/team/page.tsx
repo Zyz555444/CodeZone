@@ -95,7 +95,7 @@ export default function TeamPage() {
 
   useEffect(() => {
     fetchPendingMembers();
-  }, [team]);
+  }, [team, isAdmin]);
 
   const handleCopyInviteCode = async () => {
     if (!team?.inviteCode) return;
@@ -115,8 +115,7 @@ export default function TeamPage() {
     try {
       await api.post(`/teams/${team.id}/members/${userId}/approve`);
       // 刷新数据
-      await fetchTeam();
-      await fetchPendingMembers();
+      await Promise.all([fetchTeam(), fetchPendingMembers()]);
     } catch (err: any) {
       setError(err.response?.data?.error || '操作失败');
     } finally {

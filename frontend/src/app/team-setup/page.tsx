@@ -157,9 +157,6 @@ export default function TeamSetupPage() {
                 <Button variant="secondary" onClick={() => { setJoinResult(null); setMode('choose'); }} className="flex-1">
                   返回
                 </Button>
-                <Button onClick={goToDashboard} className="flex-1">
-                  查看状态
-                </Button>
               </div>
             </CardContent>
           </Card>

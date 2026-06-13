@@ -19,7 +19,7 @@ const createTeamSchema = z.object({
 });
 
 const joinTeamSchema = z.object({
-  inviteCode: z.string().min(1, '请输入邀请码'),
+  inviteCode: z.string().min(8, '邀请码格式不正确').max(8, '邀请码格式不正确').regex(/^[A-Z2-9]{8}$/, '邀请码格式不正确'),
 });
 
 // 创建团队（创建者自动成为 ADMIN）
@@ -27,12 +27,18 @@ export const createTeam = async (req: AuthRequest, res: Response): Promise<void>
   try {
     const { name } = createTeamSchema.parse(req.body);
 
-    // 生成唯一邀请码
+    // 生成唯一邀请码（最多重试 5 次）
     let inviteCode = generateInviteCode();
     let codeExists = await prisma.team.findUnique({ where: { inviteCode } });
-    while (codeExists) {
+    let retries = 0;
+    while (codeExists && retries < 5) {
       inviteCode = generateInviteCode();
       codeExists = await prisma.team.findUnique({ where: { inviteCode } });
+      retries++;
+    }
+    if (codeExists) {
+      res.status(500).json({ error: '生成邀请码失败，请重试' });
+      return;
     }
 
     const team = await prisma.team.create({
@@ -129,7 +135,13 @@ export const getTeamDetail = async (req: AuthRequest, res: Response): Promise<vo
 
     const team = await prisma.team.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        ownerId: true,
+        createdAt: true,
+        updatedAt: true,
+        inviteCode: membership.role === 'ADMIN',
         owner: {
           select: { id: true, username: true, email: true, avatar: true },
         },
