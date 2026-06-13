@@ -45,12 +45,12 @@ class WebSocketService {
     this.socket = null;
   }
 
-  joinProject(projectId: string): void {
-    this.socket?.emit('join-project', projectId);
+  joinTeam(teamId: string): void {
+    this.socket?.emit('join-team', teamId);
   }
 
-  leaveProject(projectId: string): void {
-    this.socket?.emit('leave-project', projectId);
+  leaveTeam(teamId: string): void {
+    this.socket?.emit('leave-team', teamId);
   }
 
   sendCodeChange(data: { projectId: string; fileId: string; content: string }): void {

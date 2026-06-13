@@ -23,19 +23,16 @@ export function Header() {
   React.useEffect(() => {
     if (!user || !mounted) return;
 
-    console.log('[Header] 用户已登录，检查 WebSocket 状态:', wsService.socketInstance?.connected);
-
     const handleConnect = () => {
-      console.log('[Header] WebSocket 连接成功');
       setConnected(true);
       setOnlineCount(0);
+      // 连接成功后自动加入当前团队房间
+      if (teams.length > 0) {
+        wsService.joinTeam(teams[0].id);
+      }
     };
-    const handleDisconnect = () => {
-      console.log('[Header] WebSocket 断开');
-      setConnected(false);
-    };
+    const handleDisconnect = () => setConnected(false);
     const handleOnlineUsers = (data: { count: number }) => {
-      console.log('[Header] 在线用户数:', data.count);
       setOnlineCount(data.count);
     };
 
@@ -44,8 +41,10 @@ export function Header() {
     wsService.on('online-users', handleOnlineUsers);
 
     if (wsService.socketInstance?.connected) {
-      console.log('[Header] WebSocket 已连接');
       setConnected(true);
+      if (teams.length > 0) {
+        wsService.joinTeam(teams[0].id);
+      }
     }
 
     return () => {
@@ -53,7 +52,7 @@ export function Header() {
       wsService.off('disconnect', handleDisconnect);
       wsService.off('online-users', handleOnlineUsers);
     };
-  }, [user, mounted, setConnected, setOnlineCount]);
+  }, [user, mounted, teams, setConnected, setOnlineCount]);
 
   const handleLogout = () => {
     wsService.disconnect();
