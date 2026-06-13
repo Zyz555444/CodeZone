@@ -72,6 +72,7 @@ model User {
   sessions       Session[]
   teamMembers    TeamMember[]
   ownedTeams     Team[]          @relation("TeamOwner")
+  chatMessages   ChatMessage[]
 
   @@index([email])
   @@index([username])
@@ -302,6 +303,22 @@ model ReviewComment {
   user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([reviewId])
+  @@index([userId])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String
+  userName  String
+  content   String
+  type      String   @default("text")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([createdAt])
   @@index([userId])
 }
 

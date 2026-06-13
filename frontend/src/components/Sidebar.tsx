@@ -8,7 +8,8 @@ import {
   LayoutDashboard, 
   FolderGit2, 
   CheckSquare, 
-  MessageSquare, 
+  MessageSquare,
+  MessageCircle,
   Settings,
   Code2,
   Users,
@@ -41,6 +42,11 @@ const menuItems = [
     title: '审查',
     href: '/reviews',
     icon: MessageSquare,
+  },
+  {
+    title: '聊天',
+    href: '/chat',
+    icon: MessageCircle,
   },
   {
     title: '团队',

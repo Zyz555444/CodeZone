@@ -82,8 +82,6 @@ export function CodeEditor({
   }, []);
 
   useEffect(() => {
-    wsService.joinProject(projectId);
-
     // 定义回调函数并存储引用
     codeChangeCallbackRef.current = (data: CodeChangeData) => {
       if (data.fileId === fileId && editorRef.current) {
@@ -125,7 +123,6 @@ export function CodeEditor({
     wsService.onOnlineUsers(onlineUsersCallbackRef.current);
 
     return () => {
-      wsService.leaveProject(projectId);
       wsService.offCodeChange(codeChangeCallbackRef.current);
       wsService.offCursorMove(cursorMoveCallbackRef.current);
       wsService.offOnlineUsers(onlineUsersCallbackRef.current);

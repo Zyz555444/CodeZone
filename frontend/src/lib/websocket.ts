@@ -13,8 +13,6 @@ class WebSocketService {
       return;
     }
 
-    console.log('[WebSocket] 正在连接...', this.url);
-
     this.socket = io(this.url, {
       auth: { token },
       transports: ['websocket'],
@@ -45,30 +43,7 @@ class WebSocketService {
     this.socket = null;
   }
 
-  joinTeam(teamId: string): void {
-    this.socket?.emit('join-team', teamId);
-  }
-
-  leaveTeam(teamId: string): void {
-    this.socket?.emit('leave-team', teamId);
-  }
-
-  sendCodeChange(data: { projectId: string; fileId: string; content: string }): void {
-    this.socket?.emit('code-change', data);
-  }
-
-  sendCursorMove(data: { projectId: string; fileId: string; position: any }): void {
-    this.socket?.emit('cursor-move', data);
-  }
-
-  sendMessage(data: { projectId: string; content: string }): void {
-    this.socket?.emit('send-message', data);
-  }
-
-  get socketInstance(): Socket | null {
-    return this.socket;
-  }
-
+  // 通用事件监听
   on(event: string, callback: (...args: any[]) => void): void {
     this.socket?.on(event, callback);
   }
@@ -77,36 +52,114 @@ class WebSocketService {
     this.socket?.off(event, callback);
   }
 
-  onOnlineUsers(callback: (data: any) => void): void {
-    this.socket?.on('online-users', callback);
+  // 团队相关
+  joinTeam(teamId: string): void {
+    this.socket?.emit('join-team', teamId);
   }
 
-  onCodeChange(callback: (data: any) => void): void {
-    this.socket?.on('code-change', callback);
+  leaveTeam(teamId: string): void {
+    this.socket?.emit('leave-team', teamId);
   }
 
-  onCursorMove(callback: (data: any) => void): void {
-    this.socket?.on('cursor-move', callback);
+  // 聊天房间
+  joinRoom(roomId: string): void {
+    this.socket?.emit('join-room', roomId);
+  }
+
+  leaveRoom(roomId: string): void {
+    this.socket?.emit('leave-room', roomId);
+  }
+
+  // 发送消息
+  sendMessage(data: { roomId: string; content: string }): void {
+    this.socket?.emit('send-message', data);
+  }
+
+  // 输入状态
+  sendTypingStart(roomId: string): void {
+    this.socket?.emit('typing-start', { roomId });
+  }
+
+  sendTypingStop(roomId: string): void {
+    this.socket?.emit('typing-stop', { roomId });
+  }
+
+  // 聊天事件监听
+  onRoomHistory(callback: (data: any) => void): void {
+    this.socket?.on('room-history', callback);
+  }
+
+  offRoomHistory(callback: (data: any) => void): void {
+    this.socket?.off('room-history', callback);
+  }
+
+  onRoomUpdate(callback: (data: any) => void): void {
+    this.socket?.on('room-update', callback);
+  }
+
+  offRoomUpdate(callback: (data: any) => void): void {
+    this.socket?.off('room-update', callback);
   }
 
   onReceiveMessage(callback: (data: any) => void): void {
     this.socket?.on('receive-message', callback);
   }
 
+  offReceiveMessage(callback: (data: any) => void): void {
+    this.socket?.off('receive-message', callback);
+  }
+
+  onUserTyping(callback: (data: any) => void): void {
+    this.socket?.on('user-typing', callback);
+  }
+
+  offUserTyping(callback: (data: any) => void): void {
+    this.socket?.off('user-typing', callback);
+  }
+
+  onUserStopTyping(callback: (data: any) => void): void {
+    this.socket?.on('user-stop-typing', callback);
+  }
+
+  offUserStopTyping(callback: (data: any) => void): void {
+    this.socket?.off('user-stop-typing', callback);
+  }
+
+  // 协作编辑
+  sendCodeChange(data: { projectId: string; fileId: string; content: string }): void {
+    this.socket?.emit('code-change', data);
+  }
+
+  sendCursorMove(data: { projectId: string; fileId: string; position: any }): void {
+    this.socket?.emit('cursor-move', data);
+  }
+
+  onOnlineUsers(callback: (data: any) => void): void {
+    this.socket?.on('online-users', callback);
+  }
+
   offOnlineUsers(callback: (data: any) => void): void {
     this.socket?.off('online-users', callback);
+  }
+
+  onCodeChange(callback: (data: any) => void): void {
+    this.socket?.on('code-change', callback);
   }
 
   offCodeChange(callback: (data: any) => void): void {
     this.socket?.off('code-change', callback);
   }
 
+  onCursorMove(callback: (data: any) => void): void {
+    this.socket?.on('cursor-move', callback);
+  }
+
   offCursorMove(callback: (data: any) => void): void {
     this.socket?.off('cursor-move', callback);
   }
 
-  offReceiveMessage(callback: (data: any) => void): void {
-    this.socket?.off('receive-message', callback);
+  get socketInstance(): Socket | null {
+    return this.socket;
   }
 }
 

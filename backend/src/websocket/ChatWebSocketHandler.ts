@@ -1,11 +1,11 @@
 import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger';
+import { prisma } from '../lib/prisma';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
-  projectId?: string;
-  rooms: Set<string>;
+  userName?: string;
 }
 
 interface ChatMessage {
@@ -17,24 +17,17 @@ interface ChatMessage {
   type: 'text' | 'system';
 }
 
-interface ChatRoom {
-  id: string;
-  name: string;
-  messages: ChatMessage[];
-  users: Set<string>;
-}
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-not-for-production';
 
 export class ChatWebSocketHandler {
   private io: Server;
-  private rooms: Map<string, ChatRoom> = new Map();
-  private userSockets: Map<string, Set<string>> = new Map();
+  private rooms: Map<string, Set<string>> = new Map();
 
   constructor(io: Server) {
     this.io = io;
   }
 
   initialize(): void {
-    this.io.use(this.authenticate.bind(this));
     this.io.on('connection', (socket: AuthenticatedSocket) => {
       this.handleConnection(socket);
     });
@@ -42,105 +35,135 @@ export class ChatWebSocketHandler {
     logger.info('聊天 WebSocket 服务已初始化');
   }
 
-  private authenticate(socket: AuthenticatedSocket, next: (err?: Error) => void): void {
+  private handleConnection(socket: AuthenticatedSocket): void {
+    // 同步验证 JWT，立即注册事件处理器
     try {
       const token = socket.handshake.auth.token || socket.handshake.query.token as string;
-      
+
       if (!token) {
-        return next(new Error('认证 token 缺失'));
+        logger.warn('聊天 WebSocket 认证失败: 缺少 token');
+        socket.disconnect(true);
+        return;
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret-key') as { userId: string; username: string };
+      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
       socket.userId = decoded.userId;
-      next();
+      socket.userName = '加载中...';
     } catch (error) {
-      next(new Error('认证失败'));
+      logger.warn('聊天 WebSocket 认证失败', { error });
+      socket.disconnect(true);
+      return;
     }
-  }
 
-  private handleConnection(socket: AuthenticatedSocket): void {
-    logger.info(`用户 ${socket.userId} 已连接聊天 WebSocket`);
+    // 异步获取真实用户名
+    prisma.user.findUnique({
+      where: { id: socket.userId! },
+      select: { username: true },
+    }).then((dbUser) => {
+      socket.userName = dbUser?.username || socket.userId!.slice(0, 8);
+    }).catch(() => {
+      socket.userName = socket.userId!.slice(0, 8);
+    });
 
-    // 加入用户专属房间
     socket.join(`user:${socket.userId}`);
-    this.trackUser(socket.userId!, socket.id);
+    logger.info(`用户 ${socket.userName} (${socket.userId}) 已连接聊天`);
 
     // 加入聊天房间
-    socket.on('join-room', (roomId: string) => {
-      socket.join(`room:${roomId}`);
-      
-      if (!this.rooms.has(roomId)) {
-        this.rooms.set(roomId, { id: roomId, name: `房间 ${roomId}`, messages: [], users: new Set() });
+    socket.on('join-room', async (roomId: string) => {
+      try {
+        if (!roomId || !socket.userId) return;
+
+        socket.join(`room:${roomId}`);
+        this.trackRoomUser(roomId, socket.userId);
+
+        const users = Array.from(this.rooms.get(roomId) || []);
+        this.io.to(`room:${roomId}`).emit('room-update', {
+          roomId,
+          users,
+          count: users.length,
+        });
+
+        // 从数据库加载最近 50 条历史消息
+        const historyRecords = await prisma.chatMessage.findMany({
+          where: { roomId },
+          orderBy: { createdAt: 'asc' },
+          take: 50,
+        });
+        const history: ChatMessage[] = historyRecords.map((m) => ({
+          id: m.id,
+          userId: m.userId,
+          userName: m.userName,
+          content: m.content,
+          timestamp: m.createdAt,
+          type: m.type as 'text' | 'system',
+        }));
+        socket.emit('room-history', { roomId, messages: history });
+
+        // 广播加入消息
+        const joinMsg: ChatMessage = {
+          id: `sys-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          userId: 'system',
+          userName: '系统',
+          content: `${socket.userName} 加入了房间`,
+          timestamp: new Date(),
+          type: 'system',
+        };
+        this.io.to(`room:${roomId}`).emit('receive-message', joinMsg);
+
+        logger.info(`用户 ${socket.userName} 加入房间 ${roomId}`);
+      } catch (error) {
+        logger.error('加入房间失败', { error, userId: socket.userId, roomId });
       }
-      
-      const room = this.rooms.get(roomId)!;
-      room.users.add(socket.userId!);
-      
-      // 通知房间新成员
-      this.io.to(`room:${roomId}`).emit('room-update', {
-        roomId,
-        users: Array.from(room.users),
-        messageCount: room.messages.length,
-      });
-      
-      // 发送历史消息
-      socket.emit('room-history', { roomId, messages: room.messages.slice(-50) });
-      
-      // 广播系统消息
-      this.io.to(`room:${roomId}`).emit('receive-message', {
-        id: `system-${Date.now()}`,
-        userId: 'system',
-        userName: '系统',
-        content: `${socket.userId} 加入了房间`,
-        timestamp: new Date(),
-        type: 'system',
-      });
-      
-      logger.info(`用户 ${socket.userId} 加入房间 ${roomId}`);
     });
 
     // 离开聊天房间
     socket.on('leave-room', (roomId: string) => {
       socket.leave(`room:${roomId}`);
-      this.handleUserLeaveRoom(roomId, socket.userId!);
+      this.handleLeaveRoom(roomId, socket.userId!, socket.userName || '未知用户');
     });
 
     // 发送消息
     socket.on('send-message', async (data: { roomId: string; content: string }) => {
+      if (!data.roomId || !data.content?.trim() || !socket.userId) return;
+
       const message: ChatMessage = {
-        id: `msg-${Date.now()}`,
-        userId: socket.userId!,
-        userName: socket.userId!.slice(0, 8),
-        content: data.content,
+        id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        userId: socket.userId,
+        userName: socket.userName || socket.userId.slice(0, 8),
+        content: data.content.trim(),
         timestamp: new Date(),
         type: 'text',
       };
 
-      // 保存到房间历史
-      const room = this.rooms.get(data.roomId);
-      if (room) {
-        room.messages.push(message);
-        // 限制历史消息数量
-        if (room.messages.length > 200) {
-          room.messages = room.messages.slice(-200);
-        }
-      }
+      // 持久化到数据库（异步，不阻塞广播）
+      prisma.chatMessage.create({
+        data: {
+          id: message.id,
+          roomId: data.roomId,
+          userId: socket.userId,
+          userName: message.userName,
+          content: data.content.trim(),
+          type: 'text',
+        },
+      }).catch((error) => {
+        logger.error('保存消息失败', { error });
+      });
 
-      // 广播到房间
       this.io.to(`room:${data.roomId}`).emit('receive-message', message);
-
-      logger.info(`用户 ${socket.userId} 在房间 ${data.roomId} 发送消息`);
     });
 
     // 输入状态
     socket.on('typing-start', (data: { roomId: string }) => {
+      if (!data.roomId || !socket.userId) return;
       socket.to(`room:${data.roomId}`).emit('user-typing', {
         userId: socket.userId,
+        userName: socket.userName,
         roomId: data.roomId,
       });
     });
 
     socket.on('typing-stop', (data: { roomId: string }) => {
+      if (!data.roomId || !socket.userId) return;
       socket.to(`room:${data.roomId}`).emit('user-stop-typing', {
         userId: socket.userId,
         roomId: data.roomId,
@@ -149,87 +172,54 @@ export class ChatWebSocketHandler {
 
     // 断开连接
     socket.on('disconnect', () => {
-      this.handleDisconnect(socket);
+      if (!socket.userId) return;
+      logger.info(`用户 ${socket.userName} 断开聊天连接`);
+
+      this.rooms.forEach((users, roomId) => {
+        if (users.has(socket.userId!)) {
+          this.handleLeaveRoom(roomId, socket.userId!, socket.userName || '未知用户');
+        }
+      });
     });
   }
 
-  private handleUserLeaveRoom(roomId: string, userId: string): void {
-    const room = this.rooms.get(roomId);
-    if (room) {
-      room.users.delete(userId);
-      
-      // 广播离开消息
-      this.io.to(`room:${roomId}`).emit('receive-message', {
-        id: `system-${Date.now()}`,
-        userId: 'system',
-        userName: '系统',
-        content: `${userId} 离开了房间`,
-        timestamp: new Date(),
-        type: 'system',
-      });
+  private handleLeaveRoom(roomId: string, userId: string, userName: string): void {
+    const users = this.rooms.get(roomId);
+    if (!users) return;
 
-      this.io.to(`room:${roomId}`).emit('room-update', {
-        roomId,
-        users: Array.from(room.users),
-      });
+    users.delete(userId);
 
-      // 如果房间为空，清理房间
-      if (room.users.size === 0) {
-        this.rooms.delete(roomId);
-      }
+    const leaveMsg: ChatMessage = {
+      id: `sys-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      userId: 'system',
+      userName: '系统',
+      content: `${userName} 离开了房间`,
+      timestamp: new Date(),
+      type: 'system',
+    };
+    this.io.to(`room:${roomId}`).emit('receive-message', leaveMsg);
+
+    const remaining = Array.from(users);
+    this.io.to(`room:${roomId}`).emit('room-update', {
+      roomId,
+      users: remaining,
+      count: remaining.length,
+    });
+
+    if (users.size === 0) {
+      this.rooms.delete(roomId);
     }
   }
 
-  private handleDisconnect(socket: AuthenticatedSocket): void {
-    if (!socket.userId) return;
-
-    logger.info(`用户 ${socket.userId} 断开聊天连接`);
-    this.untrackUser(socket.userId, socket.id);
-
-    // 离开所有房间
-    const rooms = Array.from(this.rooms.entries());
-    for (const [roomId, room] of rooms) {
-      if (room.users.has(socket.userId!)) {
-        this.handleUserLeaveRoom(roomId, socket.userId!);
-      }
+  private trackRoomUser(roomId: string, userId: string): void {
+    if (!this.rooms.has(roomId)) {
+      this.rooms.set(roomId, new Set());
     }
-
-    // 通知好友
-    this.io.emit('user-offline', { userId: socket.userId });
+    this.rooms.get(roomId)!.add(userId);
   }
 
-  private trackUser(userId: string, socketId: string): void {
-    if (!this.userSockets.has(userId)) {
-      this.userSockets.set(userId, new Set());
-    }
-    this.userSockets.get(userId)!.add(socketId);
-    
-    // 通知好友在线
-    this.io.emit('user-online', { userId });
-  }
-
-  private untrackUser(userId: string, socketId: string): void {
-    const sockets = this.userSockets.get(userId);
-    if (sockets) {
-      sockets.delete(socketId);
-      if (sockets.size === 0) {
-        this.userSockets.delete(userId);
-      }
-    }
-  }
-
-  // 发送私信
-  sendDirectMessage(toUserId: string, message: ChatMessage): void {
-    this.io.to(`user:${toUserId}`).emit('direct-message', message);
-  }
-
-  // 发送通知
+  // 发送通知给指定用户
   sendNotification(userId: string, notification: any): void {
     this.io.to(`user:${userId}`).emit('notification', notification);
-  }
-
-  // 广播到项目
-  broadcastToProject(projectId: string, event: string, data: any): void {
-    this.io.to(`project:${projectId}`).emit(event, data);
   }
 }
