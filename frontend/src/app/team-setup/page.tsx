@@ -19,21 +19,31 @@ export default function TeamSetupPage() {
   const [error, setError] = useState('');
   const [createdTeam, setCreatedTeam] = useState<{ name: string; inviteCode: string } | null>(null);
   const [joinResult, setJoinResult] = useState<{ success: boolean; message: string; teamName?: string } | null>(null);
+  const [checkingTeam, setCheckingTeam] = useState(true);
 
-  // 认证检查
+  // 认证检查 + 团队状态检查
   useEffect(() => {
     if (!isAuthenticated) {
       router.replace('/login');
       return;
     }
 
-    // 刷新团队状态
+    let cancelled = false;
+
     api.get('/auth/me').then(({ data }) => {
+      if (cancelled) return;
+      setTeamStatus(data.hasTeam, data.teams || []);
       if (data.hasTeam) {
-        setTeamStatus(true, data.teams);
         router.replace('/dashboard');
+      } else {
+        setCheckingTeam(false);
       }
-    }).catch(() => {});
+    }).catch(() => {
+      if (cancelled) return;
+      setCheckingTeam(false);
+    });
+
+    return () => { cancelled = true; };
   }, [isAuthenticated, router, setTeamStatus]);
 
   const handleCreateTeam = async (e: React.FormEvent) => {
@@ -77,7 +87,7 @@ export default function TeamSetupPage() {
 
   const goToDashboard = () => router.push('/dashboard');
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || checkingTeam) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-1">
         <div className="animate-pulse text-neutral-7">加载中...</div>
