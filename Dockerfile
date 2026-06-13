@@ -102,23 +102,7 @@ COPY --from=backend-builder --chown=nodejs:nodejs /app/backend/node_modules/.pri
 COPY --from=backend-builder --chown=nodejs:nodejs /app/backend/prisma ./prisma
 
 # 等待数据库就绪并启动
-RUN cat > start.sh << 'EOF'
-#!/bin/sh
-set -e
-
-echo "等待 PostgreSQL..."
-until nc -z postgres 5432; do sleep 1; done
-
-echo "等待 Redis..."
-until nc -z redis 6379; do sleep 1; done
-
-echo "执行 Prisma 同步..."
-npx prisma db push --skip-generate --accept-data-loss || true
-
-echo "启动后端服务..."
-exec node dist/index.js
-EOF
-
+COPY docker/start.sh ./start.sh
 RUN chmod +x start.sh
 
 EXPOSE 10101
