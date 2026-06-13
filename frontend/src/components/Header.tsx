@@ -10,7 +10,7 @@ import { useTheme } from 'next-themes';
 import { wsService } from '@/lib/websocket';
 
 export function Header() {
-  const { user, logout, teams } = useAuthStore();
+  const { user, token, logout, teams } = useAuthStore();
   const { isConnected, onlineCount, setConnected, setOnlineCount } = useWebSocketStore();
   const { setTheme, theme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
@@ -21,12 +21,11 @@ export function Header() {
   }, []);
 
   React.useEffect(() => {
-    if (!user || !mounted) return;
+    if (!user || !mounted || !token) return;
 
     const handleConnect = () => {
       setConnected(true);
       setOnlineCount(0);
-      // 连接成功后自动加入当前团队房间
       if (teams.length > 0) {
         wsService.joinTeam(teams[0].id);
       }
@@ -40,7 +39,10 @@ export function Header() {
     wsService.on('disconnect', handleDisconnect);
     wsService.on('online-users', handleOnlineUsers);
 
-    if (wsService.socketInstance?.connected) {
+    // 页面刷新或首次渲染时，如果 WebSocket 未连接则发起连接
+    if (!wsService.socketInstance?.connected) {
+      wsService.connect(token);
+    } else {
       setConnected(true);
       if (teams.length > 0) {
         wsService.joinTeam(teams[0].id);
@@ -52,7 +54,7 @@ export function Header() {
       wsService.off('disconnect', handleDisconnect);
       wsService.off('online-users', handleOnlineUsers);
     };
-  }, [user, mounted, teams, setConnected, setOnlineCount]);
+  }, [user, mounted, token, teams, setConnected, setOnlineCount]);
 
   const handleLogout = () => {
     wsService.disconnect();
