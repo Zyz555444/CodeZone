@@ -20,7 +20,7 @@ export default function NewProjectPage() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    visibility: 'private' as 'public' | 'private',
+    visibility: 'PRIVATE' as 'PUBLIC' | 'PRIVATE',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -114,12 +114,12 @@ export default function NewProjectPage() {
                             <input
                               type="radio"
                               name="visibility"
-                              value="private"
-                              checked={formData.visibility === 'private'}
+                              value="PRIVATE"
+                              checked={formData.visibility === 'PRIVATE'}
                               onChange={(e) =>
                                 setFormData({
                                   ...formData,
-                                  visibility: e.target.value as 'public' | 'private',
+                                  visibility: e.target.value as 'PUBLIC' | 'PRIVATE',
                                 })
                               }
                               className="h-4 w-4"
@@ -130,12 +130,12 @@ export default function NewProjectPage() {
                             <input
                               type="radio"
                               name="visibility"
-                              value="public"
-                              checked={formData.visibility === 'public'}
+                              value="PUBLIC"
+                              checked={formData.visibility === 'PUBLIC'}
                               onChange={(e) =>
                                 setFormData({
                                   ...formData,
-                                  visibility: e.target.value as 'public' | 'private',
+                                  visibility: e.target.value as 'PUBLIC' | 'PRIVATE',
                                 })
                               }
                               className="h-4 w-4"

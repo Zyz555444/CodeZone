@@ -160,7 +160,7 @@ export default function CodePage() {
     const fullPath = parentPath ? `${parentPath}/${name}` : name;
 
     try {
-      const res = await api.post('/code/files', {
+      const res = await api.post('/files/files', {
         projectId: selectedProjectId,
         name,
         path: fullPath,

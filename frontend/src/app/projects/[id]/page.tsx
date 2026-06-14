@@ -136,7 +136,7 @@ export default function ProjectDetailPage() {
                     <div>
                       <p className="text-xs text-neutral-7">可见性</p>
                       <p className="font-medium text-neutral-10">
-                        {project.visibility === 'public' ? '公开' : '私有'}
+                        {project.visibility === 'PUBLIC' ? '公开' : '私有'}
                       </p>
                     </div>
                   </CardContent>

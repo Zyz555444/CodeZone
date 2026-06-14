@@ -13,7 +13,7 @@ interface ChatMessage {
   userName: string;
   content: string;
   timestamp: Date;
-  type: 'text' | 'system';
+  type: 'TEXT' | 'SYSTEM';
 }
 
 interface ChatRoomProps {
@@ -219,8 +219,8 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
   const shouldShowHeader = (message: ChatMessage, index: number) => {
     if (index === 0) return true;
     const prev = messages[index - 1];
-    if (message.type === 'system') return true;
-    return prev.userId !== message.userId || prev.type === 'system';
+    if (message.type === 'SYSTEM') return true;
+    return prev.userId !== message.userId || prev.type === 'SYSTEM';
   };
 
   return (
@@ -279,7 +279,7 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
         ) : (
           messages.map((message, index) => {
             const isMine = message.userId === user?.id;
-            const isSystem = message.type === 'system';
+            const isSystem = message.type === 'SYSTEM';
             const showHeader = shouldShowHeader(message, index);
 
             if (isSystem) {

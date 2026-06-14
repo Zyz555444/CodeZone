@@ -16,6 +16,8 @@ export function TeamGuard({ children }: TeamGuardProps) {
   const [error, setError] = useState(false);
   const [checking, setChecking] = useState(true);
 
+  const [retryCount, setRetryCount] = useState(0);
+
   useEffect(() => {
     if (!isAuthenticated) {
       setChecking(false);
@@ -40,7 +42,7 @@ export function TeamGuard({ children }: TeamGuardProps) {
     });
 
     return () => { cancelled = true; };
-  }, [isAuthenticated, pathname, router, setTeamStatus]);
+  }, [isAuthenticated, pathname, router, setTeamStatus, retryCount]);
 
   if (error) {
     return (
@@ -48,7 +50,7 @@ export function TeamGuard({ children }: TeamGuardProps) {
         <div className="text-center">
           <p className="text-neutral-8 mb-4">无法连接到服务器，请检查网络后重试</p>
           <button
-            onClick={() => { setError(false); setChecking(true); }}
+            onClick={() => { setError(false); setRetryCount(c => c + 1); }}
             className="px-4 py-2 bg-primary-6 text-white rounded-lg hover:bg-primary-7 transition-colors"
           >
             重试

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
+import { AuthRequest } from '../middleware/auth';
 
 async function fetchChildrenRecursive(projectId: string, parentId: string | null): Promise<any> {
   const files = await prisma.codeFile.findMany({
@@ -8,7 +9,7 @@ async function fetchChildrenRecursive(projectId: string, parentId: string | null
   });
 
   return Promise.all(
-    files.map(async (file) => {
+    files.map(async (file: any) => {
       if (file.type === 'DIRECTORY') {
         return {
           ...file,
@@ -56,14 +57,23 @@ export const getFile = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-export const updateFile = async (req: Request, res: Response): Promise<void> => {
+export const updateFile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { content } = req.body;
 
-    const existing = await prisma.codeFile.findUnique({ where: { id } });
+    const existing = await prisma.codeFile.findUnique({
+      where: { id },
+      include: { project: { select: { ownerId: true } } },
+    });
     if (!existing) {
       res.status(404).json({ error: '文件不存在' });
+      return;
+    }
+
+    // 权限检查：项目所有者可以更新文件
+    if (existing.project.ownerId !== req.userId) {
+      res.status(403).json({ error: '无权更新此文件' });
       return;
     }
 

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
+import { logger } from '../utils/logger';
 
 export const getReviews = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -27,7 +28,8 @@ export const getReviews = async (req: AuthRequest, res: Response): Promise<void>
 
     res.json({ reviews });
   } catch (error) {
-    throw error;
+    logger.error('获取审查列表失败', { error, userId: req.userId });
+    res.status(500).json({ error: '获取审查列表失败' });
   }
 };
 
@@ -45,7 +47,8 @@ export const createReview = async (req: AuthRequest, res: Response): Promise<voi
 
     res.status(201).json({ review });
   } catch (error) {
-    throw error;
+    logger.error('创建审查失败', { error, userId: req.userId });
+    res.status(500).json({ error: '创建审查失败' });
   }
 };
 
@@ -61,6 +64,7 @@ export const updateReview = async (req: AuthRequest, res: Response): Promise<voi
 
     res.json({ review });
   } catch (error) {
-    throw error;
+    logger.error('更新审查失败', { error, userId: req.userId });
+    res.status(500).json({ error: '更新审查失败' });
   }
 };

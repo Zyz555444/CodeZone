@@ -86,29 +86,52 @@ export default function TaskDetailPage() {
 
   const addSubtask = async () => {
     if (!newSubtask.trim() || !task) return;
-    setTask({
-      ...task,
-      subtasks: [...task.subtasks, { id: Date.now().toString(), title: newSubtask, completed: false }],
-    });
-    setNewSubtask('');
+    try {
+      const response = await api.post(
+        `/tasks/${task.id}/subtasks`,
+        { title: newSubtask.trim() }
+      );
+      setTask({
+        ...task,
+        subtasks: [...task.subtasks, response.data.subTask],
+      });
+      setNewSubtask('');
+    } catch (error) {
+      console.error('添加子任务失败:', error);
+    }
   };
 
   const toggleSubtask = async (subtaskId: string) => {
     if (!task) return;
-    setTask({
-      ...task,
-      subtasks: task.subtasks.map(st =>
-        st.id === subtaskId ? { ...st, completed: !st.completed } : st
-      ),
-    });
+    const subtask = task.subtasks.find(st => st.id === subtaskId);
+    if (!subtask) return;
+    try {
+      const response = await api.patch(
+        `/tasks/subtasks/${subtaskId}`,
+        { completed: !subtask.completed }
+      );
+      setTask({
+        ...task,
+        subtasks: task.subtasks.map(st =>
+          st.id === subtaskId ? response.data.subTask : st
+        ),
+      });
+    } catch (error) {
+      console.error('切换子任务状态失败:', error);
+    }
   };
 
   const deleteSubtask = async (subtaskId: string) => {
     if (!task) return;
-    setTask({
-      ...task,
-      subtasks: task.subtasks.filter(st => st.id !== subtaskId),
-    });
+    try {
+      await api.delete(`/tasks/subtasks/${subtaskId}`);
+      setTask({
+        ...task,
+        subtasks: task.subtasks.filter(st => st.id !== subtaskId),
+      });
+    } catch (error) {
+      console.error('删除子任务失败:', error);
+    }
   };
 
   const addComment = async () => {

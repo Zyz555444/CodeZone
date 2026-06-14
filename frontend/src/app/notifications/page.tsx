@@ -1,58 +1,86 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Bell, Check, Trash2, MessageSquare, Users, GitBranch, AlertCircle } from 'lucide-react';
+import { Bell, Check, MessageSquare, Users, GitBranch, AlertCircle } from 'lucide-react';
 import { TeamGuard } from '@/components/TeamGuard';
+import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 
-const notifications = [
-  {
-    id: '1',
-    type: 'task',
-    title: '新任务分配',
-    content: '您被分配到任务 "完成用户认证模块"',
-    time: '5 分钟前',
-    read: false,
-  },
-  {
-    id: '2',
-    type: 'review',
-    title: '代码审查请求',
-    content: '张三 请求您审查 Pull Request #123',
-    time: '1 小时前',
-    read: false,
-  },
-  {
-    id: '3',
-    type: 'member',
-    title: '新成员加入',
-    content: '李四 加入了项目 "电商平台"',
-    time: '2 小时前',
-    read: true,
-  },
-  {
-    id: '4',
-    type: 'system',
-    title: '系统更新',
-    content: 'CodeZone 已更新到 v1.0.1 版本',
-    time: '1 天前',
-    read: true,
-  },
-];
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  content?: string;
+  isRead: boolean;
+  createdAt: string;
+}
 
-const iconMap = {
-  task: Check,
-  review: GitBranch,
-  member: Users,
-  system: AlertCircle,
+const iconMap: Record<string, React.ComponentType<any>> = {
+  TASK: Check,
+  REVIEW: GitBranch,
+  MEMBER: Users,
+  SYSTEM: AlertCircle,
 };
 
 export default function NotificationsPage() {
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchNotifications = async () => {
+    try {
+      const { data } = await api.get('/notifications');
+      setNotifications(data.notifications || []);
+    } catch (error) {
+      console.error('获取通知失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const markAsRead = async (id: string) => {
+    try {
+      await api.patch(`/notifications/${id}/read`);
+      setNotifications(prev =>
+        prev.map(n => n.id === id ? { ...n, isRead: true } : n)
+      );
+    } catch (error) {
+      console.error('标记已读失败:', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    const unread = notifications.filter(n => !n.isRead);
+    await Promise.all(unread.map(n => markAsRead(n.id)));
+  };
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  if (loading) {
+    return (
+      <TeamGuard>
+        <div className="flex h-screen overflow-hidden">
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <Header />
+            <div className="flex flex-1 overflow-hidden">
+              <Sidebar />
+              <main className="flex-1 flex items-center justify-center bg-neutral-1">
+                <div className="animate-pulse text-neutral-7">加载中...</div>
+              </main>
+            </div>
+          </div>
+        </div>
+      </TeamGuard>
+    );
+  }
 
   return (
     <TeamGuard>
@@ -79,7 +107,7 @@ export default function NotificationsPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="gap-2">
+                  <Button variant="outline" size="sm" className="gap-2" onClick={markAllAsRead}>
                     <Check className="h-3 w-3" />
                     全部已读
                   </Button>
@@ -89,22 +117,23 @@ export default function NotificationsPage() {
               {/* Notifications List */}
               <div className="space-y-3">
                 {notifications.map((notification) => {
-                  const Icon = iconMap[notification.type as keyof typeof iconMap];
+                  const Icon = iconMap[notification.type] || Bell;
                   return (
                     <Card 
                       key={notification.id} 
                       className={cn(
                         "transition-all hover:shadow-whisper cursor-pointer",
-                        !notification.read && "border-l-4 border-l-accent"
+                        !notification.isRead && "border-l-4 border-l-accent"
                       )}
+                      onClick={() => !notification.isRead && markAsRead(notification.id)}
                     >
                       <CardContent className="p-4 flex gap-4">
                         <div className={cn(
                           "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-                          notification.type === 'task' && "bg-success/10 text-success",
-                          notification.type === 'review' && "bg-info/10 text-info",
-                          notification.type === 'member' && "bg-accent-subtle text-accent",
-                          notification.type === 'system' && "bg-neutral-3 text-neutral-6"
+                          notification.type === 'TASK' && "bg-success/10 text-success",
+                          notification.type === 'REVIEW' && "bg-info/10 text-info",
+                          notification.type === 'MEMBER' && "bg-accent-subtle text-accent",
+                          notification.type === 'SYSTEM' && "bg-neutral-3 text-neutral-6"
                         )}>
                           <Icon className="h-5 w-5" />
                         </div>
@@ -113,7 +142,7 @@ export default function NotificationsPage() {
                             <div>
                               <p className={cn(
                                 "font-medium",
-                                notification.read ? "text-neutral-8" : "text-neutral-10"
+                                notification.isRead ? "text-neutral-8" : "text-neutral-10"
                               )}>
                                 {notification.title}
                               </p>
@@ -121,12 +150,12 @@ export default function NotificationsPage() {
                                 {notification.content}
                               </p>
                             </div>
-                            {!notification.read && (
+                            {!notification.isRead && (
                               <span className="w-2 h-2 rounded-full bg-accent shrink-0 mt-2" />
                             )}
                           </div>
                           <p className="text-xs text-neutral-6 mt-2">
-                            {notification.time}
+                            {formatDate(notification.createdAt)}
                           </p>
                         </div>
                       </CardContent>

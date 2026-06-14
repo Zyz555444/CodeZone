@@ -46,6 +46,29 @@ enum JoinStatus {
   REJECTED
 }
 
+enum ProjectVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum ReviewStatus {
+  OPEN
+  CLOSED
+  MERGED
+}
+
+enum ChatMessageType {
+  TEXT
+  SYSTEM
+}
+
+enum NotificationType {
+  TASK
+  REVIEW
+  MEMBER
+  SYSTEM
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -130,7 +153,7 @@ model Project {
   name        String
   description String?
   avatar      String?
-  visibility  String   @default("private")
+  visibility  ProjectVisibility @default(PRIVATE)
   ownerId     String
   teamId      String?
   createdAt   DateTime @default(now())
@@ -275,7 +298,7 @@ model CodeReview {
   projectId String
   title     String
   authorId  String
-  status    String   @default("open")
+  status    ReviewStatus @default(OPEN)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -312,7 +335,7 @@ model ChatMessage {
   userId    String
   userName  String
   content   String
-  type      String   @default("text")
+  type      ChatMessageType @default(TEXT)
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -323,13 +346,13 @@ model ChatMessage {
 }
 
 model Notification {
-  id        String   @id @default(cuid())
+  id        String           @id @default(cuid())
   userId    String
   title     String
   content   String?
-  type      String
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

@@ -1,16 +1,34 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Bell, User, Lock, Palette, BellOff, Trash2, Check } from 'lucide-react';
+import { Bell, User, Lock, Palette, Check } from 'lucide-react';
 import { TeamGuard } from '@/components/TeamGuard';
+import { api } from '@/lib/api';
+import { useAuthStore } from '@/stores/authStore';
+import { useTheme } from 'next-themes';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profile');
+  const [profileData, setProfileData] = useState({ username: '', email: '', bio: '' });
+  const [loading, setLoading] = useState(false);
+  const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    api.get('/auth/me').then(({ data }) => {
+      if (data.user) {
+        setProfileData({
+          username: data.user.username || '',
+          email: data.user.email || '',
+          bio: data.user.bio || '',
+        });
+      }
+    }).catch(() => {});
+  }, []);
 
   const tabs = [
     { id: 'profile', label: '个人资料', icon: User },
@@ -80,16 +98,18 @@ export default function SettingsPage() {
                         <div className="space-y-4">
                           <div className="space-y-2">
                             <label className="text-sm font-medium text-neutral-8">用户名</label>
-                            <Input defaultValue="username" className="max-w-md" />
+                            <Input value={profileData.username} onChange={(e) => setProfileData({ ...profileData, username: e.target.value })} className="max-w-md" />
                           </div>
                           <div className="space-y-2">
                             <label className="text-sm font-medium text-neutral-8">邮箱</label>
-                            <Input defaultValue="user@example.com" type="email" className="max-w-md" />
+                            <Input value={profileData.email} type="email" className="max-w-md" disabled />
                           </div>
                           <div className="space-y-2">
                             <label className="text-sm font-medium text-neutral-8">个人简介</label>
                             <textarea 
                               className="flex min-h-[100px] w-full max-w-md rounded-lg border border-neutral-5 bg-neutral-1 px-3 py-2 text-sm"
+                              value={profileData.bio}
+                              onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
                               placeholder="介绍一下自己..."
                             />
                           </div>
@@ -170,12 +190,17 @@ export default function SettingsPage() {
                         <div>
                           <label className="text-sm font-medium text-neutral-8 mb-3 block">主题</label>
                           <div className="flex gap-3">
-                            {['light', 'dark', 'system'].map((theme) => (
+                            {(['light', 'dark', 'system'] as const).map((themeOption) => (
                               <button
-                                key={theme}
-                                className="px-4 py-2 rounded-lg border border-neutral-5 bg-neutral-1 hover:border-accent/30 transition-colors capitalize"
+                                key={themeOption}
+                                onClick={() => setTheme(themeOption)}
+                                className={`px-4 py-2 rounded-lg border transition-colors capitalize ${
+                                  theme === themeOption
+                                    ? 'border-accent bg-accent-subtle text-accent'
+                                    : 'border-neutral-5 bg-neutral-1 hover:border-accent/30'
+                                }`}
                               >
-                                {theme === 'light' ? '浅色' : theme === 'dark' ? '深色' : '跟随系统'}
+                                {themeOption === 'light' ? '浅色' : themeOption === 'dark' ? '深色' : '跟随系统'}
                               </button>
                             ))}
                           </div>

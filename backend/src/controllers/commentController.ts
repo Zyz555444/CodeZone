@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
+import { logger } from '../utils/logger';
 
 const createCommentSchema = z.object({
   content: z.string().min(1, '评论内容不能为空'),
@@ -27,7 +28,8 @@ export const getComments = async (req: AuthRequest, res: Response): Promise<void
 
     res.json({ comments });
   } catch (error) {
-    throw error;
+    logger.error('获取评论失败', { error, userId: req.userId });
+    res.status(500).json({ error: '获取评论失败' });
   }
 };
 
@@ -59,6 +61,7 @@ export const createComment = async (req: AuthRequest, res: Response): Promise<vo
       res.status(400).json({ error: '验证失败', details: error.errors });
       return;
     }
-    throw error;
+    logger.error('创建评论失败', { error, userId: req.userId });
+    res.status(500).json({ error: '创建评论失败' });
   }
 };

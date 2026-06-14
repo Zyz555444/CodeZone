@@ -82,6 +82,15 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       { expiresIn: '7d' }
     );
 
+    // 创建会话记录
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        token,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
     logger.info('用户注册成功', { userId: user.id, email: user.email });
 
     res.status(201).json({
@@ -145,6 +154,15 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       { expiresIn: '7d' }
     );
 
+    // 创建会话记录用于登出时失效
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        token,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
     logger.info('用户登录成功', { userId: user.id, email: user.email });
 
     res.json({
@@ -169,7 +187,15 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
 export const logout = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    // TODO: 将 token 加入黑名单或从数据库删除 session
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      // 删除会话记录使令牌失效
+      await prisma.session.deleteMany({
+        where: { token },
+      });
+    }
+
     logger.info('用户登出', { userId: req.userId });
     res.json({ success: true, message: '登出成功' });
   } catch (error) {
@@ -223,7 +249,7 @@ export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<v
 
     const hasTeam = activeTeams.length > 0;
 
-    res.json({ user, hasTeam, teams: activeTeams.map(tm => tm.team) });
+    res.json({ user, hasTeam, teams: activeTeams.map((tm: any) => tm.team) });
   } catch (error) {
     logger.error('获取当前用户失败', { error, userId: req.userId });
     res.status(500).json({ error: '获取用户信息失败' });

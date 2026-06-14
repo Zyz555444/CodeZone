@@ -57,9 +57,18 @@ export const updateFileName = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const existing = await prisma.codeFile.findUnique({ where: { id } });
+    const existing = await prisma.codeFile.findUnique({
+      where: { id },
+      include: { project: { select: { ownerId: true } } },
+    });
     if (!existing) {
       res.status(404).json({ error: '文件不存在' });
+      return;
+    }
+
+    // 权限检查：项目所有者可以修改文件
+    if (existing.project.ownerId !== req.userId) {
+      res.status(403).json({ error: '无权修改此文件' });
       return;
     }
 
@@ -78,9 +87,18 @@ export const deleteFile = async (req: AuthRequest, res: Response): Promise<void>
   try {
     const { id } = req.params;
 
-    const existing = await prisma.codeFile.findUnique({ where: { id } });
+    const existing = await prisma.codeFile.findUnique({
+      where: { id },
+      include: { project: { select: { ownerId: true } } },
+    });
     if (!existing) {
       res.status(404).json({ error: '文件不存在' });
+      return;
+    }
+
+    // 权限检查：项目所有者可以删除文件
+    if (existing.project.ownerId !== req.userId) {
+      res.status(403).json({ error: '无权删除此文件' });
       return;
     }
 

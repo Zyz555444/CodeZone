@@ -18,7 +18,7 @@ interface Project {
   id: string;
   name: string;
   description?: string;
-  visibility: 'public' | 'private';
+  visibility: 'PUBLIC' | 'PRIVATE';
   createdAt?: string;
   _count?: {
     members?: number;
@@ -143,7 +143,7 @@ export default function ProjectsPage() {
                               {formatDate(project.createdAt || new Date().toISOString())}
                             </span>
                           </div>
-                          {project.visibility === 'public' ? (
+                          {project.visibility === 'PUBLIC' ? (
                             <Globe className="h-3 w-3" />
                           ) : (
                             <Lock className="h-3 w-3" />

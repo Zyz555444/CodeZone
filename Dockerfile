@@ -10,7 +10,7 @@ RUN apk add --no-cache libc6-compat
 COPY frontend/package*.json ./frontend/
 COPY backend/package*.json ./backend/
 
-RUN cd frontend && npm install --legacy-peer-deps && \
+RUN cd frontend && corepack enable && corepack prepare pnpm@latest --activate && pnpm install --frozen-lockfile && \
     cd ../backend && npm install
 
 # ============================================
@@ -26,7 +26,7 @@ ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
 
 WORKDIR /app/frontend
 
-RUN npm install -g pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 ENV NODE_OPTIONS="--max-old-space-size=768"
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -35,7 +35,7 @@ COPY --from=deps /app/frontend/node_modules ./node_modules
 COPY frontend/ ./
 
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+RUN pnpm run build
 
 # ============================================
 # 阶段3: 前端生产镜像

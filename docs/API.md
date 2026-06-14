@@ -4,7 +4,7 @@
 
 ## 基础信息
 
-- Base URL: `http://localhost:4000/api`
+- Base URL: `http://localhost:10101/api`
 - 认证方式：JWT Bearer Token
 - 数据格式：JSON
 
@@ -292,11 +292,11 @@ Authorization: Bearer <token>
 
 ### 获取审查列表
 
-**GET** `/reviews/reviews`
+**GET** `/reviews`
 
 ### 创建审查
 
-**POST** `/reviews/reviews`
+**POST** `/reviews`
 
 **请求体**:
 ```json
@@ -393,9 +393,9 @@ socket.on('receive-message', (message) => {
 
 ## 速率限制
 
-- 认证相关接口：10 次/分钟
-- 数据读取接口：100 次/分钟
-- 数据写入接口：30 次/分钟
+- 认证相关接口：5 次/15 分钟
+- 数据读取接口：100 次/15 分钟
+- 数据写入接口：30 次/15 分钟
 
 ## SDK 示例
 

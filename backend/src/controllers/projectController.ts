@@ -2,11 +2,12 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
+import { logger } from '../utils/logger';
 
 const createProjectSchema = z.object({
   name: z.string().min(1, '项目名称不能为空'),
   description: z.string().optional(),
-  visibility: z.enum(['public', 'private']).default('private'),
+  visibility: z.enum(['PUBLIC', 'PRIVATE']).default('PRIVATE'),
 });
 
 export const getProjects = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -56,7 +57,8 @@ export const getProjects = async (req: AuthRequest, res: Response): Promise<void
 
     res.json({ projects });
   } catch (error) {
-    throw error;
+    logger.error('获取项目列表失败', { error, userId: req.userId });
+    res.status(500).json({ error: '获取项目列表失败' });
   }
 };
 
@@ -92,7 +94,8 @@ export const createProject = async (req: AuthRequest, res: Response): Promise<vo
       res.status(400).json({ error: '验证失败', details: error.errors });
       return;
     }
-    throw error;
+    logger.error('创建项目失败', { error, userId: req.userId });
+    res.status(500).json({ error: '创建项目失败' });
   }
 };
 
@@ -147,14 +150,15 @@ export const getProject = async (req: AuthRequest, res: Response): Promise<void>
 
     const isOwner = project.ownerId === req.userId;
     
-    if (!member && !isOwner && project.visibility === 'private') {
+    if (!member && !isOwner && project.visibility === 'PRIVATE') {
       res.status(403).json({ error: '无权访问该项目' });
       return;
     }
 
     res.json({ project });
   } catch (error) {
-    throw error;
+    logger.error('获取项目详情失败', { error, userId: req.userId });
+    res.status(500).json({ error: '获取项目详情失败' });
   }
 };
 
@@ -189,7 +193,8 @@ export const updateProject = async (req: AuthRequest, res: Response): Promise<vo
       res.status(400).json({ error: '验证失败', details: error.errors });
       return;
     }
-    throw error;
+    logger.error('更新项目失败', { error, userId: req.userId });
+    res.status(500).json({ error: '更新项目失败' });
   }
 };
 
@@ -217,7 +222,8 @@ export const deleteProject = async (req: AuthRequest, res: Response): Promise<vo
 
     res.json({ success: true });
   } catch (error) {
-    throw error;
+    logger.error('删除项目失败', { error, userId: req.userId });
+    res.status(500).json({ error: '删除项目失败' });
   }
 };
 
@@ -242,7 +248,8 @@ export const getProjectMembers = async (req: AuthRequest, res: Response): Promis
 
     res.json({ members });
   } catch (error) {
-    throw error;
+    logger.error('获取项目成员失败', { error, userId: req.userId });
+    res.status(500).json({ error: '获取项目成员失败' });
   }
 };
 
@@ -293,7 +300,8 @@ export const addMember = async (req: AuthRequest, res: Response): Promise<void> 
 
     res.status(201).json({ member });
   } catch (error) {
-    throw error;
+    logger.error('添加项目成员失败', { error, userId: req.userId });
+    res.status(500).json({ error: '添加项目成员失败' });
   }
 };
 
@@ -330,6 +338,7 @@ export const removeMember = async (req: AuthRequest, res: Response): Promise<voi
 
     res.json({ success: true });
   } catch (error) {
-    throw error;
+    logger.error('移除项目成员失败', { error, userId: req.userId });
+    res.status(500).json({ error: '移除项目成员失败' });
   }
 };

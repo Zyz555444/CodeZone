@@ -1,5 +1,3 @@
-import { describe, it, expect } from 'vitest';
-
 describe('Auth Controller', () => {
   it('should register a new user', async () => {
     // TODO: 实现注册测试

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
+import { logger } from '../utils/logger';
 
 const createTaskSchema = z.object({
   projectId: z.string(),
@@ -54,7 +55,8 @@ export const getTasks = async (req: AuthRequest, res: Response): Promise<void> =
 
     res.json({ tasks });
   } catch (error) {
-    throw error;
+    logger.error('获取任务列表失败', { error, userId: req.userId });
+    res.status(500).json({ error: '获取任务列表失败' });
   }
 };
 
@@ -84,7 +86,8 @@ export const createTask = async (req: AuthRequest, res: Response): Promise<void>
       res.status(400).json({ error: '验证失败', details: error.errors });
       return;
     }
-    throw error;
+    logger.error('创建任务失败', { error, userId: req.userId });
+    res.status(500).json({ error: '创建任务失败' });
   }
 };
 
@@ -122,7 +125,8 @@ export const getTask = async (req: AuthRequest, res: Response): Promise<void> =>
 
     res.json({ task });
   } catch (error) {
-    throw error;
+    logger.error('获取任务详情失败', { error, userId: req.userId });
+    res.status(500).json({ error: '获取任务详情失败' });
   }
 };
 
@@ -133,11 +137,26 @@ export const updateTask = async (req: AuthRequest, res: Response): Promise<void>
 
     const task = await prisma.task.findUnique({
       where: { id },
+      include: { project: true },
     });
 
     if (!task) {
       res.status(404).json({ error: '任务不存在' });
       return;
+    }
+
+    // 权限检查：任务创建者或项目所有者可以更新
+    if (task.creatorId !== req.userId && task.project.ownerId !== req.userId) {
+      res.status(403).json({ error: '无权修改此任务' });
+      return;
+    }
+
+    // 仅在从非DONE状态转为DONE时设置completedAt，其他状态变更保留原值
+    const wasDoneTask = task.status === 'DONE';
+    const willBeDone = status === 'DONE';
+    let completedAtValue = undefined;
+    if (willBeDone && !wasDoneTask) {
+      completedAtValue = new Date();
     }
 
     const updatedTask = await prisma.task.update({
@@ -149,13 +168,14 @@ export const updateTask = async (req: AuthRequest, res: Response): Promise<void>
         priority,
         assigneeId,
         dueDate: dueDate ? new Date(dueDate) : undefined,
-        completedAt: status === 'DONE' ? new Date() : null,
+        ...(completedAtValue !== undefined ? { completedAt: completedAtValue } : {}),
       },
     });
 
     res.json({ task: updatedTask });
   } catch (error) {
-    throw error;
+    logger.error('更新任务失败', { error, userId: req.userId });
+    res.status(500).json({ error: '更新任务失败' });
   }
 };
 
@@ -163,12 +183,29 @@ export const deleteTask = async (req: AuthRequest, res: Response): Promise<void>
   try {
     const { id } = req.params;
 
+    const task = await prisma.task.findUnique({
+      where: { id },
+      include: { project: true },
+    });
+
+    if (!task) {
+      res.status(404).json({ error: '任务不存在' });
+      return;
+    }
+
+    // 权限检查：任务创建者或项目所有者可以删除
+    if (task.creatorId !== req.userId && task.project.ownerId !== req.userId) {
+      res.status(403).json({ error: '无权删除此任务' });
+      return;
+    }
+
     await prisma.task.delete({
       where: { id },
     });
 
     res.json({ success: true });
   } catch (error) {
-    throw error;
+    logger.error('删除任务失败', { error, userId: req.userId });
+    res.status(500).json({ error: '删除任务失败' });
   }
 };

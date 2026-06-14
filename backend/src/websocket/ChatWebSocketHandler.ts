@@ -1,11 +1,11 @@
 import { Server, Socket } from 'socket.io';
-import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger';
 import { prisma } from '../lib/prisma';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
   userName?: string;
+  teamId?: string;
 }
 
 interface ChatMessage {
@@ -14,15 +14,8 @@ interface ChatMessage {
   userName: string;
   content: string;
   timestamp: Date;
-  type: 'text' | 'system';
+  type: 'TEXT' | 'SYSTEM';
 }
-
-// 与 WebSocketHandler 保持一致
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
-  throw new Error('JWT_SECRET must be configured in production');
-}
-const SECRET = JWT_SECRET || 'dev-secret-key-not-for-production';
 
 export class ChatWebSocketHandler {
   private io: Server;
@@ -34,6 +27,13 @@ export class ChatWebSocketHandler {
 
   initialize(): void {
     this.io.on('connection', (socket: AuthenticatedSocket) => {
+      // WebSocketHandler 中间件已完成 JWT 认证，此处直接使用 userId
+      if (!socket.userId) {
+        logger.warn('聊天 WebSocket: 未认证的连接被拒绝');
+        socket.disconnect(true);
+        return;
+      }
+
       this.handleConnection(socket);
     });
 
@@ -41,31 +41,14 @@ export class ChatWebSocketHandler {
   }
 
   private handleConnection(socket: AuthenticatedSocket): void {
-    // 同步验证 JWT，立即注册事件处理器
-    try {
-      const token = socket.handshake.auth.token || socket.handshake.query.token as string;
-
-      if (!token) {
-        logger.warn('聊天 WebSocket 认证失败: 缺少 token');
-        socket.disconnect(true);
-        return;
-      }
-
-      const decoded = jwt.verify(token, SECRET) as { userId: string };
-      socket.userId = decoded.userId;
-      // 使用 userId 前缀作为初始名称，异步更新为真实用户名
-      socket.userName = decoded.userId.slice(0, 8);
-    } catch (error) {
-      logger.warn('聊天 WebSocket 认证失败', { error });
-      socket.disconnect(true);
-      return;
-    }
+    // 使用 userId 前缀作为初始名称，异步更新为真实用户名
+    socket.userName = socket.userId!.slice(0, 8);
 
     // 异步获取真实用户名（失败不影响功能）
     prisma.user.findUnique({
       where: { id: socket.userId! },
       select: { username: true },
-    }).then((dbUser) => {
+    }).then((dbUser: any) => {
       if (dbUser?.username) {
         socket.userName = dbUser.username;
       }
@@ -95,13 +78,13 @@ export class ChatWebSocketHandler {
           orderBy: { createdAt: 'desc' },
           take: 50,
         });
-        const history: ChatMessage[] = historyRecords.reverse().map((m) => ({
+        const history: ChatMessage[] = historyRecords.reverse().map((m: any) => ({
           id: m.id,
           userId: m.userId,
           userName: m.userName,
           content: m.content,
           timestamp: m.createdAt,
-          type: m.type as 'text' | 'system',
+          type: m.type as 'TEXT' | 'SYSTEM',
         }));
         socket.emit('room-history', { roomId, messages: history });
 
@@ -112,7 +95,7 @@ export class ChatWebSocketHandler {
           userName: '系统',
           content: `${socket.userName} 加入了房间`,
           timestamp: new Date(),
-          type: 'system',
+          type: 'SYSTEM',
         };
         this.io.to(`room:${roomId}`).emit('receive-message', joinMsg);
 
@@ -140,7 +123,7 @@ export class ChatWebSocketHandler {
         userName,
         content: data.content.trim(),
         timestamp: new Date(),
-        type: 'text',
+        type: 'TEXT',
       };
 
       // 持久化到数据库并获取真实 ID
@@ -151,7 +134,7 @@ export class ChatWebSocketHandler {
             userId: socket.userId,
             userName,
             content: data.content.trim(),
-            type: 'text',
+            type: 'TEXT',
           },
         });
         message.id = saved.id;
@@ -213,7 +196,7 @@ export class ChatWebSocketHandler {
       userName: '系统',
       content: `${userName} 离开了房间`,
       timestamp: new Date(),
-      type: 'system',
+      type: 'SYSTEM',
     };
     this.io.to(`room:${roomId}`).emit('receive-message', leaveMsg);
 

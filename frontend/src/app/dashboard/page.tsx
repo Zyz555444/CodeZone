@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Header } from '@/components/Header';
@@ -9,16 +9,56 @@ import { TeamGuard } from '@/components/TeamGuard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { FolderGit2, CheckSquare, Users, Activity, Plus, ArrowRight } from 'lucide-react';
+import { api } from '@/lib/api';
 import Link from 'next/link';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { isAuthenticated, hasTeam } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
+  const [statsData, setStatsData] = useState({
+    projects: 0,
+    tasks: 0,
+    members: 0,
+    activities: 0,
+  });
+  const [recentProjects, setRecentProjects] = useState<any[]>([]);
 
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/login');
+      return;
     }
+
+    const fetchStats = async () => {
+      try {
+        const [projectsRes, teamsRes] = await Promise.all([
+          api.get('/projects'),
+          api.get('/teams'),
+        ]);
+        const projects = projectsRes.data.projects || [];
+        const teams = teamsRes.data.teams || [];
+        const activeMembers = teams.reduce((sum: number, t: any) => sum + (t._count?.members || 0), 0);
+
+        const projectIds = projects.map((p: any) => p.id);
+        let totalTasks = 0;
+        if (projectIds.length > 0) {
+          const tasksRes = await api.get('/tasks');
+          totalTasks = (tasksRes.data.tasks || []).length;
+        }
+
+        setStatsData({
+          projects: projects.length,
+          tasks: totalTasks,
+          members: activeMembers,
+          activities: 0,
+        });
+        setRecentProjects(projects.slice(0, 5));
+      } catch (error) {
+        console.error('获取仪表盘数据失败:', error);
+      }
+    };
+
+    fetchStats();
   }, [isAuthenticated, router]);
 
   if (!isAuthenticated) {
@@ -26,10 +66,10 @@ export default function DashboardPage() {
   }
 
   const stats = [
-    { name: '项目', value: '0', icon: FolderGit2, href: '/projects' },
-    { name: '任务', value: '0', icon: CheckSquare, href: '/tasks' },
-    { name: '团队成员', value: '1', icon: Users, href: '/team' },
-    { name: '本周活动', value: '0', icon: Activity, href: '/activity' },
+    { name: '项目', value: statsData.projects.toString(), icon: FolderGit2, href: '/projects' },
+    { name: '任务', value: statsData.tasks.toString(), icon: CheckSquare, href: '/tasks' },
+    { name: '团队成员', value: statsData.members.toString(), icon: Users, href: '/team' },
+    { name: '本周活动', value: statsData.activities.toString(), icon: Activity, href: '/activity' },
   ];
 
   return (
@@ -98,16 +138,38 @@ export default function DashboardPage() {
                     </Link>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-center py-12 text-neutral-7">
-                      <FolderGit2 className="h-12 w-12 mx-auto mb-4 text-neutral-5" />
-                      <p className="mb-4">暂无项目</p>
-                      <Link href="/projects/new">
-                        <Button variant="outline" size="sm">
-                          <Plus className="h-4 w-4 mr-2" />
-                          创建第一个项目
-                        </Button>
-                      </Link>
-                    </div>
+                    {recentProjects.length > 0 ? (
+                      <div className="space-y-2">
+                        {recentProjects.map((project: any) => (
+                          <Link
+                            key={project.id}
+                            href={`/projects/${project.id}`}
+                            className="flex items-center gap-3 p-3 rounded-lg hover:bg-neutral-2 transition-colors"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-neutral-2 flex items-center justify-center">
+                              <FolderGit2 className="h-4 w-4 text-neutral-6" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-neutral-10 truncate">{project.name}</p>
+                              <p className="text-xs text-neutral-7">
+                                {project._count?.tasks || 0} 个任务 · {project._count?.members || 0} 个成员
+                              </p>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 text-neutral-7">
+                        <FolderGit2 className="h-12 w-12 mx-auto mb-4 text-neutral-5" />
+                        <p className="mb-4">暂无项目</p>
+                        <Link href="/projects/new">
+                          <Button variant="outline" size="sm">
+                            <Plus className="h-4 w-4 mr-2" />
+                            创建第一个项目
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
