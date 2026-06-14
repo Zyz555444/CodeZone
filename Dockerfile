@@ -1,7 +1,7 @@
 # ============================================
 # 阶段1: 依赖安装 (共享缓存层)
 # ============================================
-FROM node:20-alpine AS deps
+FROM node:26-alpine AS deps
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ RUN cd frontend && corepack enable && corepack prepare pnpm@latest --activate &&
 # ============================================
 # 阶段2: 前端构建
 # ============================================
-FROM node:20-alpine AS frontend-builder
+FROM node:26-alpine AS frontend-builder
 
 ARG NEXT_PUBLIC_API_URL=/api
 ARG NEXT_PUBLIC_WS_URL=ws://localhost:10101
@@ -40,7 +40,7 @@ RUN pnpm run build
 # ============================================
 # 阶段3: 前端生产镜像
 # ============================================
-FROM node:20-alpine AS frontend
+FROM node:26-alpine AS frontend
 
 WORKDIR /app
 
@@ -66,7 +66,7 @@ CMD ["node", "server.js"]
 # ============================================
 # 阶段4: 后端构建
 # ============================================
-FROM node:20-alpine AS backend-builder
+FROM node:26-alpine AS backend-builder
 
 WORKDIR /app/backend
 
@@ -87,7 +87,7 @@ RUN npm prune --production
 # ============================================
 # 阶段5: 后端生产镜像
 # ============================================
-FROM node:20-alpine AS backend
+FROM node:26-alpine AS backend
 
 WORKDIR /app
 
