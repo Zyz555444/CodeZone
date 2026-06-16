@@ -7,13 +7,11 @@ WORKDIR /app
 
 RUN apk add --no-cache libc6-compat
 
-COPY frontend/package.json frontend/pnpm-lock.yaml ./frontend/
+COPY package.json package-lock.json ./
+COPY frontend/package.json ./frontend/
 COPY backend/package.json ./backend/
 
-RUN npm install -g pnpm@latest && \
-    mkdir -p /tmp/pnpm-store && \
-    cd frontend && pnpm install --frozen-lockfile --store-dir /tmp/pnpm-store && \
-    cd ../backend && npm install
+RUN npm ci
 
 # ============================================
 # 阶段2: 前端构建
@@ -26,18 +24,19 @@ ARG NEXT_PUBLIC_WS_URL=ws://localhost:10101
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
 
-WORKDIR /app/frontend
-
 ENV NODE_OPTIONS="--max-old-space-size=768"
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN npm install -g pnpm@latest && \
-    mkdir -p /tmp/pnpm-store
+WORKDIR /app
 
-COPY --from=deps /app/frontend/node_modules ./node_modules
-COPY frontend/ ./
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json ./
+COPY frontend/package.json ./frontend/
+COPY --from=deps /app/frontend/node_modules ./frontend/node_modules
+COPY frontend/ ./frontend/
 
-RUN pnpm run build --store-dir /tmp/pnpm-store
+WORKDIR /app/frontend
+RUN npm run build
 
 # ============================================
 # 阶段3: 前端生产镜像
@@ -71,16 +70,19 @@ CMD ["node", "server.js"]
 # ============================================
 FROM node:22-alpine AS backend-builder
 
-WORKDIR /app/backend
+WORKDIR /app
 
 ENV NODE_OPTIONS="--max-old-space-size=768"
 
 RUN apk add --no-cache openssl
 
-COPY --from=deps /app/backend/node_modules ./node_modules
-COPY backend/package.json ./
-COPY backend/tsconfig.json ./
-COPY backend/prisma ./prisma/
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json ./
+COPY backend/package.json ./backend/
+COPY --from=deps /app/backend/node_modules ./backend/node_modules
+COPY backend/tsconfig.json ./backend/
+COPY backend/prisma ./backend/prisma/
+WORKDIR /app/backend
 RUN npx prisma generate
 
 COPY backend/src ./src/
