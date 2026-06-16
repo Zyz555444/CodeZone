@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { createAndPushNotification } from '../lib/notificationService';
 
 const createTaskSchema = z.object({
   projectId: z.string(),
@@ -80,7 +81,26 @@ export const createTask = async (req: AuthRequest, res: Response): Promise<void>
       },
     });
 
+    await prisma.activity.create({
+      data: {
+        projectId: body.projectId,
+        userId: req.userId!,
+        type: 'task_created',
+        content: `创建了任务 "${task.title}"`,
+        metadata: { taskId: task.id },
+      },
+    });
+
     res.status(201).json({ task });
+
+    if (body.assigneeId && body.assigneeId !== req.userId) {
+      createAndPushNotification(
+        body.assigneeId,
+        '新任务分配',
+        `你被分配了任务 "${task.title}"`,
+        'TASK'
+      );
+    }
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: '验证失败', details: error.errors });
@@ -172,7 +192,26 @@ export const updateTask = async (req: AuthRequest, res: Response): Promise<void>
       },
     });
 
+    await prisma.activity.create({
+      data: {
+        projectId: task.projectId,
+        userId: req.userId!,
+        type: 'task_updated',
+        content: `更新了任务 "${updatedTask.title}"`,
+        metadata: { taskId: updatedTask.id },
+      },
+    });
+
     res.json({ task: updatedTask });
+
+    if (assigneeId && assigneeId !== task.assigneeId && assigneeId !== req.userId) {
+      createAndPushNotification(
+        assigneeId,
+        '任务分配更新',
+        `你被分配了任务 "${updatedTask.title}"`,
+        'TASK'
+      );
+    }
   } catch (error) {
     logger.error('更新任务失败', { error, userId: req.userId });
     res.status(500).json({ error: '更新任务失败' });

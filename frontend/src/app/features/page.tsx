@@ -18,7 +18,7 @@ const features = [
   {
     icon: MessageSquare,
     title: '团队沟通',
-    description: '即时通讯、视频会议、项目讨论区',
+    description: '即时通讯、项目讨论区、实时状态同步',
   },
   {
     icon: Zap,
@@ -39,13 +39,13 @@ const features = [
 
 export default function FeaturesPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-      <div className="container py-16">
+    <div className="min-h-screen bg-neutral-1">
+      <div className="container mx-auto max-w-5xl px-6 py-16">
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold mb-4">
+          <h1 className="font-serif text-5xl font-medium text-neutral-10 mb-4">
             功能特性
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xl text-neutral-7 max-w-2xl mx-auto">
             CodeZone 提供完整的团队协作开发解决方案
           </p>
         </div>
@@ -54,10 +54,10 @@ export default function FeaturesPage() {
           {features.map((feature) => {
             const Icon = feature.icon;
             return (
-              <Card key={feature.title} className="hover:shadow-lg transition-shadow">
+              <Card key={feature.title} className="hover:shadow-float transition-shadow">
                 <CardHeader>
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                    <Icon className="h-6 w-6 text-primary" />
+                  <div className="w-12 h-12 rounded-lg bg-accent-subtle flex items-center justify-center mb-4">
+                    <Icon className="h-6 w-6 text-accent" />
                   </div>
                   <CardTitle>{feature.title}</CardTitle>
                   <CardDescription>{feature.description}</CardDescription>

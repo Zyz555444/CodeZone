@@ -17,7 +17,8 @@ import {
   MessageSquare,
   Calendar,
   FileCode,
-  Settings
+  Settings,
+  GitBranch
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { TeamGuard } from '@/components/TeamGuard';
@@ -107,6 +108,10 @@ export default function ProjectDetailPage() {
                   <Button variant="secondary" onClick={() => router.push(`/chat?projectId=${project.id}`)}>
                     <MessageSquare className="mr-2 h-4 w-4" />
                     讨论
+                  </Button>
+                  <Button variant="secondary" onClick={() => router.push(`/projects/${project.id}/repos`)}>
+                    <GitBranch className="mr-2 h-4 w-4" />
+                    仓库
                   </Button>
                   <Button variant="ghost" size="icon">
                     <Settings className="h-4 w-4" />

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuthStore } from '@/stores/authStore';
 import { useWebSocketStore } from '@/stores/websocketStore';
 import { Button } from '@/components/ui/Button';
+import { GlobalSearch } from '@/components/GlobalSearch';
 import { Moon, Sun, LogOut, User, Menu, X, Wifi, WifiOff, Users } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { wsService } from '@/lib/websocket';
@@ -89,10 +90,13 @@ export function Header() {
         <div className="flex items-center gap-2">
           {user ? (
             <>
+              {/* Global Search */}
+              <GlobalSearch />
+
               {/* WebSocket Status */}
               <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-neutral-2">
                 {isConnected ? (
-                  <Wifi className="h-3.5 w-3.5 text-green-6" />
+                  <Wifi className="h-3.5 w-3.5 text-success" />
                 ) : (
                   <WifiOff className="h-3.5 w-3.5 text-neutral-5" />
                 )}

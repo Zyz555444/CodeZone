@@ -1,19 +1,11 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
-
-// JWT Secret 验证
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
-  throw new Error('JWT_SECRET 必须在生产环境中配置');
-}
-
-const SECRET = JWT_SECRET || 'dev-secret-key-not-for-production';
+import { signToken } from '../lib/jwt';
 
 const registerSchema = z.object({
   email: z.string().email('无效的邮箱地址'),
@@ -76,11 +68,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     });
 
     // 生成 JWT
-    const token = jwt.sign(
-      { userId: user.id },
-      SECRET,
-      { expiresIn: '7d' }
-    );
+    const token = signToken(user.id);
 
     // 创建会话记录
     await prisma.session.create({
@@ -148,11 +136,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     });
 
     // 生成 JWT
-    const token = jwt.sign(
-      { userId: user.id },
-      SECRET,
-      { expiresIn: '7d' }
-    );
+    const token = signToken(user.id);
 
     // 创建会话记录用于登出时失效
     await prisma.session.create({

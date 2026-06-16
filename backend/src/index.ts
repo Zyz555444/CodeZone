@@ -8,8 +8,11 @@ import { Server } from 'socket.io';
 import rateLimit from 'express-rate-limit';
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
+import { sanitizeBody } from './middleware/sanitize';
 import { WebSocketHandler } from './websocket/WebSocketHandler';
 import { ChatWebSocketHandler } from './websocket/ChatWebSocketHandler';
+import { setupCollaborationServer } from './collaboration/yServer';
+import { setIO } from './lib/notificationService';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import projectRoutes from './routes/projects';
@@ -17,9 +20,15 @@ import taskRoutes from './routes/tasks';
 import codeRoutes from './routes/code';
 import fileRoutes from './routes/files';
 import reviewRoutes from './routes/reviews';
-import commentRoutes from './routes/comments';
 import notificationRoutes from './routes/notifications';
 import teamRoutes from './routes/teams';
+import feedbackRoutes from './routes/feedback';
+import repositoryRoutes from './routes/repositories';
+import searchRoutes from './routes/search';
+import activityRoutes from './routes/activities';
+import dashboardRoutes from './routes/dashboard';
+import dependencyRoutes from './routes/dependencies';
+import aiRoutes from './routes/ai';
 
 dotenv.config();
 
@@ -88,8 +97,42 @@ const strictLimiter = rateLimit({
   },
 });
 
+// 密码更新专用速率限制（每个 IP 15 分钟 3 次）
+const passwordUpdateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 3,
+  message: { error: '密码更新尝试次数过多，请 15 分钟后重试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req: Request, res: Response) => {
+    logger.warn('Password update rate limit exceeded', { ip: req.ip });
+    res.status(429).json({ error: '密码更新尝试次数过多，请 15 分钟后重试' });
+  },
+});
+
+// 用户资料更新专用速率限制（每个 IP 15 分钟 10 次）
+const profileUpdateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: '资料更新请求过于频繁，请稍后重试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req: Request, res: Response) => {
+    logger.warn('Profile update rate limit exceeded', { ip: req.ip });
+    res.status(429).json({ error: '资料更新请求过于频繁，请稍后重试' });
+  },
+});
+
 // 应用通用速率限制
 app.use(generalLimiter);
+
+// 额外安全响应头（helmet 已提供部分，此处补充）
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
 
 // 请求日志
 app.use((req, res, next) => {
@@ -107,17 +150,26 @@ app.use((req, res, next) => {
   next();
 });
 
+// GET 请求缓存控制中间件（浏览器缓存 30 秒）
+app.use((req, res, next) => {
+  if (req.method === 'GET' && req.path.startsWith('/api/')) {
+    res.setHeader('Cache-Control', 'private, max-age=30');
+  }
+  next();
+});
+
 // Socket.IO 初始化
 const io = new Server(httpServer, {
   cors: {
     origin: corsOrigin,
     credentials: true,
   },
-  // 性能优化
   pingTimeout: 60000,
   pingInterval: 25000,
   transports: ['websocket', 'polling'],
 });
+
+setIO(io);
 
 // WebSocket 处理器
 const wsHandler = new WebSocketHandler(io);
@@ -125,19 +177,33 @@ const chatHandler = new ChatWebSocketHandler(io);
 wsHandler.initialize();
 chatHandler.initialize();
 
+// Yjs 协作编辑服务
+setupCollaborationServer(httpServer);
+
 // 路由 - 认证端点使用严格限制
 app.use('/api/auth/login', strictLimiter);
 app.use('/api/auth/register', strictLimiter);
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', sanitizeBody, authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/tasks', taskRoutes);
-app.use('/api/code', codeRoutes);
-app.use('/api/files', fileRoutes);
-app.use('/api/reviews', reviewRoutes);
-app.use('/api/comments', commentRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/teams', teamRoutes);
+// 密码更新端点专用限流
+app.use('/api/users/password', passwordUpdateLimiter);
+// 用户资料更新端点专用限流
+app.use('/api/users/profile', profileUpdateLimiter);
+// 对所有写操作路由应用输入清理
+app.use('/api/projects', sanitizeBody, projectRoutes);
+app.use('/api/tasks', dependencyRoutes);
+app.use('/api/tasks', sanitizeBody, taskRoutes);
+app.use('/api/code', sanitizeBody, codeRoutes);
+app.use('/api/files', sanitizeBody, fileRoutes);
+app.use('/api/reviews', sanitizeBody, reviewRoutes);
+app.use('/api/notifications', sanitizeBody, notificationRoutes);
+app.use('/api/teams', sanitizeBody, teamRoutes);
+app.use('/api/feedback', sanitizeBody, feedbackRoutes);
+app.use('/api/repositories', sanitizeBody, repositoryRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/activities', activityRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/ai', sanitizeBody, aiRoutes);
 
 // 健康检查 - 不记录日志
 app.get('/health', (req, res) => {

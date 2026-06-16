@@ -51,7 +51,7 @@ export function TeamGuard({ children }: TeamGuardProps) {
           <p className="text-neutral-8 mb-4">无法连接到服务器，请检查网络后重试</p>
           <button
             onClick={() => { setError(false); setRetryCount(c => c + 1); }}
-            className="px-4 py-2 bg-primary-6 text-white rounded-lg hover:bg-primary-7 transition-colors"
+            className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
           >
             重试
           </button>

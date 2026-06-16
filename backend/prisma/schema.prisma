@@ -146,6 +146,7 @@ model Session {
 
   @@index([userId])
   @@index([token])
+  @@index([expiresAt])
 }
 
 model Project {
@@ -235,15 +236,34 @@ model Task {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  assignee User?     @relation("AssignedTasks", fields: [assigneeId], references: [id])
-  creator  User      @relation("CreatedTasks", fields: [creatorId], references: [id])
-  comments Comment[]
-  subtasks SubTask[]
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee    User?            @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  creator     User             @relation("CreatedTasks", fields: [creatorId], references: [id])
+  comments    Comment[]
+  subtasks    SubTask[]
+  dependsOn   TaskDependency[] @relation("DependencyTarget")
+  dependedBy  TaskDependency[] @relation("DependencySource")
 
   @@index([projectId])
   @@index([assigneeId])
   @@index([status])
+  @@index([assigneeId, status])
+  @@index([dueDate])
+}
+
+model TaskDependency {
+  id         String   @id @default(cuid())
+  taskId     String
+  dependsOnId String
+  type       String   @default("blocks")
+  createdAt  DateTime @default(now())
+
+  task      Task @relation("DependencySource", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOn Task @relation("DependencyTarget", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, dependsOnId])
+  @@index([taskId])
+  @@index([dependsOnId])
 }
 
 model SubTask {
@@ -309,6 +329,7 @@ model CodeReview {
   @@index([projectId])
   @@index([authorId])
   @@index([status])
+  @@index([projectId, status])
 }
 
 model ReviewComment {
@@ -343,6 +364,7 @@ model ChatMessage {
   @@index([roomId])
   @@index([createdAt])
   @@index([userId])
+  @@index([roomId, createdAt])
 }
 
 model Notification {
@@ -358,6 +380,8 @@ model Notification {
 
   @@index([userId])
   @@index([isRead])
+  @@index([createdAt])
+  @@index([userId, isRead, createdAt])
 }
 
 model Activity {
@@ -373,4 +397,5 @@ model Activity {
 
   @@index([projectId])
   @@index([createdAt])
+  @@index([projectId, createdAt])
 }

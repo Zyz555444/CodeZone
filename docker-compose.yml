@@ -70,7 +70,7 @@ services:
   # PostgreSQL 数据库
   # ============================================
   postgres:
-    image: postgres:17-alpine
+    image: postgres:16-alpine
     container_name: codezone-postgres
     environment:
       - POSTGRES_USER=${DB_USER:-codezone}
@@ -93,7 +93,7 @@ services:
   # Redis 缓存
   # ============================================
   redis:
-    image: redis:8-alpine
+    image: redis:7-alpine
     container_name: codezone-redis
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:

@@ -17,8 +17,8 @@
     "lint": "npm run lint -w backend && npm run lint -w frontend",
     "db:migrate": "npm run prisma migrate dev -w backend",
     "db:seed": "npm run prisma db seed -w backend",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down"
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
@@ -26,5 +26,8 @@
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "typescript": "^6.0.3"
   }
 }

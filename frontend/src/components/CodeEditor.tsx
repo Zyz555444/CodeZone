@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
+import type { editor } from 'monaco-editor';
 import { useTheme } from 'next-themes';
 import { wsService } from '@/lib/websocket';
 import { useAuthStore } from '@/stores/authStore';
@@ -155,28 +156,23 @@ export function CodeEditor({
     const editor = editorRef.current;
     const monaco = monacoRef.current;
 
-    const oldDecorations = decorationsRef.current.slice();
-    decorationsRef.current = [];
+    const oldDecorations = decorationsRef.current;
+    const newDecorations: editor.IModelDeltaDecoration[] = remoteCursors.map((cursor) => ({
+      range: new monaco.Range(
+        cursor.position.lineNumber,
+        cursor.position.column,
+        cursor.position.lineNumber,
+        cursor.position.column
+      ),
+      options: {
+        className: `remote-cursor-decoration-${cursor.userId}`,
+        beforeContentClassName: `remote-cursor-before-${cursor.userId}`,
+        stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+      },
+    }));
 
-    remoteCursors.forEach((cursor) => {
-      const className = `remote-cursor-decoration-${cursor.userId}`;
-      const decos = editor.deltaDecorations(oldDecorations, [
-        {
-          range: new monaco.Range(
-            cursor.position.lineNumber,
-            cursor.position.column,
-            cursor.position.lineNumber,
-            cursor.position.column
-          ),
-          options: {
-            className,
-            beforeContentClassName: `remote-cursor-before-${cursor.userId}`,
-            stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
-          },
-        },
-      ]);
-      decorationsRef.current = [...decorationsRef.current, ...decos];
-    });
+    const decorationIds = editor.deltaDecorations(oldDecorations, newDecorations);
+    decorationsRef.current = decorationIds;
 
     return () => {
       if (editorRef.current) {
@@ -300,7 +296,7 @@ export function CodeEditor({
           .join('\n')}
       `}</style>
 
-      <div className="absolute top-2 right-2 flex items-center gap-2 bg-background/80 backdrop-blur px-3 py-1.5 rounded-md border">
+      <div className="absolute top-2 right-2 flex items-center gap-2 bg-neutral-1/80 backdrop-blur px-3 py-1.5 rounded-lg border border-neutral-5"> 
         <div className="flex -space-x-2">
           {onlineUsers.slice(0, 5).map((userId, index) => (
             <div

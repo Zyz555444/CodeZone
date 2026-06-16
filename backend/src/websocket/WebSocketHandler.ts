@@ -1,18 +1,13 @@
 import { Server, Socket } from 'socket.io';
-import jwt from 'jsonwebtoken';
+import { verifyToken } from '../lib/jwt';
 import { logger } from '../utils/logger';
+import { prisma } from '../lib/prisma';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
   teamId?: string;
+  userName?: string;
 }
-
-// JWT Secret validation
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
-  throw new Error('JWT_SECRET must be configured in production');
-}
-const SECRET = JWT_SECRET || 'dev-secret-key-not-for-production';
 
 export class WebSocketHandler {
   private io: Server;
@@ -45,14 +40,20 @@ export class WebSocketHandler {
         return next(new Error('Invalid token format'));
       }
 
-      const decoded = jwt.verify(token, SECRET) as { userId: string };
+      let decoded: { userId: string };
+      try {
+        decoded = verifyToken(token);
+      } catch (error: any) {
+        if (error.name === 'TokenExpiredError') {
+          logger.warn('WebSocket authentication failed: token expired');
+          return next(new Error('Token expired'));
+        }
+        logger.warn('WebSocket authentication failed', { error });
+        return next(new Error('Authentication failed'));
+      }
       socket.userId = decoded.userId;
       next();
     } catch (error) {
-      if (error instanceof jwt.TokenExpiredError) {
-        logger.warn('WebSocket authentication failed: token expired');
-        return next(new Error('Token expired'));
-      }
       logger.warn('WebSocket authentication failed', { error });
       next(new Error('Authentication failed'));
     }
@@ -60,6 +61,11 @@ export class WebSocketHandler {
 
   private handleConnection(socket: AuthenticatedSocket): void {
     logger.info(`User ${socket.userId} connected to WebSocket`);
+
+    // Join user-specific room for personal notifications
+    if (socket.userId) {
+      socket.join(`user:${socket.userId}`);
+    }
 
     socket.on('join-team', (teamId: string) => {
       try {
@@ -106,7 +112,7 @@ export class WebSocketHandler {
         socket.to(`team:${socket.teamId}`).emit('cursor-move', {
           ...data,
           userId: socket.userId,
-          userName: socket.userId,
+          userName: socket.userName || socket.userId,
         });
       }
     });
@@ -151,5 +157,29 @@ export class WebSocketHandler {
 
   broadcastToTeam(teamId: string, event: string, data: any): void {
     this.io.to(`team:${teamId}`).emit(event, data);
+  }
+
+  async createAndPushNotification(
+    userId: string,
+    title: string,
+    content: string,
+    type: string
+  ): Promise<void> {
+    try {
+      const notification = await prisma.notification.create({
+        data: { userId, title, content, type: type as any },
+      });
+
+      this.sendNotification(userId, {
+        id: notification.id,
+        title: notification.title,
+        content: notification.content,
+        type: notification.type,
+        isRead: false,
+        createdAt: notification.createdAt,
+      });
+    } catch (error) {
+      logger.error('创建通知失败', { error, userId });
+    }
   }
 }

@@ -6,7 +6,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Bell, User, Lock, Palette, Check } from 'lucide-react';
+import { Bell, User, Lock, Palette, Check, Save } from 'lucide-react';
 import { TeamGuard } from '@/components/TeamGuard';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -15,8 +15,12 @@ import { useTheme } from 'next-themes';
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profile');
   const [profileData, setProfileData] = useState({ username: '', email: '', bio: '' });
+  const [passwordData, setPasswordData] = useState({ current: '', newPw: '', confirm: '' });
   const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
   const { theme, setTheme } = useTheme();
+  const { user } = useAuthStore();
 
   useEffect(() => {
     api.get('/auth/me').then(({ data }) => {
@@ -29,6 +33,47 @@ export default function SettingsPage() {
       }
     }).catch(() => {});
   }, []);
+
+  const handleSaveProfile = async () => {
+    setLoading(true);
+    setError('');
+    setSaved(false);
+    try {
+      await api.patch('/users/profile', {
+        username: profileData.username,
+        bio: profileData.bio,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      setError(err.response?.data?.error || '保存失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (passwordData.newPw !== passwordData.confirm) {
+      setError('两次输入的新密码不一致');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setSaved(false);
+    try {
+      await api.patch('/users/password', {
+        currentPassword: passwordData.current,
+        newPassword: passwordData.newPw,
+      });
+      setPasswordData({ current: '', newPw: '', confirm: '' });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      setError(err.response?.data?.error || '密码更新失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const tabs = [
     { id: 'profile', label: '个人资料', icon: User },
@@ -51,7 +96,6 @@ export default function SettingsPage() {
               </h1>
 
               <div className="flex gap-8">
-                {/* Tabs */}
                 <div className="w-48 shrink-0">
                   <nav className="space-y-1">
                     {tabs.map((tab) => {
@@ -74,8 +118,19 @@ export default function SettingsPage() {
                   </nav>
                 </div>
 
-                {/* Content */}
                 <div className="flex-1">
+                  {error && (
+                    <div className="mb-4 p-3 bg-error/10 border border-error/30 rounded-lg text-sm text-error">
+                      {error}
+                    </div>
+                  )}
+                  {saved && (
+                    <div className="mb-4 p-3 bg-success/10 border border-success/30 rounded-lg text-sm text-success flex items-center gap-2">
+                      <Check className="h-4 w-4" />
+                      保存成功
+                    </div>
+                  )}
+
                   {activeTab === 'profile' && (
                     <Card>
                       <CardHeader>
@@ -97,17 +152,17 @@ export default function SettingsPage() {
 
                         <div className="space-y-4">
                           <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-8">用户名</label>
+                            <label className="text-sm font-medium text-neutral-9">用户名</label>
                             <Input value={profileData.username} onChange={(e) => setProfileData({ ...profileData, username: e.target.value })} className="max-w-md" />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-8">邮箱</label>
+                            <label className="text-sm font-medium text-neutral-9">邮箱</label>
                             <Input value={profileData.email} type="email" className="max-w-md" disabled />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-8">个人简介</label>
-                            <textarea 
-                              className="flex min-h-[100px] w-full max-w-md rounded-lg border border-neutral-5 bg-neutral-1 px-3 py-2 text-sm"
+                            <label className="text-sm font-medium text-neutral-9">个人简介</label>
+                            <textarea
+                              className="flex min-h-[100px] w-full max-w-md rounded-lg border border-neutral-5 bg-neutral-1 px-3 py-2 text-sm text-neutral-9 placeholder:text-neutral-6 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all"
                               value={profileData.bio}
                               onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
                               placeholder="介绍一下自己..."
@@ -115,7 +170,10 @@ export default function SettingsPage() {
                           </div>
                         </div>
 
-                        <Button>保存更改</Button>
+                        <Button onClick={handleSaveProfile} disabled={loading} className="gap-2">
+                          <Save className="h-4 w-4" />
+                          {loading ? '保存中...' : '保存更改'}
+                        </Button>
                       </CardContent>
                     </Card>
                   )}
@@ -131,19 +189,22 @@ export default function SettingsPage() {
                       <CardContent className="space-y-6">
                         <div className="space-y-4">
                           <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-8">当前密码</label>
-                            <Input type="password" className="max-w-md" />
+                            <label className="text-sm font-medium text-neutral-9">当前密码</label>
+                            <Input type="password" className="max-w-md" value={passwordData.current} onChange={(e) => setPasswordData({ ...passwordData, current: e.target.value })} />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-8">新密码</label>
-                            <Input type="password" className="max-w-md" />
+                            <label className="text-sm font-medium text-neutral-9">新密码</label>
+                            <Input type="password" className="max-w-md" value={passwordData.newPw} onChange={(e) => setPasswordData({ ...passwordData, newPw: e.target.value })} />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-8">确认新密码</label>
-                            <Input type="password" className="max-w-md" />
+                            <label className="text-sm font-medium text-neutral-9">确认新密码</label>
+                            <Input type="password" className="max-w-md" value={passwordData.confirm} onChange={(e) => setPasswordData({ ...passwordData, confirm: e.target.value })} />
                           </div>
                         </div>
-                        <Button>更新密码</Button>
+                        <Button onClick={handleUpdatePassword} disabled={loading || !passwordData.current || !passwordData.newPw} className="gap-2">
+                          <Save className="h-4 w-4" />
+                          {loading ? '更新中...' : '更新密码'}
+                        </Button>
                       </CardContent>
                     </Card>
                   )}
@@ -168,10 +229,10 @@ export default function SettingsPage() {
                               <p className="font-medium text-neutral-10">{item.label}</p>
                               <p className="text-sm text-neutral-7">{item.description}</p>
                             </div>
-                            <Button variant="outline" size="sm" className="gap-2">
+                            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-2 text-sm text-neutral-7">
                               <Check className="h-3 w-3" />
                               已开启
-                            </Button>
+                            </span>
                           </div>
                         ))}
                       </CardContent>
@@ -188,7 +249,7 @@ export default function SettingsPage() {
                       </CardHeader>
                       <CardContent className="space-y-6">
                         <div>
-                          <label className="text-sm font-medium text-neutral-8 mb-3 block">主题</label>
+                          <label className="text-sm font-medium text-neutral-9 mb-3 block">主题</label>
                           <div className="flex gap-3">
                             {(['light', 'dark', 'system'] as const).map((themeOption) => (
                               <button
@@ -197,7 +258,7 @@ export default function SettingsPage() {
                                 className={`px-4 py-2 rounded-lg border transition-colors capitalize ${
                                   theme === themeOption
                                     ? 'border-accent bg-accent-subtle text-accent'
-                                    : 'border-neutral-5 bg-neutral-1 hover:border-accent/30'
+                                    : 'border-neutral-5 bg-neutral-1 hover:border-accent/30 text-neutral-7'
                                 }`}
                               >
                                 {themeOption === 'light' ? '浅色' : themeOption === 'dark' ? '深色' : '跟随系统'}
@@ -206,7 +267,7 @@ export default function SettingsPage() {
                           </div>
                         </div>
                         <div>
-                          <label className="text-sm font-medium text-neutral-8 mb-3 block">编辑器字体大小</label>
+                          <label className="text-sm font-medium text-neutral-9 mb-3 block">编辑器字体大小</label>
                           <Input type="range" min="12" max="20" defaultValue="14" className="max-w-md" />
                         </div>
                       </CardContent>

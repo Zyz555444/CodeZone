@@ -1,18 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import { verifyToken } from '../lib/jwt';
 import { logger } from '../utils/logger';
 
 export interface AuthRequest extends Request {
   userId?: string;
 }
-
-// JWT Secret 验证 - 生产环境必须配置
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
-  throw new Error('JWT_SECRET 必须在生产环境中配置');
-}
-
-const SECRET = JWT_SECRET || 'dev-secret-key-not-for-production';
 
 export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -31,7 +23,20 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       return;
     }
     
-    const decoded = jwt.verify(token, SECRET) as { userId: string };
+    let decoded: { userId: string };
+    try {
+      decoded = verifyToken(token);
+    } catch (error: any) {
+      if (error.name === 'TokenExpiredError') {
+        res.status(401).json({ error: '认证令牌已过期' });
+        return;
+      }
+      if (error.name === 'JsonWebTokenError') {
+        res.status(401).json({ error: '无效的认证令牌' });
+        return;
+      }
+      throw error;
+    }
 
     // 验证会话是否仍然有效（未被登出）
     const { prisma } = await import('../lib/prisma');
@@ -47,14 +52,6 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     req.userId = decoded.userId;
     next();
   } catch (error) {
-    if (error instanceof jwt.TokenExpiredError) {
-      res.status(401).json({ error: '认证令牌已过期' });
-      return;
-    }
-    if (error instanceof jwt.JsonWebTokenError) {
-      res.status(401).json({ error: '无效的认证令牌' });
-      return;
-    }
     logger.error('认证失败', { error });
     res.status(401).json({ error: '认证失败' });
   }

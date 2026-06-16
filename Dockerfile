@@ -1,22 +1,23 @@
 # ============================================
 # 阶段1: 依赖安装 (共享缓存层)
 # ============================================
-FROM node:26-alpine AS deps
+FROM node:22-alpine AS deps
 
 WORKDIR /app
 
 RUN apk add --no-cache libc6-compat
 
-COPY frontend/package*.json ./frontend/
-COPY backend/package*.json ./backend/
+COPY frontend/package.json frontend/pnpm-lock.yaml ./frontend/
+COPY backend/package.json ./backend/
 
-RUN cd frontend && corepack enable && corepack prepare pnpm@latest --activate && pnpm install --frozen-lockfile && \
+RUN npm install -g pnpm@latest && \
+    cd frontend && pnpm install --frozen-lockfile && \
     cd ../backend && npm install
 
 # ============================================
 # 阶段2: 前端构建
 # ============================================
-FROM node:26-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 
 ARG NEXT_PUBLIC_API_URL=/api
 ARG NEXT_PUBLIC_WS_URL=ws://localhost:10101
@@ -26,21 +27,20 @@ ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
 
 WORKDIR /app/frontend
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
 ENV NODE_OPTIONS="--max-old-space-size=768"
 ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN npm install -g pnpm@latest
 
 COPY --from=deps /app/frontend/node_modules ./node_modules
 COPY frontend/ ./
 
-ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm run build
 
 # ============================================
 # 阶段3: 前端生产镜像
 # ============================================
-FROM node:26-alpine AS frontend
+FROM node:22-alpine AS frontend
 
 WORKDIR /app
 
@@ -53,20 +53,21 @@ ENV NEXT_PUBLIC_WS_URL=ws://backend:10101
 
 RUN apk add --no-cache curl
 
-COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/.next/standalone ./
-COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/.next/static ./.next/static
-COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/next.config.js ./
-COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/package.json ./
+COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone ./
+COPY --from=frontend-builder --chown=node:node /app/frontend/.next/static ./.next/static
+COPY --from=frontend-builder --chown=node:node /app/frontend/next.config.js ./
+COPY --from=frontend-builder --chown=node:node /app/frontend/package.json ./
 RUN mkdir -p public
 
 EXPOSE 12321
 
+USER node
 CMD ["node", "server.js"]
 
 # ============================================
 # 阶段4: 后端构建
 # ============================================
-FROM node:26-alpine AS backend-builder
+FROM node:22-alpine AS backend-builder
 
 WORKDIR /app/backend
 
@@ -75,7 +76,7 @@ ENV NODE_OPTIONS="--max-old-space-size=768"
 RUN apk add --no-cache openssl
 
 COPY --from=deps /app/backend/node_modules ./node_modules
-COPY backend/package*.json ./
+COPY backend/package.json ./
 COPY backend/tsconfig.json ./
 COPY backend/prisma ./prisma/
 RUN npx prisma generate
@@ -87,7 +88,7 @@ RUN npm prune --production
 # ============================================
 # 阶段5: 后端生产镜像
 # ============================================
-FROM node:26-alpine AS backend
+FROM node:22-alpine AS backend
 
 WORKDIR /app
 
@@ -96,15 +97,15 @@ ENV NODE_OPTIONS="--max-old-space-size=512"
 
 RUN apk add --no-cache curl openssl netcat-openbsd
 
-COPY --from=backend-builder --chown=nodejs:nodejs /app/backend/node_modules ./node_modules
-COPY --from=backend-builder --chown=nodejs:nodejs /app/backend/dist ./dist
-COPY --from=backend-builder --chown=nodejs:nodejs /app/backend/node_modules/.prisma ./node_modules/.prisma
-COPY --from=backend-builder --chown=nodejs:nodejs /app/backend/prisma ./prisma
+COPY --from=backend-builder --chown=node:node /app/backend/node_modules ./node_modules
+COPY --from=backend-builder --chown=node:node /app/backend/dist ./dist
+COPY --from=backend-builder --chown=node:node /app/backend/node_modules/.prisma ./node_modules/.prisma
+COPY --from=backend-builder --chown=node:node /app/backend/prisma ./prisma
 
-# 等待数据库就绪并启动
 COPY docker/start.sh ./start.sh
 RUN chmod +x start.sh
 
 EXPOSE 10101
 
+USER node
 CMD ["./start.sh"]

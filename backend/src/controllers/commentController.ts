@@ -38,6 +38,26 @@ export const createComment = async (req: AuthRequest, res: Response): Promise<vo
     const { taskId } = req.params;
     const body = createCommentSchema.parse(req.body);
 
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: { project: { select: { id: true, ownerId: true } } },
+    });
+    if (!task) {
+      res.status(404).json({ error: '任务不存在' });
+      return;
+    }
+
+    const isOwner = task.project.ownerId === req.userId;
+    if (!isOwner) {
+      const membership = await prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId: task.project.id, userId: req.userId! } },
+      });
+      if (!membership) {
+        res.status(403).json({ error: '无权评论此任务' });
+        return;
+      }
+    }
+
     const comment = await prisma.comment.create({
       data: {
         taskId,

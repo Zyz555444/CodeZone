@@ -19,15 +19,10 @@
 **/.git
 
 # 文档
-*.md
-README*
-LICENSE
-CHANGELOG
-CONTRIBUTING
+CONTRIBUTING.md
 
 # Docker 相关
 Dockerfile
-docker-compose*
 .dockerignore
 
 # 编辑器配置
@@ -80,6 +75,3 @@ backend/coverage
 # 项目特定
 .github
 .github/workflows
-*.yml
-*.yaml
-!.yarnrc.yml

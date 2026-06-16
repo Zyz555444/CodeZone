@@ -47,6 +47,7 @@ function TasksContent() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const projectId = searchParams.get('projectId');
 
   useEffect(() => {
@@ -99,10 +100,48 @@ function TasksContent() {
     DONE: filteredTasks.filter(t => t.status === 'DONE'),
   };
 
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+
+  const handleDragOver = (e: React.DragEvent, status: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverColumn !== status) {
+      setDragOverColumn(status);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if ((e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
+      return;
+    }
+    setDragOverColumn(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, newStatus: string) => {
+    e.preventDefault();
+    setDragOverColumn(null);
+    const taskId = e.dataTransfer.getData('text/plain');
+    if (taskId) {
+      const task = tasks.find(t => t.id === taskId);
+      if (task && task.status !== newStatus) {
+        handleStatusChange(taskId, newStatus as Task['status']);
+      }
+    }
+  };
+
   const renderTaskCard = (task: Task) => (
     <Card
       key={task.id}
-      className="cursor-pointer hover:shadow-float transition-all"
+      draggable
+      className={`cursor-pointer hover:shadow-float transition-all duration-200 ${draggedTaskId === task.id ? 'opacity-50' : ''}`}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', task.id);
+        e.dataTransfer.effectAllowed = 'move';
+        setDraggedTaskId(task.id);
+      }}
+      onDragEnd={() => {
+        setDraggedTaskId(null);
+      }}
       onClick={() => router.push(`/tasks/${task.id}`)}
     >
       <CardContent className="p-4 space-y-3">
@@ -159,7 +198,7 @@ function TasksContent() {
   );
 
   const renderColumn = (title: string, status: string, taskList: Task[]) => (
-    <div className="flex-1 min-w-72">
+    <div className={`flex-1 min-w-72 rounded-lg transition-colors duration-200 ${dragOverColumn === status ? 'border-2 border-accent' : 'border-2 border-transparent'}`}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-neutral-10">{title}</h3>
@@ -171,7 +210,12 @@ function TasksContent() {
           <Plus className="h-4 w-4" />
         </Button>
       </div>
-      <div className="space-y-3">
+      <div
+        className="space-y-3 min-h-[100px]"
+        onDragOver={(e) => handleDragOver(e, status)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, status)}
+      >
         {taskList.map(renderTaskCard)}
         {taskList.length === 0 && (
           <div className="text-center py-8 text-sm text-neutral-7 border-2 border-dashed border-neutral-5 rounded-lg">

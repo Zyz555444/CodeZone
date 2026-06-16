@@ -33,6 +33,24 @@ export const createFile = async (req: AuthRequest, res: Response): Promise<void>
   try {
     const body = createFileSchema.parse(req.body);
 
+    const project = await prisma.project.findUnique({
+      where: { id: body.projectId },
+      select: { ownerId: true },
+    });
+    if (!project) {
+      res.status(404).json({ error: '项目不存在' });
+      return;
+    }
+    if (project.ownerId !== req.userId) {
+      const membership = await prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId: body.projectId, userId: req.userId! } },
+      });
+      if (!membership) {
+        res.status(403).json({ error: '无权在此项目中创建文件' });
+        return;
+      }
+    }
+
     const file = await prisma.codeFile.create({
       data: body,
     });

@@ -11,7 +11,7 @@ import { Users, UserPlus, Code, ArrowRight, CheckCircle, XCircle } from 'lucide-
 
 export default function TeamSetupPage() {
   const router = useRouter();
-  const { user, token, isAuthenticated, setTeamStatus } = useAuthStore();
+  const { user, isAuthenticated, setTeamStatus } = useAuthStore();
   const [mode, setMode] = useState<'choose' | 'create' | 'join'>('choose');
   const [teamName, setTeamName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
@@ -21,7 +21,6 @@ export default function TeamSetupPage() {
   const [joinResult, setJoinResult] = useState<{ success: boolean; message: string; teamName?: string } | null>(null);
   const [checkingTeam, setCheckingTeam] = useState(true);
 
-  // 认证检查 + 团队状态检查
   useEffect(() => {
     if (!isAuthenticated) {
       router.replace('/login');
@@ -105,21 +104,19 @@ export default function TeamSetupPage() {
       </div>
 
       <div className="relative z-10 w-full max-w-lg">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <Code className="w-8 h-8 text-primary-6" />
-            <span className="text-2xl font-bold text-neutral-12">CodeZone</span>
+            <Code className="w-8 h-8 text-accent" />
+            <span className="text-2xl font-serif font-medium text-neutral-10">CodeZone</span>
           </div>
-          <p className="text-neutral-8">欢迎，{user?.username}</p>
+          <p className="text-neutral-7">欢迎，{user?.username}</p>
         </div>
 
-        {/* 创建成功 */}
         {createdTeam && (
-          <Card className="border-primary-6/30">
+          <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <CheckCircle className="w-6 h-6 text-green-500" />
+                <CheckCircle className="w-6 h-6 text-success" />
                 <CardTitle>团队创建成功</CardTitle>
               </div>
               <CardDescription>
@@ -128,8 +125,8 @@ export default function TeamSetupPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="bg-neutral-3 rounded-lg p-4 text-center">
-                <p className="text-sm text-neutral-8 mb-2">团队邀请码（分享给成员加入）</p>
-                <p className="text-3xl font-mono font-bold tracking-widest text-primary-9 select-all">
+                <p className="text-sm text-neutral-7 mb-2">团队邀请码（分享给成员加入）</p>
+                <p className="text-3xl font-mono font-bold tracking-widest text-accent select-all">
                   {createdTeam.inviteCode}
                 </p>
               </div>
@@ -140,19 +137,18 @@ export default function TeamSetupPage() {
           </Card>
         )}
 
-        {/* 加入结果 */}
         {joinResult && !joinResult.success && (
-          <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg flex items-center gap-2 text-red-700 dark:text-red-400">
+          <div className="mb-4 p-3 bg-error/10 border border-error/30 rounded-lg flex items-center gap-2 text-error">
             <XCircle className="w-5 h-5 flex-shrink-0" />
             <span className="text-sm">{joinResult.message}</span>
           </div>
         )}
 
         {joinResult && joinResult.success && (
-          <Card className="border-green-500/30">
+          <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <CheckCircle className="w-6 h-6 text-green-500" />
+                <CheckCircle className="w-6 h-6 text-success" />
                 <CardTitle>申请已提交</CardTitle>
               </div>
               <CardDescription>
@@ -160,7 +156,7 @@ export default function TeamSetupPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-neutral-8 mb-4">
+              <p className="text-sm text-neutral-7 mb-4">
                 审核通过后你将可以访问团队的所有功能。你也可以返回创建自己的团队。
               </p>
               <div className="flex gap-2">
@@ -172,14 +168,13 @@ export default function TeamSetupPage() {
           </Card>
         )}
 
-        {/* 选择模式 */}
         {mode === 'choose' && !createdTeam && !joinResult && (
           <div className="space-y-4">
-            <Card className="hover:border-primary-6/50 transition-colors cursor-pointer" onClick={() => setMode('create')}>
+            <Card className="hover:border-accent/50 transition-colors cursor-pointer" onClick={() => setMode('create')}>
               <CardHeader>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary-3 flex items-center justify-center">
-                    <Users className="w-5 h-5 text-primary-9" />
+                  <div className="w-10 h-10 rounded-lg bg-accent-subtle flex items-center justify-center">
+                    <Users className="w-5 h-5 text-accent" />
                   </div>
                   <div>
                     <CardTitle className="text-lg">创建新团队</CardTitle>
@@ -189,11 +184,11 @@ export default function TeamSetupPage() {
               </CardHeader>
             </Card>
 
-            <Card className="hover:border-primary-6/50 transition-colors cursor-pointer" onClick={() => setMode('join')}>
+            <Card className="hover:border-accent/50 transition-colors cursor-pointer" onClick={() => setMode('join')}>
               <CardHeader>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-accent-3 flex items-center justify-center">
-                    <UserPlus className="w-5 h-5 text-accent-9" />
+                  <div className="w-10 h-10 rounded-lg bg-accent-subtle flex items-center justify-center">
+                    <UserPlus className="w-5 h-5 text-accent" />
                   </div>
                   <div>
                     <CardTitle className="text-lg">加入已有团队</CardTitle>
@@ -205,7 +200,6 @@ export default function TeamSetupPage() {
           </div>
         )}
 
-        {/* 创建团队表单 */}
         {mode === 'create' && !createdTeam && (
           <Card>
             <CardHeader>
@@ -215,12 +209,12 @@ export default function TeamSetupPage() {
             <CardContent>
               <form onSubmit={handleCreateTeam} className="space-y-4">
                 {error && (
-                  <div className="p-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg text-sm text-red-700 dark:text-red-400">
+                  <div className="p-3 bg-error/10 border border-error/30 rounded-lg text-sm text-error">
                     {error}
                   </div>
                 )}
                 <div>
-                  <label className="block text-sm font-medium text-neutral-10 mb-1">团队名称</label>
+                  <label className="block text-sm font-medium text-neutral-9 mb-1">团队名称</label>
                   <Input
                     value={teamName}
                     onChange={(e) => setTeamName(e.target.value)}
@@ -242,7 +236,6 @@ export default function TeamSetupPage() {
           </Card>
         )}
 
-        {/* 加入团队表单 */}
         {mode === 'join' && !joinResult && (
           <Card>
             <CardHeader>
@@ -252,7 +245,7 @@ export default function TeamSetupPage() {
             <CardContent>
               <form onSubmit={handleJoinTeam} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-10 mb-1">邀请码</label>
+                  <label className="block text-sm font-medium text-neutral-9 mb-1">邀请码</label>
                   <Input
                     value={inviteCode}
                     onChange={(e) => setInviteCode(e.target.value.toUpperCase())}

@@ -177,7 +177,7 @@ export default function TeamPage() {
 
               {/* Error */}
               {error && (
-                <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg text-sm text-red-700 dark:text-red-400">
+                <div className="mb-4 p-3 bg-error/10 border border-error/30 rounded-lg text-sm text-error">
                   {error}
                 </div>
               )}
@@ -239,7 +239,7 @@ export default function TeamPage() {
                   <CardContent>
                     <div className="flex items-center gap-4">
                       <div className="flex-1 bg-neutral-2 rounded-lg p-3 text-center">
-                        <p className="text-2xl font-mono font-bold tracking-[0.3em] text-primary-9 select-all">
+                        <p className="text-2xl font-mono font-bold tracking-[0.3em] text-accent select-all">
                           {team?.inviteCode}
                         </p>
                       </div>
@@ -250,7 +250,7 @@ export default function TeamPage() {
                       >
                         {copied ? (
                           <>
-                            <Check className="h-4 w-4 text-green-500" />
+                            <Check className="h-4 w-4 text-success" />
                             已复制
                           </>
                         ) : (
@@ -299,7 +299,7 @@ export default function TeamPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="text-green-600 border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20"
+                              className="text-success border-success/30 hover:bg-success/10"
                               onClick={() => handleApprove(member.user.id)}
                               disabled={actionLoading === member.user.id}
                             >
@@ -309,7 +309,7 @@ export default function TeamPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
+                              className="text-error border-error/30 hover:bg-error/10"
                               onClick={() => handleReject(member.user.id)}
                               disabled={actionLoading === member.user.id}
                             >

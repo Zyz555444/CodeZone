@@ -14,7 +14,7 @@ export default function ChatPage() {
           <Header />
           <div className="flex flex-1 overflow-hidden">
             <Sidebar />
-            <main className="flex-1 bg-muted/40 p-4">
+            <main className="flex-1 bg-neutral-1 p-4">
               <div className="max-w-4xl mx-auto h-full">
                 <ChatRoom roomId="global" roomName="团队聊天室" />
               </div>

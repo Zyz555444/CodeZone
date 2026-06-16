@@ -157,6 +157,15 @@ class WebSocketService {
     this.socket?.off('cursor-move', callback);
   }
 
+  // 实时通知
+  onNotification(callback: (data: any) => void): void {
+    this.socket?.on('notification', callback);
+  }
+
+  offNotification(callback: (data: any) => void): void {
+    this.socket?.off('notification', callback);
+  }
+
   get socketInstance(): Socket | null {
     return this.socket;
   }
