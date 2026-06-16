@@ -11,7 +11,8 @@ COPY frontend/package.json frontend/pnpm-lock.yaml ./frontend/
 COPY backend/package.json ./backend/
 
 RUN npm install -g pnpm@latest && \
-    cd frontend && pnpm install --frozen-lockfile && \
+    mkdir -p /tmp/pnpm-store && \
+    cd frontend && pnpm install --frozen-lockfile --store-dir /tmp/pnpm-store && \
     cd ../backend && npm install
 
 # ============================================
@@ -30,12 +31,13 @@ WORKDIR /app/frontend
 ENV NODE_OPTIONS="--max-old-space-size=768"
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN npm install -g pnpm@latest
+RUN npm install -g pnpm@latest && \
+    mkdir -p /tmp/pnpm-store
 
 COPY --from=deps /app/frontend/node_modules ./node_modules
 COPY frontend/ ./
 
-RUN pnpm run build
+RUN pnpm run build --store-dir /tmp/pnpm-store
 
 # ============================================
 # 阶段3: 前端生产镜像
