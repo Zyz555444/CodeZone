@@ -87,7 +87,9 @@ RUN npx prisma generate
 
 COPY backend/src ./src/
 RUN npm run build
+RUN cp -r node_modules/.prisma /tmp/.prisma-backup
 RUN npm prune --production
+RUN cp -r /tmp/.prisma-backup node_modules/.prisma
 
 # ============================================
 # 阶段5: 后端生产镜像
@@ -103,7 +105,6 @@ RUN apk add --no-cache curl openssl netcat-openbsd
 
 COPY --from=backend-builder --chown=node:node /app/backend/node_modules ./node_modules
 COPY --from=backend-builder --chown=node:node /app/backend/dist ./dist
-COPY --from=backend-builder --chown=node:node /app/backend/node_modules/.prisma ./node_modules/.prisma
 COPY --from=backend-builder --chown=node:node /app/backend/prisma ./prisma
 
 COPY docker/start.sh ./start.sh
