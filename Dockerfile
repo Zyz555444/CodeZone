@@ -4,7 +4,6 @@
 # 阶段1: 依赖安装 (npm + apk 缓存加速)
 # ============================================
 FROM node:22-alpine AS deps
-ENV NODE_ENV=production
 WORKDIR /app
 
 RUN --mount=type=cache,target=/var/cache/apk \
@@ -85,10 +84,11 @@ COPY package.json package-lock.json ./
 COPY backend/package.json ./backend/
 COPY --from=deps /app/backend/node_modules ./backend/node_modules
 COPY backend/tsconfig.json ./backend/
+COPY backend/esbuild.config.js ./backend/
 COPY backend/prisma ./backend/prisma/
 
 WORKDIR /app/backend
-RUN npm install -g prisma@5 && prisma generate
+RUN npx --no-install prisma generate
 COPY backend/src ./src/
 # 利用 esbuild 缓存加速后端构建
 RUN --mount=type=cache,target=/root/.cache/esbuild \
