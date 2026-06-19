@@ -30,10 +30,10 @@ ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
 
 WORKDIR /app/frontend
 
+# 先复制根 node_modules（包含所有 hoist 的包和 .bin）
+COPY --from=deps /app/node_modules ./node_modules
+# 再叠加 frontend 专属 node_modules（覆盖 hoist 的版本）
 COPY --from=deps /app/frontend/node_modules ./node_modules
-COPY --from=deps /app/node_modules/monaco-editor ./node_modules/monaco-editor
-COPY --from=deps /app/node_modules/y-monaco ./node_modules/y-monaco
-COPY --from=deps /app/node_modules/@monaco-editor ./node_modules/@monaco-editor
 COPY frontend/ ./frontend/
 COPY frontend/package.json ./
 
