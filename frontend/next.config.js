@@ -2,7 +2,6 @@
 const nextConfig = {
   output: 'standalone',
   transpilePackages: ['lucide-react'],
-  allowedHosts: ['.monkeycode-ai.online'],
   typescript: {
     ignoreBuildErrors: true,
   },

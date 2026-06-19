@@ -31,14 +31,19 @@ ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/frontend/node_modules ./frontend/node_modules
 COPY package.json package-lock.json ./
 COPY frontend/package.json ./frontend/
-COPY --from=deps /app/frontend/node_modules ./frontend/node_modules
 COPY frontend/ ./frontend/
 
 WORKDIR /app/frontend
-# 将根 node_modules 中 hoist 的 monaco-editor 链接到 frontend node_modules
-RUN ln -s /app/node_modules/monaco-editor ./node_modules/monaco-editor
+# 将根 node_modules 中 hoist 的 monaco-editor/y-monaco 复制到 frontend/node_modules，
+# 确保 Turbopack 模块解析能找到（符号链接在 Turbopack 中可能不被跟随）
+RUN for pkg in monaco-editor y-monaco @monaco-editor; do \
+      if [ -d /app/node_modules/$pkg ] && [ ! -e ./node_modules/$pkg ]; then \
+        cp -r /app/node_modules/$pkg ./node_modules/$pkg; \
+      fi; \
+    done
 # 利用 Next.js 构建缓存加速
 RUN --mount=type=cache,target=/app/frontend/.next/cache \
     npm run build
