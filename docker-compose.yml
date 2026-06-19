@@ -72,7 +72,7 @@ services:
   # PostgreSQL 数据库
   # ============================================
   postgres:
-    image: postgres:16-alpine
+    image: postgres:15-alpine
     container_name: codezone-postgres
     environment:
       - POSTGRES_USER=${DB_USER:-codezone}
