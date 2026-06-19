@@ -171,12 +171,14 @@ export const updateTask = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    // 仅在从非DONE状态转为DONE时设置completedAt，其他状态变更保留原值
+    // 仅在从非DONE状态转为DONE时设置completedAt，从DONE转为其他状态时清空completedAt
     const wasDoneTask = task.status === 'DONE';
     const willBeDone = status === 'DONE';
-    let completedAtValue = undefined;
+    let completedAtValue: Date | null | undefined = undefined;
     if (willBeDone && !wasDoneTask) {
       completedAtValue = new Date();
+    } else if (wasDoneTask && status !== undefined && !willBeDone) {
+      completedAtValue = null;
     }
 
     const updatedTask = await prisma.task.update({

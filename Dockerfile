@@ -38,7 +38,9 @@ COPY --from=deps /app/frontend/node_modules ./frontend/node_modules
 COPY frontend/ ./frontend/
 
 WORKDIR /app/frontend
-RUN npm run build
+# 利用 Next.js 构建缓存加速
+RUN --mount=type=cache,target=/app/frontend/.next/cache \
+    npm run build
 
 # ============================================
 # 阶段3: 前端生产镜像
@@ -58,9 +60,9 @@ RUN --mount=type=cache,target=/var/cache/apk \
 
 COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone ./
 COPY --from=frontend-builder --chown=node:node /app/frontend/.next/static ./.next/static
+COPY --from=frontend-builder --chown=node:node /app/frontend/public ./public
 COPY --from=frontend-builder --chown=node:node /app/frontend/next.config.js ./
 COPY --from=frontend-builder --chown=node:node /app/frontend/package.json ./
-RUN mkdir -p public
 
 EXPOSE 12321
 USER node
@@ -88,8 +90,11 @@ COPY backend/prisma ./backend/prisma/
 WORKDIR /app/backend
 RUN npx prisma generate
 COPY backend/src ./src/
-RUN npm run build
-RUN cp -r node_modules/.prisma /tmp/.prisma-backup && \
+# 利用 esbuild 缓存加速后端构建
+RUN --mount=type=cache,target=/root/.cache/esbuild \
+    npm run build
+RUN --mount=type=cache,target=/root/.npm \
+    cp -r node_modules/.prisma /tmp/.prisma-backup && \
     npm prune --production && \
     cp -r /tmp/.prisma-backup node_modules/.prisma
 

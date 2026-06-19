@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { hasProjectAccess } from '../lib/projectAccess';
 
 const createCommentSchema = z.object({
   content: z.string().min(1, '评论内容不能为空'),
@@ -11,6 +12,20 @@ const createCommentSchema = z.object({
 export const getComments = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { taskId } = req.params;
+
+    // 验证用户是否有权访问该任务所属项目
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { projectId: true },
+    });
+    if (!task) {
+      res.status(404).json({ error: '任务不存在' });
+      return;
+    }
+    if (req.userId && !(await hasProjectAccess(req.userId, task.projectId))) {
+      res.status(403).json({ error: '无权访问此任务' });
+      return;
+    }
 
     const comments = await prisma.comment.findMany({
       where: { taskId },

@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { hasProjectAccess } from '../lib/projectAccess';
 
 const createReviewCommentSchema = z.object({
   content: z.string().min(1, '评论内容不能为空'),
@@ -13,6 +14,20 @@ const createReviewCommentSchema = z.object({
 export const getReviewComments = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { reviewId } = req.params;
+
+    // 验证用户是否有权访问审查所属项目
+    const review = await prisma.codeReview.findUnique({
+      where: { id: reviewId },
+      select: { projectId: true },
+    });
+    if (!review) {
+      res.status(404).json({ error: '审查不存在' });
+      return;
+    }
+    if (req.userId && !(await hasProjectAccess(req.userId, review.projectId))) {
+      res.status(403).json({ error: '无权访问此审查' });
+      return;
+    }
 
     const comments = await prisma.reviewComment.findMany({
       where: { reviewId },
@@ -42,6 +57,12 @@ export const createReviewComment = async (req: AuthRequest, res: Response): Prom
     });
     if (!review) {
       res.status(404).json({ error: '审查不存在' });
+      return;
+    }
+
+    // 验证用户是否有权限访问审查所属项目
+    if (req.userId && !(await hasProjectAccess(req.userId, review.projectId))) {
+      res.status(403).json({ error: '无权在此审查中添加评论' });
       return;
     }
 

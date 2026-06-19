@@ -20,10 +20,9 @@ const updateRepositorySchema = z.object({
 });
 
 const createCommitSchema = z.object({
-  hash: z.string().min(1, '提交哈希不能为空'),
-  message: z.string().min(1, '提交信息不能为空'),
-  authorId: z.string().min(1, '作者 ID 不能为空'),
-  branch: z.string().min(1, '分支名称不能为空'),
+  hash: z.string().min(1, '提交哈希不能为空').max(100, '哈希长度不能超过100'),
+  message: z.string().min(1, '提交信息不能为空').max(500, '提交信息长度不能超过500'),
+  branch: z.string().min(1, '分支名称不能为空').max(100, '分支名称长度不能超过100'),
 });
 
 async function checkProjectAccess(projectId: string, userId: string): Promise<boolean> {
@@ -321,7 +320,7 @@ export const createCommit = async (req: AuthRequest, res: Response): Promise<voi
         repositoryId: id,
         hash: body.hash,
         message: body.message,
-        authorId: body.authorId,
+        authorId: req.userId!,
         branch: body.branch,
       },
     });

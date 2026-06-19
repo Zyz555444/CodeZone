@@ -8,6 +8,11 @@ const createSubTaskSchema = z.object({
   title: z.string().min(1, '子任务标题不能为空'),
 });
 
+const updateSubTaskSchema = z.object({
+  title: z.string().min(1, '子任务标题不能为空').optional(),
+  completed: z.boolean().optional(),
+});
+
 export const createSubTask = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { taskId } = req.params;
@@ -50,7 +55,7 @@ export const createSubTask = async (req: AuthRequest, res: Response): Promise<vo
 export const updateSubTask = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { title, completed } = req.body;
+    const { title, completed } = updateSubTaskSchema.parse(req.body);
 
     const subTask = await prisma.subTask.findUnique({
       where: { id },
@@ -77,6 +82,10 @@ export const updateSubTask = async (req: AuthRequest, res: Response): Promise<vo
 
     res.json({ subTask: updated });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: '验证失败', details: error.errors });
+      return;
+    }
     logger.error('更新子任务失败', { error, userId: req.userId });
     res.status(500).json({ error: '更新子任务失败' });
   }

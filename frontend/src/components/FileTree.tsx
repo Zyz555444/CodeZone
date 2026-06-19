@@ -3,12 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Folder, FolderOpen, File, FileCode, FileText, FileJson, ChevronRight, Loader2, Plus, RefreshCw } from 'lucide-react';
 import { apiUrl } from '@/lib/env';
-
-function getToken(): string {
-  if (typeof document === 'undefined') return '';
-  const match = document.cookie.match(/(?:^|;\s*)auth-token=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : '';
-}
+import { authFetch } from '@/lib/utils';
 
 interface FileNode {
   name: string;
@@ -118,10 +113,7 @@ export function FileTree({ projectId, onFileSelect, activeFilePath }: FileTreePr
     setLoading(true);
     setError('');
     try {
-      const token = getToken();
-      const res = await fetch(apiUrl(`/api/code/${projectId}/tree`), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authFetch(apiUrl(`/api/code/${projectId}/tree`));
       if (!res.ok) throw new Error('加载文件树失败');
       const data = await res.json();
       setFiles(data.tree || data.files || []);

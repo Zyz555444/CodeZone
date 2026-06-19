@@ -1,11 +1,17 @@
 'use client';
 
 import React from 'react';
+import dynamic from 'next/dynamic';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { TeamGuard } from '@/components/TeamGuard';
-import { CollaborativeWorkspace } from '@/components/CollaborativeWorkspace';
 import { useProjectStore } from '@/stores/projectStore';
+
+// 禁用 SSR 以避免 Monaco Editor 在服务端渲染时引用 window 导致的错误
+const CollaborativeWorkspace = dynamic(
+  () => import('@/components/CollaborativeWorkspace').then(mod => ({ default: mod.CollaborativeWorkspace })),
+  { ssr: false }
+);
 
 export default function CodePage() {
   const { currentProject } = useProjectStore();

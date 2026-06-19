@@ -93,7 +93,7 @@ export function GlobalSearch() {
     setLoading(true);
     setHasSearched(true);
     try {
-      const { data } = await api.get('/api/search', { params: { q } });
+      const { data } = await api.get('/search', { params: { q } });
       setResults(data);
       setActiveIndex(-1);
     } catch {

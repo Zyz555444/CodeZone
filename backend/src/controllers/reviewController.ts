@@ -3,12 +3,11 @@ import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { getAccessibleProjectIds } from '../lib/projectAccess';
 
 const createReviewSchema = z.object({
   projectId: z.string().min(1, '项目ID不能为空'),
   title: z.string().min(1, '审查标题不能为空').max(200, '标题不能超过200字'),
-  description: z.string().optional(),
-  branch: z.string().optional(),
 });
 
 const updateReviewSchema = z.object({
@@ -19,10 +18,19 @@ export const getReviews = async (req: AuthRequest, res: Response): Promise<void>
   try {
     const { projectId } = req.query;
 
-    const where: any = {};
+    const accessibleIds = await getAccessibleProjectIds(req.userId!);
+
+    const where: any = {
+      projectId: { in: accessibleIds },
+    };
 
     if (projectId) {
-      where.projectId = projectId;
+      // 验证 projectId 在用户可访问的项目列表中，防止授权绕过
+      if (!accessibleIds.includes(projectId as string)) {
+        res.status(403).json({ error: '无权访问此项目' });
+        return;
+      }
+      where.projectId = projectId as string;
     }
 
     const reviews = await prisma.codeReview.findMany({

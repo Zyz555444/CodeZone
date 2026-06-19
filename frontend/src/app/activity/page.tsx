@@ -81,7 +81,7 @@ export default function ActivityPage() {
     setLoading(true);
     setError('');
     try {
-      const { data } = await api.get('/api/activities');
+      const { data } = await api.get('/activities');
       setActivities(data.activities || []);
     } catch {
       setError('加载活动记录失败，请稍后重试');

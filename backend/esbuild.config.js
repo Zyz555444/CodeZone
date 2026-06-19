@@ -1,5 +1,4 @@
 const esbuild = require('esbuild')
-const { globSync } = require('fs')
 const path = require('path')
 
 function* walk(dir) {
@@ -16,7 +15,7 @@ function* walk(dir) {
 
 const entryPoints = [...walk('src')]
 
-esbuild.buildSync({
+esbuild.build({
   entryPoints,
   outdir: 'dist',
   platform: 'node',
@@ -24,6 +23,6 @@ esbuild.buildSync({
   format: 'cjs',
   sourcemap: false,
   logLevel: 'info',
-})
-
-console.log('esbuild done:', entryPoints.length, 'files')
+}).then(() => {
+  console.log('esbuild done:', entryPoints.length, 'files')
+}).catch(() => process.exit(1))

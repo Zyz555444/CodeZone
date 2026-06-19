@@ -6,12 +6,7 @@ import { FileTree, FileNode, getLanguageFromFile } from './FileTree';
 import { AIPanel } from './AIPanel';
 import { X, Plus, Sparkles, PanelRight, PanelLeft } from 'lucide-react';
 import { apiUrl } from '@/lib/env';
-
-function getToken(): string {
-  if (typeof document === 'undefined') return '';
-  const match = document.cookie.match(/(?:^|;\s*)auth-token=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : '';
-}
+import { authFetch } from '@/lib/utils';
 
 interface OpenFile {
   path: string;
@@ -47,10 +42,7 @@ export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorksp
     let content = '';
 
     try {
-      const token = getToken();
-      const res = await fetch(apiUrl(`/api/code/${projectId}/file?path=${encodeURIComponent(node.path)}`), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authFetch(apiUrl(`/api/code/${projectId}/file?path=${encodeURIComponent(node.path)}`));
       if (res.ok) {
         const data = await res.json();
         content = data.content || '';

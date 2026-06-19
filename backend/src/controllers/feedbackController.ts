@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { z } from 'zod';
+import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 
@@ -13,7 +14,16 @@ export const createFeedback = async (req: AuthRequest, res: Response): Promise<v
   try {
     const body = createFeedbackSchema.parse(req.body);
 
-    logger.info('用户反馈', {
+    await prisma.feedback.create({
+      data: {
+        userId: req.userId || null,
+        type: body.type,
+        content: body.content,
+        contact: body.contact || null,
+      },
+    });
+
+    logger.info('用户反馈已提交', {
       userId: req.userId,
       type: body.type,
       content: body.content.substring(0, 200),

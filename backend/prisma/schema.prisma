@@ -399,3 +399,15 @@ model Activity {
   @@index([createdAt])
   @@index([projectId, createdAt])
 }
+
+model Feedback {
+  id        String   @id @default(cuid())
+  userId    String?
+  type      String
+  content   String
+  contact   String?
+  createdAt DateTime @default(now())
+
+  @@index([type])
+  @@index([createdAt])
+}

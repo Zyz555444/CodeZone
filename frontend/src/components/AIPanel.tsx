@@ -4,12 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from './ui/Button';
 import { Loader2, Send, Sparkles, Code2, MessageSquare, FileSearch, Bug, Wand2, Copy, Check, X } from 'lucide-react';
 import { apiUrl } from '@/lib/env';
-
-function getToken(): string {
-  if (typeof document === 'undefined') return '';
-  const match = document.cookie.match(/(?:^|;\s*)auth-token=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : '';
-}
+import { authFetch } from '@/lib/utils';
 
 type AITab = 'chat' | 'explain' | 'review' | 'generate';
 
@@ -48,14 +43,10 @@ export function AIPanel({ code, language, onInsertCode, onClose, position = 'rig
   }, [messages, result]);
 
   const callAI = useCallback(async (endpoint: string, body: Record<string, unknown>) => {
-    const token = getToken();
-    if (!token) throw new Error('未登录');
-
-    const res = await fetch(apiUrl(`/api/ai/${endpoint}`), {
+    const res = await authFetch(apiUrl(`/api/ai/${endpoint}`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify(body),
     });

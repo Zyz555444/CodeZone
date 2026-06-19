@@ -2,19 +2,8 @@ import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { getAccessibleProjectIds } from '../lib/projectAccess';
 
-async function getAccessibleProjectIds(userId: string): Promise<string[]> {
-  const projects = await prisma.project.findMany({
-    where: {
-      OR: [
-        { ownerId: userId },
-        { members: { some: { userId } } },
-      ],
-    },
-    select: { id: true },
-  });
-  return projects.map((p: { id: string }) => p.id);
-}
 
 export const getActivities = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -28,6 +17,11 @@ export const getActivities = async (req: AuthRequest, res: Response): Promise<vo
     };
 
     if (projectId) {
+      // 验证 projectId 在用户可访问的项目列表中，防止授权绕过
+      if (!accessibleProjectIds.includes(projectId as string)) {
+        res.status(403).json({ error: '无权访问此项目' });
+        return;
+      }
       where.projectId = projectId as string;
     }
 

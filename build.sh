@@ -9,9 +9,10 @@ export DOCKER_BUILDKIT=1
 export COMPOSE_DOCKER_CLI_BUILD=1
 export BUILDKIT_PROGRESS=plain
 
-echo "开始并行构建 (BuildKit + npm/apk 缓存)..."
+echo "开始并行构建 (BuildKit + npm/apk/esbuild缓存)..."
 docker compose build \
   --parallel \
+  --build-arg BUILDKIT_INLINE_CACHE=1 \
   --progress=plain
 
 echo ""
