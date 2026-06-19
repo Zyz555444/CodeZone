@@ -40,7 +40,6 @@ COPY frontend/next.config.js ./next.config.js
 COPY frontend/postcss.config.js ./postcss.config.js
 COPY frontend/tailwind.config.js ./tailwind.config.js
 COPY frontend/src ./src
-COPY frontend/public ./public
 
 # 利用 Next.js 构建缓存加速
 RUN --mount=type=cache,target=/app/frontend/.next/cache \
@@ -64,7 +63,6 @@ RUN --mount=type=cache,target=/var/cache/apk \
 
 COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone ./
 COPY --from=frontend-builder --chown=node:node /app/frontend/.next/static ./.next/static
-COPY --from=frontend-builder --chown=node:node /app/frontend/public ./public
 COPY --from=frontend-builder --chown=node:node /app/frontend/next.config.js ./
 COPY --from=frontend-builder --chown=node:node /app/frontend/package.json ./
 
