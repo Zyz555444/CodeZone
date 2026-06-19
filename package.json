@@ -3,10 +3,16 @@
   "version": "1.0.0",
   "description": "A comprehensive collaboration platform for programming teams",
   "private": true,
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
+  "workspaces": {
+    "packages": [
+      "frontend",
+      "backend"
+    ],
+    "nohoist": [
+      "**/@prisma/client",
+      "**/prisma"
+    ]
+  },
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "npm run dev -w backend",
