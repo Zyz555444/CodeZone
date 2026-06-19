@@ -37,6 +37,8 @@ COPY --from=deps /app/frontend/node_modules ./frontend/node_modules
 COPY frontend/ ./frontend/
 
 WORKDIR /app/frontend
+# 将根 node_modules 中 hoist 的 monaco-editor 链接到 frontend node_modules
+RUN ln -s /app/node_modules/monaco-editor ./node_modules/monaco-editor
 # 利用 Next.js 构建缓存加速
 RUN --mount=type=cache,target=/app/frontend/.next/cache \
     npm run build
