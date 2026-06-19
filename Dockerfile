@@ -34,8 +34,13 @@ WORKDIR /app/frontend
 COPY --from=deps /app/node_modules ./node_modules
 # 再叠加 frontend 专属 node_modules（覆盖 hoist 的版本）
 COPY --from=deps /app/frontend/node_modules ./node_modules
-COPY frontend/ ./frontend/
-COPY frontend/package.json ./
+COPY frontend/package.json ./package.json
+COPY frontend/tsconfig.json ./tsconfig.json
+COPY frontend/next.config.js ./next.config.js
+COPY frontend/postcss.config.js ./postcss.config.js
+COPY frontend/tailwind.config.js ./tailwind.config.js
+COPY frontend/src ./src
+COPY frontend/public ./public
 
 # 利用 Next.js 构建缓存加速
 RUN --mount=type=cache,target=/app/frontend/.next/cache \
