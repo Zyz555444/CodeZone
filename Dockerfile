@@ -94,8 +94,9 @@ COPY backend/src ./src/
 RUN --mount=type=cache,target=/root/.cache/esbuild \
     npm run build
 RUN --mount=type=cache,target=/root/.npm \
-    cp -r node_modules/.prisma /tmp/.prisma-backup && \
+    cp -r /app/node_modules/.prisma /tmp/.prisma-backup && \
     npm prune --production && \
+    mkdir -p node_modules && \
     cp -r /tmp/.prisma-backup node_modules/.prisma
 
 # ============================================
