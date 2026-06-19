@@ -88,7 +88,7 @@ COPY backend/tsconfig.json ./backend/
 COPY backend/prisma ./backend/prisma/
 
 WORKDIR /app/backend
-RUN npx prisma generate
+RUN ./node_modules/.bin/prisma generate
 COPY backend/src ./src/
 # 利用 esbuild 缓存加速后端构建
 RUN --mount=type=cache,target=/root/.cache/esbuild \
