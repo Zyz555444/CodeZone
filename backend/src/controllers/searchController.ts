@@ -2,6 +2,9 @@ import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { getRedisClient, isRedisConnected } from '../lib/redis';
+
+const SEARCH_CACHE_TTL = 120; // 120 秒
 
 export const search = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -13,6 +16,17 @@ export const search = async (req: AuthRequest, res: Response): Promise<void> => 
     }
 
     const userId = req.userId!;
+
+    // 从 Redis 缓存中读取
+    if (isRedisConnected()) {
+      const redis = getRedisClient();
+      const cacheKey = `search:${userId}:${Buffer.from(q).toString('base64')}`;
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        res.json(JSON.parse(cached));
+        return;
+      }
+    }
 
     const accessibleProjects = await prisma.project.findMany({
       where: {
@@ -75,7 +89,7 @@ export const search = async (req: AuthRequest, res: Response): Promise<void> => 
       }),
     ]);
 
-    res.json({
+    const responseData = {
       projects: projects.map((p: { id: string; name: string }) => ({
         id: p.id,
         name: p.name,
@@ -101,7 +115,16 @@ export const search = async (req: AuthRequest, res: Response): Promise<void> => 
         link: `/projects/${f.projectId}/files/${f.id}`,
         type: 'file',
       })),
-    });
+    };
+
+    // 异步回写缓存
+    if (isRedisConnected()) {
+      const redis = getRedisClient();
+      const cacheKey = `search:${userId}:${Buffer.from(q).toString('base64')}`;
+      redis.set(cacheKey, JSON.stringify(responseData), { EX: SEARCH_CACHE_TTL }).catch(() => {});
+    }
+
+    res.json(responseData);
   } catch (error) {
     logger.error('搜索失败', { error, userId: req.userId });
     res.status(500).json({ error: '搜索失败' });

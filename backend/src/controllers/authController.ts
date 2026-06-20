@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { signToken } from '../lib/jwt';
+import { getRedisClient, isRedisConnected } from '../lib/redis';
 
 const registerSchema = z.object({
   email: z.string().email('无效的邮箱地址'),
@@ -70,13 +71,23 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const token = signToken(user.id);
 
     // 创建会话记录
-    await prisma.session.create({
+    const session = await prisma.session.create({
       data: {
         userId: user.id,
         token,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
+
+    // 将会话缓存到 Redis
+    if (isRedisConnected()) {
+      const redis = getRedisClient();
+      await redis.set(
+        `session:${token}`,
+        JSON.stringify({ userId: user.id }),
+        { EX: 7 * 24 * 60 * 60 }
+      );
+    }
 
     logger.info('用户注册成功', { userId: user.id, email: user.email });
 
@@ -138,13 +149,23 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const token = signToken(user.id);
 
     // 创建会话记录用于登出时失效
-    await prisma.session.create({
+    const session = await prisma.session.create({
       data: {
         userId: user.id,
         token,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
+
+    // 将会话缓存到 Redis
+    if (isRedisConnected()) {
+      const redis = getRedisClient();
+      await redis.set(
+        `session:${token}`,
+        JSON.stringify({ userId: user.id }),
+        { EX: 7 * 24 * 60 * 60 }
+      );
+    }
 
     logger.info('用户登录成功', { userId: user.id, email: user.email });
 
@@ -177,6 +198,11 @@ export const logout = async (req: AuthRequest, res: Response): Promise<void> => 
       await prisma.session.deleteMany({
         where: { token },
       });
+      // 同时从 Redis 中删除
+      if (isRedisConnected()) {
+        const redis = getRedisClient();
+        await redis.del(`session:${token}`);
+      }
     }
 
     logger.info('用户登出', { userId: req.userId });

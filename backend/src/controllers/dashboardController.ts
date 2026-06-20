@@ -2,23 +2,25 @@ import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { getAccessibleProjectIds } from '../lib/projectAccess';
+import { getRedisClient, isRedisConnected } from '../lib/redis';
 
-async function getAccessibleProjectIds(userId: string): Promise<string[]> {
-  const projects = await prisma.project.findMany({
-    where: {
-      OR: [
-        { ownerId: userId },
-        { members: { some: { userId } } },
-      ],
-    },
-    select: { id: true },
-  });
-  return projects.map((p: { id: string }) => p.id);
-}
+const DASHBOARD_CACHE_TTL = 60; // 60 秒
 
 export const getDashboardStats = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.userId!;
+
+    // 从 Redis 缓存中读取
+    if (isRedisConnected()) {
+      const redis = getRedisClient();
+      const cached = await redis.get(`dashboard:${userId}`);
+      if (cached) {
+        res.json(JSON.parse(cached));
+        return;
+      }
+    }
+
     const accessibleProjectIds = await getAccessibleProjectIds(userId);
 
     const [
@@ -98,6 +100,23 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
       },
       recentActivities: enrichedActivities,
     });
+
+    // 异步回写缓存（不阻塞响应）
+    if (isRedisConnected()) {
+      const redis = getRedisClient();
+      const responseData = {
+        stats: {
+          totalProjects,
+          totalTasks,
+          myTasks,
+          teamMembers,
+          tasksByStatus: statusMap,
+          tasksByPriority: priorityMap,
+        },
+        recentActivities: enrichedActivities,
+      };
+      redis.set(`dashboard:${userId}`, JSON.stringify(responseData), { EX: DASHBOARD_CACHE_TTL }).catch(() => {});
+    }
   } catch (error) {
     logger.error('获取仪表盘数据失败', { error, userId: req.userId });
     res.status(500).json({ error: '获取仪表盘数据失败' });

@@ -6,6 +6,8 @@ import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import rateLimit from 'express-rate-limit';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { RedisStore } from 'rate-limit-redis';
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { sanitizeBody } from './middleware/sanitize';
@@ -13,6 +15,7 @@ import { WebSocketHandler } from './websocket/WebSocketHandler';
 import { ChatWebSocketHandler } from './websocket/ChatWebSocketHandler';
 import { setupCollaborationServer } from './collaboration/yServer';
 import { setIO } from './lib/notificationService';
+import { connectRedis, getRedisClient } from './lib/redis';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import projectRoutes from './routes/projects';
@@ -72,10 +75,17 @@ app.use(compression({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 通用速率限制
+// 通用速率限制（Redis 存储）
+const createRedisStore = () => new RedisStore({
+  sendCommand: (...args: string[]) => getRedisClient().sendCommand(args),
+  prefix: 'rl:',
+});
+
 const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15分钟
-  max: 100, // 每个 IP 限制 100 次请求
+  store: createRedisStore(),
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  keyGenerator: (req) => `rl:general:${req.ip}`,
   message: { error: '请求过于频繁，请稍后重试' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -85,10 +95,11 @@ const generalLimiter = rateLimit({
   },
 });
 
-// 严格速率限制（用于认证端点）
 const strictLimiter = rateLimit({
+  store: createRedisStore(),
   windowMs: 15 * 60 * 1000,
-  max: 5, // 每个 IP 限制 5 次请求
+  max: 5,
+  keyGenerator: (req) => `rl:auth:${req.ip}`,
   message: { error: '登录尝试次数过多，请 15 分钟后重试' },
   skipSuccessfulRequests: true,
   handler: (req: Request, res: Response) => {
@@ -97,10 +108,11 @@ const strictLimiter = rateLimit({
   },
 });
 
-// 密码更新专用速率限制（每个 IP 15 分钟 3 次）
 const passwordUpdateLimiter = rateLimit({
+  store: createRedisStore(),
   windowMs: 15 * 60 * 1000,
   max: 3,
+  keyGenerator: (req) => `rl:pwd:${req.ip}`,
   message: { error: '密码更新尝试次数过多，请 15 分钟后重试' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -110,10 +122,11 @@ const passwordUpdateLimiter = rateLimit({
   },
 });
 
-// 用户资料更新专用速率限制（每个 IP 15 分钟 10 次）
 const profileUpdateLimiter = rateLimit({
+  store: createRedisStore(),
   windowMs: 15 * 60 * 1000,
   max: 10,
+  keyGenerator: (req) => `rl:profile:${req.ip}`,
   message: { error: '资料更新请求过于频繁，请稍后重试' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -158,8 +171,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// Socket.IO 初始化
+// Socket.IO 初始化（Redis 适配器支持集群模式跨进程通信）
+const redisClient = getRedisClient();
+const pubClient = redisClient.duplicate();
+const subClient = redisClient.duplicate();
+
 const io = new Server(httpServer, {
+  adapter: createAdapter(pubClient, subClient),
   cors: {
     origin: corsOrigin,
     credentials: true,
@@ -251,16 +269,31 @@ process.on('SIGINT', () => {
 });
 
 // 启动服务器
-httpServer.listen({
-  port: Number(port),
-  host: '0.0.0.0',
-}, () => {
-  logger.info(`CodeZone Backend started`, {
-    port,
-    host: '0.0.0.0',
-    environment: process.env.NODE_ENV,
-    nodeVersion: process.version,
-  });
-});
+async function startServer() {
+  try {
+    await connectRedis();
+
+    // 连接 Socket.IO Redis 适配器的 Pub/Sub 客户端
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+
+    httpServer.listen({
+      port: Number(port),
+      host: '0.0.0.0',
+    }, () => {
+      logger.info(`CodeZone Backend started`, {
+        port,
+        host: '0.0.0.0',
+        environment: process.env.NODE_ENV,
+        nodeVersion: process.version,
+        redis: 'connected',
+      });
+    });
+  } catch (error) {
+    logger.error('Failed to start server', { error });
+    process.exit(1);
+  }
+}
+
+startServer();
 
 export { app, io };

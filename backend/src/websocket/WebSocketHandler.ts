@@ -2,6 +2,7 @@ import { Server, Socket } from 'socket.io';
 import { verifyToken } from '../lib/jwt';
 import { logger } from '../utils/logger';
 import { prisma } from '../lib/prisma';
+import { getRedisClient, isRedisConnected } from '../lib/redis';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -9,9 +10,10 @@ interface AuthenticatedSocket extends Socket {
   userName?: string;
 }
 
+const TEAM_ONLINE_PREFIX = 'online:team:';
+
 export class WebSocketHandler {
   private io: Server;
-  private teamUsers: Map<string, Set<string>> = new Map();
 
   constructor(io: Server) {
     this.io = io;
@@ -67,7 +69,7 @@ export class WebSocketHandler {
       socket.join(`user:${socket.userId}`);
     }
 
-    socket.on('join-team', (teamId: string) => {
+    socket.on('join-team', async (teamId: string) => {
       try {
         if (!teamId) return;
         if (socket.teamId) {
@@ -75,20 +77,20 @@ export class WebSocketHandler {
         }
         socket.join(`team:${teamId}`);
         socket.teamId = teamId;
-        this.trackTeamUser(socket.userId!, teamId);
-        this.broadcastTeamOnlineUsers(teamId);
+        await this.trackTeamUser(socket.userId!, teamId);
+        await this.broadcastTeamOnlineUsers(teamId);
         logger.info(`User ${socket.userId} joined team ${teamId}`);
       } catch (error) {
         logger.error('Error joining team', { error, userId: socket.userId, teamId });
       }
     });
 
-    socket.on('leave-team', (teamId: string) => {
+    socket.on('leave-team', async (teamId: string) => {
       try {
         if (!teamId) return;
         socket.leave(`team:${teamId}`);
-        this.untrackTeamUser(socket.userId!, teamId);
-        this.broadcastTeamOnlineUsers(teamId);
+        await this.untrackTeamUser(socket.userId!, teamId);
+        await this.broadcastTeamOnlineUsers(teamId);
         if (socket.teamId === teamId) {
           socket.teamId = undefined;
         }
@@ -117,38 +119,47 @@ export class WebSocketHandler {
       }
     });
 
-    socket.on('disconnect', (reason) => {
+    socket.on('disconnect', async (reason) => {
       if (socket.teamId) {
-        this.untrackTeamUser(socket.userId!, socket.teamId);
-        this.broadcastTeamOnlineUsers(socket.teamId);
+        await this.untrackTeamUser(socket.userId!, socket.teamId);
+        await this.broadcastTeamOnlineUsers(socket.teamId);
       }
       logger.info(`User ${socket.userId} disconnected`, { reason });
     });
   }
 
-  private trackTeamUser(userId: string, teamId: string): void {
-    if (!this.teamUsers.has(teamId)) {
-      this.teamUsers.set(teamId, new Set());
-    }
-    this.teamUsers.get(teamId)!.add(userId);
-  }
-
-  private untrackTeamUser(userId: string, teamId: string): void {
-    const users = this.teamUsers.get(teamId);
-    if (users) {
-      users.delete(userId);
-      if (users.size === 0) {
-        this.teamUsers.delete(teamId);
-      }
+  private async trackTeamUser(userId: string, teamId: string): Promise<void> {
+    if (!isRedisConnected()) return;
+    const redis = getRedisClient();
+    try {
+      await redis.sAdd(`${TEAM_ONLINE_PREFIX}${teamId}`, userId);
+    } catch (error) {
+      logger.error('Redis trackTeamUser failed', { error, userId, teamId });
     }
   }
 
-  private broadcastTeamOnlineUsers(teamId: string): void {
-    const users = Array.from(this.teamUsers.get(teamId) || []);
-    this.io.to(`team:${teamId}`).emit('online-users', {
-      count: users.length,
-      users,
-    });
+  private async untrackTeamUser(userId: string, teamId: string): Promise<void> {
+    if (!isRedisConnected()) return;
+    const redis = getRedisClient();
+    try {
+      await redis.sRem(`${TEAM_ONLINE_PREFIX}${teamId}`, userId);
+    } catch (error) {
+      logger.error('Redis untrackTeamUser failed', { error, userId, teamId });
+    }
+  }
+
+  private async broadcastTeamOnlineUsers(teamId: string): Promise<void> {
+    if (!isRedisConnected()) return;
+    const redis = getRedisClient();
+    try {
+      const users = await redis.sMembers(`${TEAM_ONLINE_PREFIX}${teamId}`);
+      this.io.to(`team:${teamId}`).emit('online-users', {
+        count: users.length,
+        users,
+      });
+    } catch (error) {
+      logger.error('Redis broadcastTeamOnlineUsers failed', { error, teamId });
+    }
   }
 
   sendNotification(userId: string, data: any): void {

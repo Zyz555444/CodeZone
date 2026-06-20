@@ -3,6 +3,37 @@ import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { invalidateProjectAccessCache } from '../lib/projectAccess';
+import { getRedisClient, isRedisConnected } from '../lib/redis';
+
+async function invalidateProjectCaches(projectId: string): Promise<void> {
+  if (!isRedisConnected()) return;
+  const redis = getRedisClient();
+
+  // 获取所有项目成员
+  const members = await prisma.projectMember.findMany({
+    where: { projectId },
+    select: { userId: true },
+  });
+
+  // 获取项目所有者
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { ownerId: true },
+  });
+
+  const affectedUsers = [
+    ...members.map((m: { userId: string }) => m.userId),
+    ...(project ? [project.ownerId] : []),
+  ];
+
+  // 失效仪表盘缓存
+  const dashboardKeys = affectedUsers.map((uid) => `dashboard:${uid}`);
+  await redis.del(dashboardKeys);
+
+  // 失效项目访问缓存
+  await invalidateProjectAccessCache(affectedUsers);
+}
 
 const createProjectSchema = z.object({
   name: z.string().min(1, '项目名称不能为空'),
@@ -89,6 +120,7 @@ export const createProject = async (req: AuthRequest, res: Response): Promise<vo
     });
 
     res.status(201).json({ project });
+    invalidateProjectCaches(project.id).catch(() => {});
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: '验证失败', details: error.errors });
@@ -216,9 +248,30 @@ export const deleteProject = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    // 在删除项目前收集所有受影响用户（防止级联删除后查不到成员）
+    const membersToInvalidate = await prisma.projectMember.findMany({
+      where: { projectId: id },
+      select: { userId: true },
+    });
+    const affectedUserIds = [
+      ...membersToInvalidate.map((m: { userId: string }) => m.userId),
+      project.ownerId,
+    ];
+
     await prisma.project.delete({
       where: { id },
     });
+
+    // 失效缓存（失败不影响响应）
+    if (isRedisConnected()) {
+      const redis = getRedisClient();
+      try {
+        await redis.del(affectedUserIds.map((uid) => `dashboard:${uid}`));
+        await invalidateProjectAccessCache(affectedUserIds);
+      } catch {
+        // 缓存失效失败不影响业务
+      }
+    }
 
     res.json({ success: true });
   } catch (error) {
@@ -299,6 +352,7 @@ export const addMember = async (req: AuthRequest, res: Response): Promise<void> 
     });
 
     res.status(201).json({ member });
+    invalidateProjectCaches(id).catch(() => {});
   } catch (error) {
     logger.error('添加项目成员失败', { error, userId: req.userId });
     res.status(500).json({ error: '添加项目成员失败' });
@@ -337,6 +391,7 @@ export const removeMember = async (req: AuthRequest, res: Response): Promise<voi
     });
 
     res.json({ success: true });
+    invalidateProjectCaches(id).catch(() => {});
   } catch (error) {
     logger.error('移除项目成员失败', { error, userId: req.userId });
     res.status(500).json({ error: '移除项目成员失败' });

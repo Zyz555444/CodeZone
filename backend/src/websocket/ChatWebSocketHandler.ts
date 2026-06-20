@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { logger } from '../utils/logger';
 import { prisma } from '../lib/prisma';
+import { getRedisClient, isRedisConnected } from '../lib/redis';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -17,9 +18,11 @@ interface ChatMessage {
   type: 'TEXT' | 'SYSTEM';
 }
 
+const ROOM_ONLINE_PREFIX = 'online:room:';
+const USER_ROOMS_PREFIX = 'user:rooms:';
+
 export class ChatWebSocketHandler {
   private io: Server;
-  private rooms: Map<string, Set<string>> = new Map();
 
   constructor(io: Server) {
     this.io = io;
@@ -63,9 +66,9 @@ export class ChatWebSocketHandler {
         if (!roomId || !socket.userId) return;
 
         socket.join(`room:${roomId}`);
-        this.trackRoomUser(roomId, socket.userId);
+        await this.trackRoomUser(roomId, socket.userId);
 
-        const users = Array.from(this.rooms.get(roomId) || []);
+        const users = await this.getRoomUsers(roomId);
         this.io.to(`room:${roomId}`).emit('room-update', {
           roomId,
           users,
@@ -106,10 +109,10 @@ export class ChatWebSocketHandler {
     });
 
     // 离开聊天房间
-    socket.on('leave-room', (roomId: string) => {
+    socket.on('leave-room', async (roomId: string) => {
       if (!roomId || !socket.userId) return;
       socket.leave(`room:${roomId}`);
-      this.handleLeaveRoom(roomId, socket.userId, socket.userName || '未知用户');
+      await this.handleLeaveRoom(roomId, socket.userId, socket.userName || '未知用户');
     });
 
     // 发送消息
@@ -166,29 +169,38 @@ export class ChatWebSocketHandler {
     });
 
     // 断开连接
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       if (!socket.userId) return;
       logger.info(`用户 ${socket.userName} 断开聊天连接`);
 
-      // 收集要处理的房间，避免遍历时修改 Map
-      const roomsToLeave: string[] = [];
-      this.rooms.forEach((users, roomId) => {
-        if (users.has(socket.userId!)) {
-          roomsToLeave.push(roomId);
+      let roomsToLeave: string[] = [];
+
+      if (isRedisConnected()) {
+        const redis = getRedisClient();
+        try {
+          const userRoomsKey = `${USER_ROOMS_PREFIX}${socket.userId}`;
+          roomsToLeave = await redis.sMembers(userRoomsKey);
+          // 清理用户房间映射
+          await redis.del(userRoomsKey);
+        } catch {
+          roomsToLeave = [...socket.rooms]
+            .filter((r) => r.startsWith('room:'))
+            .map((r) => r.replace('room:', ''));
         }
-      });
+      } else {
+        roomsToLeave = [...socket.rooms]
+          .filter((r) => r.startsWith('room:'))
+          .map((r) => r.replace('room:', ''));
+      }
 
       for (const roomId of roomsToLeave) {
-        this.handleLeaveRoom(roomId, socket.userId!, socket.userName || '未知用户');
+        await this.handleLeaveRoom(roomId, socket.userId!, socket.userName || '未知用户');
       }
     });
   }
 
-  private handleLeaveRoom(roomId: string, userId: string, userName: string): void {
-    const users = this.rooms.get(roomId);
-    if (!users) return;
-
-    users.delete(userId);
+  private async handleLeaveRoom(roomId: string, userId: string, userName: string): Promise<void> {
+    await this.untrackRoomUser(roomId, userId);
 
     const leaveMsg: ChatMessage = {
       id: `sys-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -200,23 +212,48 @@ export class ChatWebSocketHandler {
     };
     this.io.to(`room:${roomId}`).emit('receive-message', leaveMsg);
 
-    const remaining = Array.from(users);
+    const remaining = await this.getRoomUsers(roomId);
     this.io.to(`room:${roomId}`).emit('room-update', {
       roomId,
       users: remaining,
       count: remaining.length,
     });
+  }
 
-    if (users.size === 0) {
-      this.rooms.delete(roomId);
+  private async trackRoomUser(roomId: string, userId: string): Promise<void> {
+    if (!isRedisConnected()) return;
+    const redis = getRedisClient();
+    try {
+      await Promise.all([
+        redis.sAdd(`${ROOM_ONLINE_PREFIX}${roomId}`, userId),
+        redis.sAdd(`${USER_ROOMS_PREFIX}${userId}`, roomId),
+      ]);
+    } catch (error) {
+      logger.error('Redis trackRoomUser failed', { error, roomId, userId });
     }
   }
 
-  private trackRoomUser(roomId: string, userId: string): void {
-    if (!this.rooms.has(roomId)) {
-      this.rooms.set(roomId, new Set());
+  private async untrackRoomUser(roomId: string, userId: string): Promise<void> {
+    if (!isRedisConnected()) return;
+    const redis = getRedisClient();
+    try {
+      await Promise.all([
+        redis.sRem(`${ROOM_ONLINE_PREFIX}${roomId}`, userId),
+        redis.sRem(`${USER_ROOMS_PREFIX}${userId}`, roomId),
+      ]);
+    } catch (error) {
+      logger.error('Redis untrackRoomUser failed', { error, roomId, userId });
     }
-    this.rooms.get(roomId)!.add(userId);
+  }
+
+  private async getRoomUsers(roomId: string): Promise<string[]> {
+    if (!isRedisConnected()) return [];
+    const redis = getRedisClient();
+    try {
+      return await redis.sMembers(`${ROOM_ONLINE_PREFIX}${roomId}`);
+    } catch {
+      return [];
+    }
   }
 
   sendNotification(userId: string, notification: any): void {

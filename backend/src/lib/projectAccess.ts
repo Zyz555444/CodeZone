@@ -1,12 +1,18 @@
 import { prisma } from './prisma';
+import { getRedisClient, isRedisConnected } from './redis';
 
-/**
- * 获取用户有权限访问的所有项目 ID 列表
- * 用户在以下情况有访问权限：
- * 1. 是项目的 owner
- * 2. 是项目的 member
- */
+const PROJECT_ACCESS_CACHE_TTL = 300; // 5 分钟
+
 export async function getAccessibleProjectIds(userId: string): Promise<string[]> {
+  // 优先从 Redis 缓存读取
+  if (isRedisConnected()) {
+    const redis = getRedisClient();
+    const cached = await redis.get(`accessible-projects:${userId}`);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  }
+
   const projects = await prisma.project.findMany({
     where: {
       OR: [
@@ -16,12 +22,28 @@ export async function getAccessibleProjectIds(userId: string): Promise<string[]>
     },
     select: { id: true },
   });
-  return projects.map((p: { id: string }) => p.id);
+  const projectIds = projects.map((p: { id: string }) => p.id);
+
+  // 回写缓存
+  if (isRedisConnected()) {
+    const redis = getRedisClient();
+    await redis.set(
+      `accessible-projects:${userId}`,
+      JSON.stringify(projectIds),
+      { EX: PROJECT_ACCESS_CACHE_TTL }
+    );
+  }
+
+  return projectIds;
 }
 
-/**
- * 检查用户是否有权限访问指定项目
- */
+export async function invalidateProjectAccessCache(userIds: string[]): Promise<void> {
+  if (!isRedisConnected() || userIds.length === 0) return;
+  const redis = getRedisClient();
+  const keys = userIds.map((uid) => `accessible-projects:${uid}`);
+  await redis.del(keys);
+}
+
 export async function hasProjectAccess(userId: string, projectId: string): Promise<boolean> {
   const project = await prisma.project.findFirst({
     where: {
