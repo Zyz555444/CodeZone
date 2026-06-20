@@ -74,7 +74,7 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: codezone-postgres
-    user: "999:999"
+    user: postgres
     environment:
       - POSTGRES_USER=${DB_USER:-codezone}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-codezone_password}
