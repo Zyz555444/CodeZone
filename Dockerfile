@@ -12,6 +12,7 @@ RUN --mount=type=cache,target=/var/cache/apk \
 COPY package.json package-lock.json ./
 COPY frontend/package.json ./frontend/
 COPY backend/package.json ./backend/
+COPY .npmrc ./
 
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --no-audit --no-fund
@@ -39,6 +40,7 @@ COPY frontend/tsconfig.json ./tsconfig.json
 COPY frontend/next.config.js ./next.config.js
 COPY frontend/postcss.config.js ./postcss.config.js
 COPY frontend/tailwind.config.js ./tailwind.config.js
+COPY frontend/middleware.ts ./middleware.ts
 COPY frontend/src ./src
 
 # 利用 Next.js 构建缓存加速
@@ -96,11 +98,6 @@ COPY backend/src ./src/
 # 利用 esbuild 缓存加速后端构建
 RUN --mount=type=cache,target=/root/.cache/esbuild \
     npm run build
-RUN --mount=type=cache,target=/root/.npm \
-    cp -r /app/node_modules/.prisma /tmp/.prisma-backup && \
-    npm prune --production && \
-    mkdir -p node_modules && \
-    cp -r /tmp/.prisma-backup node_modules/.prisma
 
 # ============================================
 # 阶段5: 后端生产镜像
@@ -114,6 +111,7 @@ WORKDIR /app
 RUN --mount=type=cache,target=/var/cache/apk \
     apk add --no-cache curl openssl netcat-openbsd
 
+# 复制完整 node_modules（含 prisma CLI，供 start.sh 迁移使用）
 COPY --from=backend-builder --chown=node:node /app/backend/node_modules ./node_modules
 COPY --from=backend-builder --chown=node:node /app/backend/dist ./dist
 COPY --from=backend-builder --chown=node:node /app/backend/prisma ./prisma
