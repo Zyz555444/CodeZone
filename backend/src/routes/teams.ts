@@ -9,6 +9,7 @@ import {
   approveMember,
   rejectMember,
   getPendingMembers,
+  updateMemberRole,
 } from '../controllers/teamController';
 
 const router = Router();
@@ -29,6 +30,7 @@ router.post('/join', joinTeam);
 // 成员管理（管理员操作）- 需要 ADMIN 或 OWNER 角色
 router.post('/:teamId/members/:userId/approve', authorize('ADMIN', 'OWNER'), approveMember);
 router.delete('/:teamId/members/:userId/reject', authorize('ADMIN', 'OWNER'), rejectMember);
+router.put('/:teamId/members/:userId/role', updateMemberRole);
 
 // 待审核列表
 router.get('/:id/pending-members', getPendingMembers);
