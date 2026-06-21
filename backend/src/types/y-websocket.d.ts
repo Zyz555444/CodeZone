@@ -22,7 +22,9 @@ declare module 'yjs' {
   export class Doc {
     constructor();
     getText(name?: string): any;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     getArray<T = any>(name?: string): any;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     getMap<T = any>(name?: string): any;
   }
 }

@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { useAuthStore } from '@/stores/authStore';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -14,7 +13,6 @@ import { TeamGuard } from '@/components/TeamGuard';
 
 export default function NewProjectPage() {
   const router = useRouter();
-  const { token } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({

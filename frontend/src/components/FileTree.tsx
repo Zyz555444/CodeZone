@@ -75,7 +75,7 @@ function FileTreeItem({
           {expanded ? <FolderOpen className="h-3.5 w-3.5 text-accent/70" /> : <Folder className="h-3.5 w-3.5 text-accent/50" />}
           <span className="truncate">{node.name}</span>
         </button>
-        {expanded && node.children?.map((child, i) => (
+        {expanded && node.children?.map((child, _i) => (
           <FileTreeItem
             key={child.path}
             node={child}

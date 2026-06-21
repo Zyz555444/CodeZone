@@ -66,7 +66,9 @@ export function CollaborativeEditorCore({
           const payload = JSON.parse(atob(token.split('.')[1]));
           return payload.userId || 'anonymous';
         }
-      } catch {}
+        } catch {
+          // noop
+        }
     }
     return 'anonymous';
   }, []);
@@ -202,7 +204,9 @@ export function CollaborativeEditorCore({
     return () => {
       cancelled = true;
       cleanupFns.forEach(fn => {
-        try { fn(); } catch {}
+        try { fn(); } catch {
+          // noop
+        }
       });
       disposablesRef.current = [];
     };

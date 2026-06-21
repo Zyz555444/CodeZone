@@ -60,8 +60,6 @@ const COLORS = [
   '#F7DC6F',
 ];
 
-const DEBOUNCE_MS = 150;
-
 export function CodeEditor({
   projectId,
   fileId,
@@ -71,18 +69,19 @@ export function CodeEditor({
   height = '600px',
 }: CodeEditorProps) {
   const { theme } = useTheme();
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
   const [content, setContent] = useState(initialContent);
   const [remoteCursors, setRemoteCursors] = useState<RemoteCursor[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const [onlineCount, setOnlineCount] = useState(0);
-  const [cursorPosition, setCursorPosition] = useState({ lineNumber: 1, column: 1 });
 
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isRemoteChangeRef = useRef(false);
-  const decorationsRef = useRef<string[]>([]);
+  const DEBOUNCE_MS = 150;
+  const CURSOR_THROTTLE_MS = 50;
+
+  const cursorThrottleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cursorStyleRef = useRef<HTMLStyleElement | null>(null);
 
   const getCursorColor = useCallback((userId: string) => {
     let hash = 0;
@@ -91,6 +90,31 @@ export function CodeEditor({
     }
     return COLORS[Math.abs(hash) % COLORS.length];
   }, []);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!cursorStyleRef.current) {
+      cursorStyleRef.current = document.createElement('style');
+      document.head.appendChild(cursorStyleRef.current);
+    }
+    const rules = remoteCursors
+      .map(
+        (cursor) =>
+          `.remote-cursor-decoration-${cursor.userId} { background-color: ${cursor.color}33; border-left: 2px solid ${cursor.color}; width: 100% !important; }` +
+          `.remote-cursor-before-${cursor.userId}::before { content: '${cursor.userName}'; position: absolute; top: -1.2em; left: 0; background-color: ${cursor.color}; color: white; padding: 0 4px; font-size: 10px; line-height: 16px; border-radius: 2px; white-space: nowrap; z-index: 10; }`
+      )
+      .join('\n');
+    cursorStyleRef.current.textContent = rules;
+    return () => {
+      if (cursorStyleRef.current) {
+        cursorStyleRef.current.textContent = '';
+      }
+    };
+  }, [remoteCursors]);
+
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isRemoteChangeRef = useRef(false);
+  const decorationsRef = useRef<string[]>([]);
 
   useEffect(() => {
     setContent(initialContent);
@@ -148,7 +172,7 @@ export function CodeEditor({
       wsService.offCursorMove(handleCursorMove);
       wsService.offOnlineUsers(handleOnlineUsers);
     };
-  }, [fileId, user?.id, getCursorColor]);
+  }, [fileId, user?.id]);
 
   useEffect(() => {
     if (!editorRef.current || !monacoRef.current) return;
@@ -187,12 +211,15 @@ export function CodeEditor({
     monacoRef.current = monaco;
 
     editor.onDidChangeCursorPosition((e: { position: { lineNumber: number; column: number } }) => {
+      if (cursorThrottleTimerRef.current) return;
+      cursorThrottleTimerRef.current = setTimeout(() => {
+        cursorThrottleTimerRef.current = null;
+      }, CURSOR_THROTTLE_MS);
+
       const pos = {
         lineNumber: e.position.lineNumber,
         column: e.position.column,
       };
-      setCursorPosition(pos);
-
       wsService.sendCursorMove({
         projectId,
         fileId,
@@ -267,35 +294,6 @@ export function CodeEditor({
           wordBasedSuggestions: 'currentDocument',
         }}
       />
-
-      <style jsx global>{`
-        ${remoteCursors
-          .map(
-            (cursor) => `
-          .remote-cursor-decoration-${cursor.userId} {
-            background-color: ${cursor.color}33;
-            border-left: 2px solid ${cursor.color};
-            width: 100% !important;
-          }
-          .remote-cursor-before-${cursor.userId}::before {
-            content: '${cursor.userName}';
-            position: absolute;
-            top: -1.2em;
-            left: 0;
-            background-color: ${cursor.color};
-            color: white;
-            padding: 0 4px;
-            font-size: 10px;
-            line-height: 16px;
-            border-radius: 2px;
-            white-space: nowrap;
-            z-index: 10;
-          }
-        `
-          )
-          .join('\n')}
-      `}</style>
-
       <div className="absolute top-2 right-2 flex items-center gap-2 bg-neutral-1/80 backdrop-blur px-3 py-1.5 rounded-lg border border-neutral-5"> 
         <div className="flex -space-x-2">
           {onlineUsers.slice(0, 5).map((userId, index) => (

@@ -3,7 +3,6 @@
 import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
-import { useAuthStore } from '@/stores/authStore';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -15,7 +14,6 @@ import { TeamGuard } from '@/components/TeamGuard';
 function NewTaskForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { token } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({

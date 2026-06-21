@@ -62,7 +62,7 @@ const priorityConfig: Record<string, { label: string; color: string }> = {
 export default function TaskDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const { token } = useAuthStore();
+  const token = useAuthStore((s) => s.token);
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [newSubtask, setNewSubtask] = useState('');

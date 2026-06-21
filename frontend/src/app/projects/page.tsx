@@ -14,21 +14,12 @@ import { Plus, FolderGit2, Users, Calendar, Globe, Lock, MoreHorizontal } from '
 import { formatDate } from '@/lib/utils';
 import { TeamGuard } from '@/components/TeamGuard';
 
-interface Project {
-  id: string;
-  name: string;
-  description?: string;
-  visibility: 'PUBLIC' | 'PRIVATE';
-  createdAt?: string;
-  _count?: {
-    members?: number;
-  };
-}
-
 export default function ProjectsPage() {
   const router = useRouter();
-  const { isAuthenticated, token } = useAuthStore();
-  const { projects, setProjects } = useProjectStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const token = useAuthStore((s) => s.token);
+  const projects = useProjectStore((s) => s.projects);
+  const setProjects = useProjectStore((s) => s.setProjects);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

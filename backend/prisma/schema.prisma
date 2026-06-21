@@ -173,6 +173,7 @@ model Project {
   @@index([ownerId])
   @@index([teamId])
   @@index([visibility])
+  @@index([createdAt])
 }
 
 model ProjectMember {
@@ -205,6 +206,7 @@ model Repository {
 
   @@unique([projectId, name])
   @@index([projectId])
+  @@index([createdAt])
 }
 
 model Commit {
@@ -220,6 +222,8 @@ model Commit {
 
   @@index([repositoryId])
   @@index([hash])
+  @@index([repositoryId, branch])
+  @@index([branch])
 }
 
 model Task {
@@ -247,8 +251,10 @@ model Task {
   @@index([projectId])
   @@index([assigneeId])
   @@index([status])
+  @@index([projectId, status])
   @@index([assigneeId, status])
   @@index([dueDate])
+  @@index([createdAt])
 }
 
 model TaskDependency {
@@ -296,6 +302,8 @@ model CodeFile {
 
   @@index([projectId])
   @@index([path])
+  @@index([parentId])
+  @@index([projectId, parentId])
 }
 
 model Comment {
@@ -398,6 +406,7 @@ model Activity {
   @@index([projectId])
   @@index([createdAt])
   @@index([projectId, createdAt])
+  @@index([userId])
 }
 
 model Feedback {

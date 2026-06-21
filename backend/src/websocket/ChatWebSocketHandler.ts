@@ -55,7 +55,9 @@ export class ChatWebSocketHandler {
       if (dbUser?.username) {
         socket.userName = dbUser.username;
       }
-    }).catch(() => {});
+    }).catch((err: unknown) => {
+      logger.warn('获取用户名失败', { userId: socket.userId!, error: err });
+    });
 
     socket.join(`user:${socket.userId}`);
     logger.info(`用户 ${socket.userName} (${socket.userId}) 已连接聊天`);

@@ -19,7 +19,7 @@ interface Project {
 
 export default function NewReviewPage() {
   const router = useRouter();
-  const { token } = useAuthStore();
+  const token = useAuthStore((s) => s.token);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchingProjects, setFetchingProjects] = useState(true);

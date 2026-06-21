@@ -25,7 +25,7 @@ class WebSocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log('[WebSocket] 已连接');
+      console.warn('[WebSocket] 已连接');
     });
 
     this.socket.on('connect_error', (error) => {
@@ -33,7 +33,7 @@ class WebSocketService {
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log('[WebSocket] 已断开:', reason);
+      console.warn('[WebSocket] 已断开:', reason);
     });
   }
 

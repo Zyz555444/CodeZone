@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { BarChart3, Code2, GitPullRequest, MessageSquare, Users, Zap } from 'lucide-react';
 
 const features = [

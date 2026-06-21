@@ -50,7 +50,7 @@ export const addDependency = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     // Prevent circular dependencies within a transaction to avoid TOCTOU
-    const dependency = await prisma.$transaction(async (tx: typeof prisma) => {
+    const dependency = await prisma.$transaction(async (tx) => {
       const existingInTx = await tx.taskDependency.findUnique({
         where: { taskId_dependsOnId: { taskId, dependsOnId } },
       });

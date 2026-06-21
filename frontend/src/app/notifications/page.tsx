@@ -5,7 +5,7 @@ import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Bell, Check, MessageSquare, Users, GitBranch, AlertCircle } from 'lucide-react';
+import { Bell, Check, Users, GitBranch, AlertCircle } from 'lucide-react';
 import { TeamGuard } from '@/components/TeamGuard';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';

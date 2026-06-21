@@ -10,9 +10,15 @@ import { Moon, Sun, LogOut, User, Menu, X, Wifi, WifiOff, Users } from 'lucide-r
 import { useTheme } from 'next-themes';
 import { wsService } from '@/lib/websocket';
 
-export function Header() {
-  const { user, token, logout, teams } = useAuthStore();
-  const { isConnected, onlineCount, setConnected, setOnlineCount } = useWebSocketStore();
+export const Header = React.memo(function Header() {
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
+  const logout = useAuthStore((s) => s.logout);
+  const teams = useAuthStore((s) => s.teams);
+  const isConnected = useWebSocketStore((s) => s.isConnected);
+  const onlineCount = useWebSocketStore((s) => s.onlineCount);
+  const setConnected = useWebSocketStore((s) => s.setConnected);
+  const setOnlineCount = useWebSocketStore((s) => s.setOnlineCount);
   const { setTheme, theme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [mounted, setMounted] = React.useState(false);
@@ -163,4 +169,4 @@ export function Header() {
       </div>
     </header>
   );
-}
+});

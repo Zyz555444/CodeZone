@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ArrowLeft, MessageSquare, User, FolderGit2, Clock, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
@@ -56,7 +56,7 @@ const statusConfig: Record<string, { label: string; bgClass: string; textClass: 
 export default function ReviewDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const [review, setReview] = useState<Review | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);

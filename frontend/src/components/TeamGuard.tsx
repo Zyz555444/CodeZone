@@ -12,7 +12,9 @@ interface TeamGuardProps {
 export function TeamGuard({ children }: TeamGuardProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { hasTeam, setTeamStatus, isAuthenticated } = useAuthStore();
+  const hasTeam = useAuthStore((s) => s.hasTeam);
+  const setTeamStatus = useAuthStore((s) => s.setTeamStatus);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [error, setError] = useState(false);
   const [checking, setChecking] = useState(true);
 

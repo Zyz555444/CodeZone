@@ -20,7 +20,9 @@ export default function Home() {
             }
             return;
           }
-        } catch (e) {}
+        } catch (e) {
+          localStorage.removeItem('auth-storage');
+        }
       }
       router.replace('/login');
     };

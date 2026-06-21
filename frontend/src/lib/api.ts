@@ -9,14 +9,34 @@ export const api = axios.create({
   },
 });
 
-function getCookie(name: string): string | null {
+let cachedToken: string | null = null;
+let cachedTokenTs = 0;
+const TOKEN_CACHE_TTL = 2000;
+
+function getTokenFromCookie(): string | null {
   if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name.replace(/([.$?*|{}()\[\]\\\/+^])/g, '\\$1')}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
+  const now = Date.now();
+  if (cachedToken !== null && now - cachedTokenTs < TOKEN_CACHE_TTL) {
+    return cachedToken;
+  }
+  const match = document.cookie.match(/(?:^|;\\s*)auth-token=([^;]*)/);
+  cachedToken = match ? decodeURIComponent(match[1]) : null;
+  cachedTokenTs = now;
+  return cachedToken;
+}
+
+export function clearCachedToken() {
+  cachedToken = null;
+  cachedTokenTs = 0;
+}
+
+export function setCachedToken(token: string | null) {
+  cachedToken = token;
+  cachedTokenTs = Date.now();
 }
 
 api.interceptors.request.use((config) => {
-  const token = getCookie('auth-token');
+  const token = getTokenFromCookie();
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -31,6 +51,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       if (typeof document !== 'undefined') {
         document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        clearCachedToken();
         window.location.href = '/login';
       }
     }

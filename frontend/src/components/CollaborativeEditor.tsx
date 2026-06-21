@@ -35,7 +35,7 @@ export function CollaborativeEditor({
   wsUrl,
 }: CollaborativeEditorProps) {
   const { theme } = useTheme();
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
   const bindingRef = useRef<MonacoBinding | null>(null);

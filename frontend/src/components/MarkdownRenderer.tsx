@@ -10,7 +10,7 @@ interface MarkdownRendererProps {
   className?: string;
 }
 
-export function MarkdownRenderer({ content, className = '' }: MarkdownRendererProps) {
+export const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, className = '' }: MarkdownRendererProps) {
   return (
     <div className={`prose prose-sm max-w-none prose-neutral ${className}`}>
       <style jsx global>{`
@@ -97,4 +97,4 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
       </ReactMarkdown>
     </div>
   );
-}
+});

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { wsService } from '@/lib/websocket';
 import { Send, Loader2 } from 'lucide-react';
@@ -21,8 +21,100 @@ interface ChatRoomProps {
   roomName?: string;
 }
 
+const AVATAR_COLORS = [
+  'bg-rose-100 text-rose-600',
+  'bg-blue-100 text-blue-600',
+  'bg-emerald-100 text-emerald-600',
+  'bg-amber-100 text-amber-600',
+  'bg-violet-100 text-violet-600',
+  'bg-cyan-100 text-cyan-600',
+];
+
+function getAvatarColor(userName: string): string {
+  let hash = 0;
+  for (let i = 0; i < userName.length; i++) {
+    hash = userName.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function formatTime(date: Date): string {
+  return new Date(date).toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+interface ChatMessageItemProps {
+  message: ChatMessage;
+  isMine: boolean;
+  showHeader: boolean;
+}
+
+const ChatMessageItem = React.memo(function ChatMessageItem({
+  message,
+  isMine,
+  showHeader,
+}: ChatMessageItemProps) {
+  if (message.type === 'SYSTEM') {
+    return (
+      <div className="flex justify-center py-1.5">
+        <span className="text-xs text-neutral-6 bg-neutral-2 px-3 py-0.5 rounded-full">
+          {message.content}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        'flex gap-2.5 group',
+        isMine ? 'flex-row-reverse' : '',
+        showHeader ? 'mt-3 first:mt-0' : ''
+      )}
+    >
+      {showHeader ? (
+        <div
+          className={cn(
+            'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-medium',
+            getAvatarColor(message.userName),
+          )}
+          title={message.userName}
+        >
+          {message.userName.charAt(0).toUpperCase()}
+        </div>
+      ) : (
+        <div className="w-8 flex-shrink-0" />
+      )}
+
+      <div className={cn('flex flex-col max-w-[70%]', isMine ? 'items-end' : '')}>
+        {showHeader && (
+          <div className={cn('flex items-center gap-2 mb-0.5', isMine ? 'flex-row-reverse' : '')}>
+            <span className="text-xs font-medium text-neutral-7">{message.userName}</span>
+            <span className="text-[10px] text-neutral-5">{formatTime(message.timestamp)}</span>
+          </div>
+        )}
+        <div
+          className={cn(
+            'px-3 py-1.5 text-sm leading-relaxed break-words',
+            isMine
+              ? 'bg-accent-subtle text-accent rounded-2xl rounded-tr-md'
+              : 'bg-neutral-2 text-neutral-9 rounded-2xl rounded-tl-md',
+            !showHeader && isMine && 'rounded-tr-2xl',
+            !showHeader && !isMine && 'rounded-tl-2xl',
+          )}
+        >
+          {message.content}
+        </div>
+      </div>
+    </div>
+  );
+});
+
 export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
-  const { user, token } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
@@ -31,12 +123,13 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
   const [connected, setConnected] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const typingClearTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const isTypingRef = useRef(false);
   const messageIdsRef = useRef<Set<string>>(new Set());
+  const prevMessageCountRef = useRef(0);
 
-  // 建立连接 + 加入房间
   useEffect(() => {
     if (!token || !roomId) return;
 
@@ -52,7 +145,6 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
     wsService.on('connect', onConnect);
     wsService.on('disconnect', onDisconnect);
 
-    // 如果已经连接，直接加入房间
     if (wsService.socketInstance?.connected) {
       setConnected(true);
       wsService.joinRoom(roomId);
@@ -62,14 +154,12 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
       wsService.leaveRoom(roomId);
       wsService.off('connect', onConnect);
       wsService.off('disconnect', onDisconnect);
-      // 清理输入 typing 定时器
       if (typingTimerRef.current) {
         clearTimeout(typingTimerRef.current);
       }
     };
   }, [roomId, token]);
 
-  // 监听聊天事件
   useEffect(() => {
     if (!roomId) return;
 
@@ -89,7 +179,6 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
     };
 
     const handleReceiveMessage = (data: ChatMessage) => {
-      // 消息去重
       if (messageIdsRef.current.has(data.id)) return;
       messageIdsRef.current.add(data.id);
       setMessages((prev) => [...prev, {
@@ -101,7 +190,6 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
     const handleUserTyping = (data: { userId: string; userName: string; roomId: string }) => {
       if (data.roomId !== roomId) return;
       setTypingUsers((prev) => ({ ...prev, [data.userId]: data.userName }));
-      // 清理旧定时器
       const existing = typingClearTimersRef.current.get(data.userId);
       if (existing) clearTimeout(existing);
       const timer = setTimeout(() => {
@@ -136,17 +224,26 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
       wsService.offReceiveMessage(handleReceiveMessage);
       wsService.offUserTyping(handleUserTyping);
       wsService.offUserStopTyping(handleUserStopTyping);
-      // 清理所有 typing 定时器
       typingClearTimersRef.current.forEach((timer) => clearTimeout(timer));
       typingClearTimersRef.current.clear();
-      // 切换房间时重置消息 ID 集合
       messageIdsRef.current.clear();
     };
   }, [roomId]);
 
-  // 自动滚动到底部
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length > prevMessageCountRef.current) {
+      prevMessageCountRef.current = messages.length;
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      prevMessageCountRef.current = messages.length;
+    }
+  }, [messages]);
+
+  const shouldShowHeader = useCallback((message: ChatMessage, index: number) => {
+    if (index === 0) return true;
+    const prev = messages[index - 1];
+    if (message.type === 'SYSTEM') return true;
+    return prev.userId !== message.userId || prev.type === 'SYSTEM';
   }, [messages]);
 
   const handleSendMessage = useCallback(() => {
@@ -165,10 +262,11 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
     setInputMessage('');
   }, [inputMessage, roomId]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputMessage(e.target.value);
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setInputMessage(value);
 
-    if (!isTypingRef.current && e.target.value) {
+    if (value && !isTypingRef.current) {
       isTypingRef.current = true;
       wsService.sendTypingStart(roomId);
     }
@@ -177,55 +275,36 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
       clearTimeout(typingTimerRef.current);
     }
 
-    typingTimerRef.current = setTimeout(() => {
+    if (value) {
+      typingTimerRef.current = setTimeout(() => {
+        if (isTypingRef.current) {
+          wsService.sendTypingStop(roomId);
+          isTypingRef.current = false;
+        }
+      }, 3000);
+    } else {
       if (isTypingRef.current) {
         wsService.sendTypingStop(roomId);
         isTypingRef.current = false;
       }
-    }, 2000);
-  };
+    }
+  }, [roomId]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
-  };
+  }, [handleSendMessage]);
 
-  const formatTime = (date: Date) => {
-    return new Date(date).toLocaleTimeString('zh-CN', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const getAvatarColor = (userName: string) => {
-    const colors = [
-      'bg-rose-100 text-rose-600',
-      'bg-blue-100 text-blue-600',
-      'bg-emerald-100 text-emerald-600',
-      'bg-amber-100 text-amber-600',
-      'bg-violet-100 text-violet-600',
-      'bg-cyan-100 text-cyan-600',
-    ];
-    let hash = 0;
-    for (let i = 0; i < userName.length; i++) {
-      hash = userName.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colors[Math.abs(hash) % colors.length];
-  };
-
-  // 连续的同一用户消息，合并显示
-  const shouldShowHeader = (message: ChatMessage, index: number) => {
-    if (index === 0) return true;
-    const prev = messages[index - 1];
-    if (message.type === 'SYSTEM') return true;
-    return prev.userId !== message.userId || prev.type === 'SYSTEM';
-  };
+  const typingIndicatorText = useMemo(() => {
+    const others = Object.entries(typingUsers).filter(([uid]) => uid !== user?.id);
+    if (others.length === 0) return null;
+    return `${others.map(([, name]) => name).join('、')} 正在输入...`;
+  }, [typingUsers, user?.id]);
 
   return (
     <div className="flex flex-col h-full border border-neutral-5 rounded-lg bg-neutral-1 overflow-hidden">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-4 bg-neutral-2/50">
         <div className="flex items-center gap-3">
           <div>
@@ -265,8 +344,7 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
         {loadingHistory ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 className="h-5 w-5 animate-spin text-neutral-5" />
@@ -277,84 +355,24 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
             <p className="text-sm">暂无消息，发送第一条消息开始交流</p>
           </div>
         ) : (
-          messages.map((message, index) => {
-            const isMine = message.userId === user?.id;
-            const isSystem = message.type === 'SYSTEM';
-            const showHeader = shouldShowHeader(message, index);
-
-            if (isSystem) {
-              return (
-                <div key={message.id} className="flex justify-center py-1.5">
-                  <span className="text-xs text-neutral-6 bg-neutral-2 px-3 py-0.5 rounded-full">
-                    {message.content}
-                  </span>
-                </div>
-              );
-            }
-
-            return (
-              <div
-                key={message.id}
-                className={cn(
-                  'flex gap-2.5 group',
-                  isMine ? 'flex-row-reverse' : '',
-                  showHeader ? 'mt-3 first:mt-0' : ''
-                )}
-              >
-                {showHeader ? (
-                  <div
-                    className={cn(
-                      'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-medium',
-                      getAvatarColor(message.userName),
-                    )}
-                    title={message.userName}
-                  >
-                    {message.userName.charAt(0).toUpperCase()}
-                  </div>
-                ) : (
-                  <div className="w-8 flex-shrink-0" />
-                )}
-
-                <div className={cn('flex flex-col max-w-[70%]', isMine ? 'items-end' : '')}>
-                  {showHeader && (
-                    <div className={cn('flex items-center gap-2 mb-0.5', isMine ? 'flex-row-reverse' : '')}>
-                      <span className="text-xs font-medium text-neutral-7">{message.userName}</span>
-                      <span className="text-[10px] text-neutral-5">{formatTime(message.timestamp)}</span>
-                    </div>
-                  )}
-                  <div
-                    className={cn(
-                      'px-3 py-1.5 text-sm leading-relaxed break-words',
-                      isMine
-                        ? 'bg-accent-subtle text-accent rounded-2xl rounded-tr-md'
-                        : 'bg-neutral-2 text-neutral-9 rounded-2xl rounded-tl-md',
-                      !showHeader && isMine && 'rounded-tr-2xl',
-                      !showHeader && !isMine && 'rounded-tl-2xl',
-                    )}
-                  >
-                    {message.content}
-                  </div>
-                </div>
-              </div>
-            );
-          })
+          messages.map((message, index) => (
+            <ChatMessageItem
+              key={message.id}
+              message={message}
+              isMine={message.userId === user?.id}
+              showHeader={shouldShowHeader(message, index)}
+            />
+          ))
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Typing indicator */}
-      {Object.keys(typingUsers).filter((uid) => uid !== user?.id).length > 0 && (
+      {typingIndicatorText && (
         <div className="px-4 py-1">
-          <p className="text-xs text-neutral-6 animate-pulse">
-            {Object.entries(typingUsers)
-              .filter(([uid]) => uid !== user?.id)
-              .map(([, name]) => name)
-              .join('、')} 正在输入...
-          </p>
+          <p className="text-xs text-neutral-6 animate-pulse">{typingIndicatorText}</p>
         </div>
       )}
 
-      {/* Input */}
       <div className="px-4 py-3 border-t border-neutral-4 bg-neutral-2/30">
         <div className="flex items-center gap-2">
           <input

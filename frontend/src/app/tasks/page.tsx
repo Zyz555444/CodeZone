@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useState, Suspense, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -42,11 +42,11 @@ const priorityConfig = {
 function TasksContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { token } = useAuthStore();
+  const token = useAuthStore((s) => s.token);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter] = useState<string>('all');
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const projectId = searchParams.get('projectId');
 
@@ -81,24 +81,31 @@ function TasksContent() {
   };
 
   const handleStatusChange = async (taskId: string, newStatus: Task['status']) => {
+    const previousTasks = tasks;
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
+    );
     try {
       await api.patch(`/tasks/${taskId}`, { status: newStatus });
-      fetchTasks();
     } catch (error) {
       console.error('更新任务状态失败:', error);
+      setTasks(previousTasks);
     }
   };
 
-  const filteredTasks = tasks.filter(task =>
-    task.title.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredTasks = useMemo(
+    () => tasks.filter(task =>
+      task.title.toLowerCase().includes(searchQuery.toLowerCase())
+    ),
+    [tasks, searchQuery]
   );
 
-  const tasksByStatus = {
+  const tasksByStatus = useMemo(() => ({
     TODO: filteredTasks.filter(t => t.status === 'TODO'),
     IN_PROGRESS: filteredTasks.filter(t => t.status === 'IN_PROGRESS'),
     IN_REVIEW: filteredTasks.filter(t => t.status === 'IN_REVIEW'),
     DONE: filteredTasks.filter(t => t.status === 'DONE'),
-  };
+  }), [filteredTasks]);
 
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
 

@@ -1,15 +1,18 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { getCachedOrFetch, invalidateCache } from '../lib/cache';
 
 export const getNotifications = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const notifications = await prisma.notification.findMany({
-      where: { userId: req.userId },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
+    const notifications = await getCachedOrFetch(`notifications:${req.userId}`, () =>
+      prisma.notification.findMany({
+        where: { userId: req.userId },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      })
+    );
 
     res.json({ notifications });
   } catch (error) {
@@ -40,6 +43,8 @@ export const markAsRead = async (req: AuthRequest, res: Response): Promise<void>
       where: { id },
       data: { isRead: true },
     });
+
+    invalidateCache(`notifications:${req.userId}`).catch(() => {});
 
     res.json({ success: true });
   } catch (error) {
