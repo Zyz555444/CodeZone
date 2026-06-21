@@ -14,7 +14,7 @@ const CollaborativeWorkspace = dynamic(
 );
 
 export default function CodePage() {
-  const { currentProject } = useProjectStore();
+  const currentProject = useProjectStore((s) => s.currentProject);
   const projectId = currentProject?.id;
 
   return (

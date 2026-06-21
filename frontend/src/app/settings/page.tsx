@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/Input';
 import { Bell, User, Lock, Palette, Check, Save } from 'lucide-react';
 import { TeamGuard } from '@/components/TeamGuard';
 import { api } from '@/lib/api';
-import { useAuthStore } from '@/stores/authStore';
 import { useTheme } from 'next-themes';
 
 export default function SettingsPage() {
@@ -20,7 +19,6 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const { theme, setTheme } = useTheme();
-  const { user } = useAuthStore();
 
   useEffect(() => {
     api.get('/auth/me').then(({ data }) => {
@@ -31,7 +29,9 @@ export default function SettingsPage() {
           bio: data.user.bio || '',
         });
       }
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error('获取用户资料失败:', err);
+    });
   }, []);
 
   const handleSaveProfile = async () => {

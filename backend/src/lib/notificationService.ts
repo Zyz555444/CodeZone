@@ -1,6 +1,7 @@
 import { Server } from 'socket.io';
 import { prisma } from './prisma';
 import { logger } from '../utils/logger';
+import { invalidateCache } from './cache';
 
 let io: Server | null = null;
 
@@ -29,6 +30,8 @@ export async function createAndPushNotification(
         createdAt: notification.createdAt.toISOString(),
       });
     }
+
+    invalidateCache(`notifications:${userId}`).catch(() => {});
   } catch (error) {
     logger.error('创建并推送通知失败', { error, userId });
   }

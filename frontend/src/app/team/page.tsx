@@ -5,7 +5,7 @@ import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Users, UserPlus, Mail, Crown, Shield, User, Clock, Copy, Check, X, Code } from 'lucide-react';
+import { Users, Mail, Crown, Shield, User, Clock, Copy, Check, X, Code } from 'lucide-react';
 import { TeamGuard } from '@/components/TeamGuard';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -53,13 +53,12 @@ const roleConfig: Record<string, { label: string; icon: React.ComponentType<any>
 };
 
 export default function TeamPage() {
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const [team, setTeam] = useState<TeamData | null>(null);
   const [pendingMembers, setPendingMembers] = useState<PendingMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
-  const [showInviteCode, setShowInviteCode] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const isAdmin = team?.ownerId === user?.id;
@@ -86,7 +85,9 @@ export default function TeamPage() {
     try {
       const { data } = await api.get(`/teams/${team.id}/pending-members`);
       setPendingMembers(data.pendingMembers);
-    } catch (err) {}
+    } catch (err) {
+      console.error('获取待审核成员失败:', err);
+    }
   };
 
   useEffect(() => {
@@ -104,8 +105,7 @@ export default function TeamPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // 如果 clipboard API 不可用，直接显示邀请码
-      setShowInviteCode(true);
+      void 0;
     }
   };
 

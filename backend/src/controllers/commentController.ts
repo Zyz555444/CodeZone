@@ -1,9 +1,10 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { hasProjectAccess } from '../lib/projectAccess';
+import { getCachedOrFetch, invalidateCache } from '../lib/cache';
 
 const createCommentSchema = z.object({
   content: z.string().min(1, '评论内容不能为空'),
@@ -27,19 +28,21 @@ export const getComments = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    const comments = await prisma.comment.findMany({
-      where: { taskId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            avatar: true,
+    const comments = await getCachedOrFetch(`comments:task:${taskId}`, () =>
+      prisma.comment.findMany({
+        where: { taskId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              avatar: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
+        orderBy: { createdAt: 'asc' },
+      })
+    );
 
     res.json({ comments });
   } catch (error) {
@@ -91,6 +94,8 @@ export const createComment = async (req: AuthRequest, res: Response): Promise<vo
     });
 
     res.status(201).json({ comment });
+
+    invalidateCache(`comments:task:${taskId}`).catch(() => {});
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: '验证失败', details: error.errors });

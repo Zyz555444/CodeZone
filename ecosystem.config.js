@@ -8,6 +8,9 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 10101,
+        DATABASE_URL: process.env.DATABASE_URL,
+        JWT_SECRET: process.env.JWT_SECRET,
+        REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
       },
       instances: 'max',
       exec_mode: 'cluster',

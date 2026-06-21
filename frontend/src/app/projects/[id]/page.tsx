@@ -13,7 +13,6 @@ import {
   Users, 
   CheckSquare, 
   FolderGit2,
-  Plus,
   MessageSquare,
   Calendar,
   FileCode,
@@ -26,7 +25,7 @@ import { TeamGuard } from '@/components/TeamGuard';
 export default function ProjectDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const { token } = useAuthStore();
+  const token = useAuthStore((s) => s.token);
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<any>(null);
 

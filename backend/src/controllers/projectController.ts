@@ -1,22 +1,21 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { invalidateProjectAccessCache } from '../lib/projectAccess';
 import { getRedisClient, isRedisConnected } from '../lib/redis';
+import { getCachedOrFetch } from '../lib/cache';
 
-async function invalidateProjectCaches(projectId: string): Promise<void> {
+async function invalidateProjectCachesByQuery(projectId: string): Promise<void> {
   if (!isRedisConnected()) return;
   const redis = getRedisClient();
 
-  // 获取所有项目成员
   const members = await prisma.projectMember.findMany({
     where: { projectId },
     select: { userId: true },
   });
 
-  // 获取项目所有者
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: { ownerId: true },
@@ -27,12 +26,21 @@ async function invalidateProjectCaches(projectId: string): Promise<void> {
     ...(project ? [project.ownerId] : []),
   ];
 
-  // 失效仪表盘缓存
-  const dashboardKeys = affectedUsers.map((uid) => `dashboard:${uid}`);
-  await redis.del(dashboardKeys);
+  await invalidateUserCaches(redis, affectedUsers);
+}
 
-  // 失效项目访问缓存
-  await invalidateProjectAccessCache(affectedUsers);
+async function invalidateProjectCachesForUsers(userIds: string[]): Promise<void> {
+  if (!isRedisConnected()) return;
+  const redis = getRedisClient();
+  await invalidateUserCaches(redis, userIds);
+}
+
+async function invalidateUserCaches(redis: ReturnType<typeof getRedisClient>, userIds: string[]): Promise<void> {
+  const uniqueIds = [...new Set(userIds)];
+  const dashboardKeys = uniqueIds.map((uid) => `dashboard:${uid}`);
+  const projectKeys = uniqueIds.map((uid) => `projects:${uid}`);
+  await redis.del([...dashboardKeys, ...projectKeys]);
+  await invalidateProjectAccessCache(uniqueIds);
 }
 
 const createProjectSchema = z.object({
@@ -43,48 +51,41 @@ const createProjectSchema = z.object({
 
 export const getProjects = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const projects = await prisma.project.findMany({
-      where: {
-        OR: [
-          { ownerId: req.userId },
-          {
-            members: {
-              some: {
-                userId: req.userId,
+    const cacheKey = `projects:${req.userId}`;
+
+    const projects = await getCachedOrFetch(cacheKey, () =>
+      prisma.project.findMany({
+        where: {
+          OR: [
+            { ownerId: req.userId },
+            {
+              members: {
+                some: {
+                  userId: req.userId,
+                },
               },
             },
-          },
-        ],
-      },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            username: true,
-            avatar: true,
-          },
+          ],
         },
-        members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                avatar: true,
-              },
+        include: {
+          owner: {
+            select: {
+              id: true,
+              username: true,
+              avatar: true,
+            },
+          },
+          _count: {
+            select: {
+              tasks: true,
+              members: true,
+              files: true,
             },
           },
         },
-        _count: {
-          select: {
-            tasks: true,
-            members: true,
-            files: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      })
+    );
 
     res.json({ projects });
   } catch (error) {
@@ -120,7 +121,9 @@ export const createProject = async (req: AuthRequest, res: Response): Promise<vo
     });
 
     res.status(201).json({ project });
-    invalidateProjectCaches(project.id).catch(() => {});
+    invalidateProjectCachesByQuery(project.id).catch((err) => {
+      logger.warn('缓存失效失败', { projectId: project.id, error: err });
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: '验证失败', details: error.errors });
@@ -220,6 +223,9 @@ export const updateProject = async (req: AuthRequest, res: Response): Promise<vo
     });
 
     res.json({ project: updatedProject });
+    invalidateProjectCachesByQuery(id).catch((err) => {
+      logger.warn('缓存失效失败', { projectId: id, error: err });
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: '验证失败', details: error.errors });
@@ -248,7 +254,7 @@ export const deleteProject = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    // 在删除项目前收集所有受影响用户（防止级联删除后查不到成员）
+    // 在删除项目前收集所有受影响用户（级联删除后无法查询成员）
     const membersToInvalidate = await prisma.projectMember.findMany({
       where: { projectId: id },
       select: { userId: true },
@@ -263,15 +269,10 @@ export const deleteProject = async (req: AuthRequest, res: Response): Promise<vo
     });
 
     // 失效缓存（失败不影响响应）
-    if (isRedisConnected()) {
-      const redis = getRedisClient();
-      try {
-        await redis.del(affectedUserIds.map((uid) => `dashboard:${uid}`));
-        await invalidateProjectAccessCache(affectedUserIds);
-      } catch {
-        // 缓存失效失败不影响业务
-      }
-    }
+
+    invalidateProjectCachesForUsers(affectedUserIds).catch((err) => {
+      logger.warn('缓存失效失败', { projectId: id, error: err });
+    });
 
     res.json({ success: true });
   } catch (error) {
@@ -352,7 +353,9 @@ export const addMember = async (req: AuthRequest, res: Response): Promise<void> 
     });
 
     res.status(201).json({ member });
-    invalidateProjectCaches(id).catch(() => {});
+    invalidateProjectCachesByQuery(id).catch((err) => {
+      logger.warn('缓存失效失败', { projectId: id, error: err });
+    });
   } catch (error) {
     logger.error('添加项目成员失败', { error, userId: req.userId });
     res.status(500).json({ error: '添加项目成员失败' });
@@ -391,7 +394,9 @@ export const removeMember = async (req: AuthRequest, res: Response): Promise<voi
     });
 
     res.json({ success: true });
-    invalidateProjectCaches(id).catch(() => {});
+    invalidateProjectCachesByQuery(id).catch((err) => {
+      logger.warn('缓存失效失败', { projectId: id, error: err });
+    });
   } catch (error) {
     logger.error('移除项目成员失败', { error, userId: req.userId });
     res.status(500).json({ error: '移除项目成员失败' });

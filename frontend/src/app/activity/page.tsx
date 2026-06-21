@@ -11,7 +11,6 @@ import {
   MessageSquare,
   UserPlus,
   GitCommit,
-  Loader2,
   RefreshCw,
   Inbox,
 } from 'lucide-react';

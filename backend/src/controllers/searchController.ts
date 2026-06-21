@@ -121,7 +121,9 @@ export const search = async (req: AuthRequest, res: Response): Promise<void> => 
     if (isRedisConnected()) {
       const redis = getRedisClient();
       const cacheKey = `search:${userId}:${Buffer.from(q).toString('base64')}`;
-      redis.set(cacheKey, JSON.stringify(responseData), { EX: SEARCH_CACHE_TTL }).catch(() => {});
+      redis.set(cacheKey, JSON.stringify(responseData), { EX: SEARCH_CACHE_TTL }).catch((err) => {
+        logger.warn('搜索缓存写入失败', { userId, error: err });
+      });
     }
 
     res.json(responseData);

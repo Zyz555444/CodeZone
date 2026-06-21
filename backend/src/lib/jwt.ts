@@ -2,10 +2,10 @@ import jwt from 'jsonwebtoken';
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
-  if (!secret && process.env.NODE_ENV === 'production') {
-    throw new Error('JWT_SECRET must be configured in production');
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required');
   }
-  return secret || 'dev-secret-key-not-for-production';
+  return secret;
 }
 
 function signToken(userId: string, expiresIn: string = '7d'): string {

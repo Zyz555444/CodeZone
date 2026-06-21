@@ -40,7 +40,8 @@ const statusConfig: Record<string, { label: string; bgClass: string; textClass: 
 
 export default function ReviewsPage() {
   const router = useRouter();
-  const { isAuthenticated, token } = useAuthStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const token = useAuthStore((s) => s.token);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);

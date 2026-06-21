@@ -11,7 +11,7 @@ interface NewFileModalProps {
   onCreateFile: (name: string, type: 'FILE' | 'DIRECTORY') => void;
 }
 
-export function NewFileModal({ isOpen, onClose, projectId, onCreateFile }: NewFileModalProps) {
+export function NewFileModal({ isOpen, onClose, projectId: _projectId, onCreateFile }: NewFileModalProps) {
   const [name, setName] = useState('');
   const [type, setType] = useState<'FILE' | 'DIRECTORY'>('FILE');
   const [loading, setLoading] = useState(false);

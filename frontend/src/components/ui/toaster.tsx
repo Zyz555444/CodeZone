@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect } from 'react'
 import { Toast, ToastProvider, ToastViewport } from '@radix-ui/react-toast'
 
 export { Toast, ToastProvider, ToastViewport }

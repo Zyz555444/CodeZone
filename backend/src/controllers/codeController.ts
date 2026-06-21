@@ -2,23 +2,24 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
 
-async function fetchChildrenRecursive(projectId: string, parentId: string | null): Promise<any> {
-  const files = await prisma.codeFile.findMany({
-    where: { projectId, parentId },
-    orderBy: { name: 'asc' },
-  });
+function buildFileTree(files: any[]): any[] {
+  const map = new Map<string, any>();
+  const roots: any[] = [];
 
-  return Promise.all(
-    files.map(async (file: any) => {
-      if (file.type === 'DIRECTORY') {
-        return {
-          ...file,
-          children: await fetchChildrenRecursive(projectId, file.id),
-        };
-      }
-      return file;
-    })
-  );
+  for (const file of files) {
+    map.set(file.id, { ...file, children: [] });
+  }
+
+  for (const file of files) {
+    const node = map.get(file.id)!;
+    if (file.parentId && map.has(file.parentId)) {
+      map.get(file.parentId)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  return roots;
 }
 
 export const getFilesTree = async (req: Request, res: Response): Promise<void> => {
@@ -30,9 +31,14 @@ export const getFilesTree = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    const files = await fetchChildrenRecursive(projectId as string, null);
+    const allFiles = await prisma.codeFile.findMany({
+      where: { projectId: projectId as string },
+      orderBy: { name: 'asc' },
+    });
 
-    res.json({ files });
+    const tree = buildFileTree(allFiles);
+
+    res.json({ files: tree });
   } catch (error) {
     res.status(500).json({ error: '获取文件树失败' });
   }

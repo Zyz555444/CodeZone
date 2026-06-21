@@ -54,17 +54,9 @@ const priorityLabels: Record<string, string> = {
   URGENT: '紧急',
 };
 
-const activityIcons: Record<string, string> = {
-  TASK_CREATED: 'created',
-  TASK_UPDATED: 'updated',
-  TASK_COMPLETED: 'completed',
-  MEMBER_JOINED: 'joined',
-  REVIEW_CREATED: 'reviewed',
-};
-
 export default function DashboardPage() {
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,10 +89,6 @@ export default function DashboardPage() {
   const totalStatusTasks = stats
     ? Object.values(stats.tasksByStatus).reduce((sum, v) => sum + v, 0)
     : 0;
-
-  const maxStatusCount = stats
-    ? Math.max(...Object.values(stats.tasksByStatus), 1)
-    : 1;
 
   const maxPriorityCount = stats
     ? Math.max(...Object.values(stats.tasksByPriority), 1)

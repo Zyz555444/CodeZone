@@ -10,7 +10,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { TeamGuard } from '@/components/TeamGuard';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { formatDate } from '@/lib/utils';
 import {
   ArrowLeft,
@@ -21,7 +21,6 @@ import {
   AlertCircle,
   RefreshCw,
   X,
-  Database,
 } from 'lucide-react';
 
 const providerLabels: Record<string, string> = {
@@ -39,7 +38,7 @@ const providerColors: Record<string, string> = {
 export default function ProjectReposPage() {
   const router = useRouter();
   const params = useParams();
-  const { token } = useAuthStore();
+  const token = useAuthStore((s) => s.token);
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<any>(null);
   const [repos, setRepos] = useState<any[]>([]);

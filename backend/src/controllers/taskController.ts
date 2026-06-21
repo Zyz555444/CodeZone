@@ -1,9 +1,10 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { createAndPushNotification } from '../lib/notificationService';
+import { getCachedOrFetch, invalidateCache } from '../lib/cache';
 
 const createTaskSchema = z.object({
   projectId: z.string(),
@@ -18,40 +19,46 @@ export const getTasks = async (req: AuthRequest, res: Response): Promise<void> =
   try {
     const { projectId } = req.query;
 
-    const where: any = {
-      project: {
-        OR: [
-          { ownerId: req.userId },
-          {
-            members: {
-              some: { userId: req.userId },
+    const cacheKey = projectId
+      ? `tasks:project:${projectId}`
+      : `tasks:user:${req.userId}`;
+
+    const tasks = await getCachedOrFetch(cacheKey, async () => {
+      const where: any = {
+        project: {
+          OR: [
+            { ownerId: req.userId },
+            {
+              members: {
+                some: { userId: req.userId },
+              },
+            },
+          ],
+        },
+      };
+
+      if (projectId) {
+        where.projectId = projectId as string;
+      }
+
+      return prisma.task.findMany({
+        where,
+        include: {
+          assignee: {
+            select: { id: true, username: true, avatar: true },
+          },
+          creator: {
+            select: { id: true, username: true, avatar: true },
+          },
+          _count: {
+            select: {
+              comments: true,
+              subtasks: true,
             },
           },
-        ],
-      },
-    };
-
-    if (projectId) {
-      where.projectId = projectId as string;
-    }
-
-    const tasks = await prisma.task.findMany({
-      where,
-      include: {
-        assignee: {
-          select: { id: true, username: true, avatar: true },
         },
-        creator: {
-          select: { id: true, username: true, avatar: true },
-        },
-        _count: {
-          select: {
-            comments: true,
-            subtasks: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
+      });
     });
 
     res.json({ tasks });
@@ -92,6 +99,9 @@ export const createTask = async (req: AuthRequest, res: Response): Promise<void>
     });
 
     res.status(201).json({ task });
+
+    invalidateCache(`tasks:project:${body.projectId}`).catch(() => {});
+    invalidateCache(`tasks:user:${req.userId}`).catch(() => {});
 
     if (body.assigneeId && body.assigneeId !== req.userId) {
       createAndPushNotification(
@@ -206,6 +216,9 @@ export const updateTask = async (req: AuthRequest, res: Response): Promise<void>
 
     res.json({ task: updatedTask });
 
+    invalidateCache(`tasks:project:${task.projectId}`).catch(() => {});
+    invalidateCache(`tasks:user:${req.userId}`).catch(() => {});
+
     if (assigneeId && assigneeId !== task.assigneeId && assigneeId !== req.userId) {
       createAndPushNotification(
         assigneeId,
@@ -245,6 +258,9 @@ export const deleteTask = async (req: AuthRequest, res: Response): Promise<void>
     });
 
     res.json({ success: true });
+
+    invalidateCache(`tasks:project:${task.projectId}`).catch(() => {});
+    invalidateCache(`tasks:user:${req.userId}`).catch(() => {});
   } catch (error) {
     logger.error('删除任务失败', { error, userId: req.userId });
     res.status(500).json({ error: '删除任务失败' });

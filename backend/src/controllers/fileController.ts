@@ -13,20 +13,33 @@ const createFileSchema = z.object({
   content: z.string().optional(),
 });
 
-async function deleteFileRecursive(id: string): Promise<void> {
-  const children = await prisma.codeFile.findMany({
-    where: { parentId: id },
+async function collectDescendantIds(projectId: string, rootId: string): Promise<string[]> {
+  const allFiles = await prisma.codeFile.findMany({
+    where: { projectId },
+    select: { id: true, parentId: true },
   });
 
-  for (const child of children) {
-    if (child.type === 'DIRECTORY') {
-      await deleteFileRecursive(child.id);
-    } else {
-      await prisma.codeFile.delete({ where: { id: child.id } });
+  const childrenMap = new Map<string, string[]>();
+  for (const f of allFiles) {
+    if (f.parentId) {
+      const list = childrenMap.get(f.parentId) || [];
+      list.push(f.id);
+      childrenMap.set(f.parentId, list);
     }
   }
 
-  await prisma.codeFile.delete({ where: { id } });
+  const result: string[] = [rootId];
+  const stack = [rootId];
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    const children = childrenMap.get(id) || [];
+    for (const childId of children) {
+      result.push(childId);
+      stack.push(childId);
+    }
+  }
+
+  return result;
 }
 
 export const createFile = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -120,7 +133,11 @@ export const deleteFile = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    await deleteFileRecursive(id);
+    const idsToDelete = await collectDescendantIds(existing.projectId, id);
+
+    await prisma.codeFile.deleteMany({
+      where: { id: { in: idsToDelete } },
+    });
 
     res.json({ success: true });
   } catch (error) {

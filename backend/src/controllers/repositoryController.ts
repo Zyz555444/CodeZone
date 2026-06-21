@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { getCachedOrFetch, invalidateCache } from '../lib/cache';
 
 const createRepositorySchema = z.object({
   projectId: z.string().min(1, '项目 ID 不能为空'),
@@ -61,15 +62,17 @@ export const getRepositories = async (req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    const repositories = await prisma.repository.findMany({
-      where: { projectId },
-      include: {
-        _count: {
-          select: { commits: true },
+    const repositories = await getCachedOrFetch(`repos:project:${projectId}`, () =>
+      prisma.repository.findMany({
+        where: { projectId },
+        include: {
+          _count: {
+            select: { commits: true },
+          },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      })
+    );
 
     res.json({ repositories });
   } catch (error) {
@@ -87,6 +90,7 @@ export const getRepository = async (req: AuthRequest, res: Response): Promise<vo
       include: {
         commits: {
           orderBy: { timestamp: 'desc' },
+          take: 50,
         },
         project: {
           select: {
@@ -148,6 +152,8 @@ export const createRepository = async (req: AuthRequest, res: Response): Promise
     });
 
     res.status(201).json({ repository });
+
+    invalidateCache(`repos:project:${body.projectId}`).catch(() => {});
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: '验证失败', details: error.errors });
@@ -184,6 +190,8 @@ export const updateRepository = async (req: AuthRequest, res: Response): Promise
     });
 
     res.json({ repository: updatedRepository });
+
+    invalidateCache(`repos:project:${repository.projectId}`).catch(() => {});
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: '验证失败', details: error.errors });
@@ -218,6 +226,8 @@ export const deleteRepository = async (req: AuthRequest, res: Response): Promise
     });
 
     res.json({ success: true });
+
+    invalidateCache(`repos:project:${repository.projectId}`).catch(() => {});
   } catch (error) {
     logger.error('删除仓库失败', { error, userId: req.userId });
     res.status(500).json({ error: '删除仓库失败' });
@@ -286,6 +296,7 @@ export const getCommits = async (req: AuthRequest, res: Response): Promise<void>
     const commits = await prisma.commit.findMany({
       where,
       orderBy: { timestamp: 'desc' },
+      take: 100,
     });
 
     res.json({ commits });

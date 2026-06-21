@@ -71,7 +71,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const token = signToken(user.id);
 
     // 创建会话记录
-    const session = await prisma.session.create({
+    await prisma.session.create({
       data: {
         userId: user.id,
         token,
@@ -149,7 +149,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const token = signToken(user.id);
 
     // 创建会话记录用于登出时失效
-    const session = await prisma.session.create({
+    await prisma.session.create({
       data: {
         userId: user.id,
         token,

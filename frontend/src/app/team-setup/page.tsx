@@ -11,7 +11,9 @@ import { Users, UserPlus, Code, ArrowRight, CheckCircle, XCircle } from 'lucide-
 
 export default function TeamSetupPage() {
   const router = useRouter();
-  const { user, isAuthenticated, setTeamStatus } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const setTeamStatus = useAuthStore((s) => s.setTeamStatus);
   const [mode, setMode] = useState<'choose' | 'create' | 'join'>('choose');
   const [teamName, setTeamName] = useState('');
   const [inviteCode, setInviteCode] = useState('');

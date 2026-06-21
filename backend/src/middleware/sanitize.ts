@@ -28,6 +28,7 @@ export const sanitizeBody = (req: Request, _res: Response, next: NextFunction): 
     }
     next();
   } catch (error) {
-    next();
+    console.error('Sanitize body failed:', error);
+    _res.status(400).json({ error: '请求数据格式错误' });
   }
 };

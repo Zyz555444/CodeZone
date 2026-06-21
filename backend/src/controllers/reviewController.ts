@@ -1,9 +1,10 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { getAccessibleProjectIds } from '../lib/projectAccess';
+import { getCachedOrFetch, invalidateCache } from '../lib/cache';
 
 const createReviewSchema = z.object({
   projectId: z.string().min(1, '项目ID不能为空'),
@@ -25,7 +26,6 @@ export const getReviews = async (req: AuthRequest, res: Response): Promise<void>
     };
 
     if (projectId) {
-      // 验证 projectId 在用户可访问的项目列表中，防止授权绕过
       if (!accessibleIds.includes(projectId as string)) {
         res.status(403).json({ error: '无权访问此项目' });
         return;
@@ -33,21 +33,27 @@ export const getReviews = async (req: AuthRequest, res: Response): Promise<void>
       where.projectId = projectId as string;
     }
 
-    const reviews = await prisma.codeReview.findMany({
-      where,
-      include: {
-        author: {
-          select: { id: true, username: true, avatar: true },
+    const cacheKey = projectId
+      ? `reviews:project:${projectId}`
+      : `reviews:user:${req.userId}`;
+
+    const reviews = await getCachedOrFetch(cacheKey, () =>
+      prisma.codeReview.findMany({
+        where,
+        include: {
+          author: {
+            select: { id: true, username: true, avatar: true },
+          },
+          project: {
+            select: { id: true, name: true },
+          },
+          _count: {
+            select: { comments: true },
+          },
         },
-        project: {
-          select: { id: true, name: true },
-        },
-        _count: {
-          select: { comments: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      })
+    );
 
     res.json({ reviews });
   } catch (error) {
@@ -133,6 +139,9 @@ export const createReview = async (req: AuthRequest, res: Response): Promise<voi
     });
 
     res.status(201).json({ review });
+
+    invalidateCache(`reviews:project:${body.projectId}`).catch(() => {});
+    invalidateCache(`reviews:user:${req.userId}`).catch(() => {});
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: '验证失败', details: error.errors });
@@ -178,6 +187,9 @@ export const updateReview = async (req: AuthRequest, res: Response): Promise<voi
     });
 
     res.json({ review });
+
+    invalidateCache(`reviews:project:${existing.projectId}`).catch(() => {});
+    invalidateCache(`reviews:user:${req.userId}`).catch(() => {});
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: '验证失败', details: error.errors });

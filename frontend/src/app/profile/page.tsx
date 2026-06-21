@@ -10,7 +10,7 @@ import { TeamGuard } from '@/components/TeamGuard';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { formatDate } from '@/lib/utils';
-import { User, Mail, Shield, Calendar, Users, FolderGit2, CheckSquare, MessageSquare, RefreshCw } from 'lucide-react';
+import { Mail, Shield, Calendar, Users, FolderGit2, CheckSquare, MessageSquare, RefreshCw } from 'lucide-react';
 
 interface ProfileData {
   username: string;
@@ -37,7 +37,7 @@ const roleConfig: Record<string, { label: string; className: string }> = {
 const defaultRole = { label: '成员', className: 'bg-neutral-3 text-neutral-8' };
 
 export default function ProfilePage() {
-  const { user, teams } = useAuthStore();
+  const teams = useAuthStore((s) => s.teams);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);

@@ -9,7 +9,6 @@ import { Sidebar } from '@/components/Sidebar';
 import { TeamGuard } from '@/components/TeamGuard';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { formatDate } from '@/lib/utils';
 import {
   ArrowLeft,
@@ -37,7 +36,7 @@ const providerColors: Record<string, string> = {
 export default function RepoDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const { token } = useAuthStore();
+  const token = useAuthStore((s) => s.token);
   const [loading, setLoading] = useState(true);
   const [repo, setRepo] = useState<any>(null);
   const [commits, setCommits] = useState<any[]>([]);
@@ -96,11 +95,6 @@ export default function RepoDetailPage() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const filterCommitsByBranch = (branchName: string) => {
-    if (!branchName) return commits;
-    return commits.filter((c: any) => c.branch === branchName);
   };
 
   if (loading) {
@@ -368,7 +362,6 @@ export default function RepoDetailPage() {
                     ) : (
                       <div className="space-y-2">
                         {branches.map((branch: any) => {
-                          const branchCommits = filterCommitsByBranch(branch.name);
                           return (
                             <div
                               key={branch.name}

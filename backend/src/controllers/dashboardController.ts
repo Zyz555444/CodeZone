@@ -115,7 +115,9 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
         },
         recentActivities: enrichedActivities,
       };
-      redis.set(`dashboard:${userId}`, JSON.stringify(responseData), { EX: DASHBOARD_CACHE_TTL }).catch(() => {});
+      redis.set(`dashboard:${userId}`, JSON.stringify(responseData), { EX: DASHBOARD_CACHE_TTL }).catch((err) => {
+        logger.warn('仪表盘缓存写入失败', { userId, error: err });
+      });
     }
   } catch (error) {
     logger.error('获取仪表盘数据失败', { error, userId: req.userId });
