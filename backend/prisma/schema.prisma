@@ -36,7 +36,9 @@ enum FileType {
 }
 
 enum TeamRole {
+  OWNER
   ADMIN
+  MODERATOR
   MEMBER
 }
 
@@ -124,6 +126,7 @@ model TeamMember {
   role     TeamRole   @default(MEMBER)
   status   JoinStatus @default(PENDING)
   joinedAt DateTime   @default(now())
+  updatedAt DateTime  @updatedAt
 
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

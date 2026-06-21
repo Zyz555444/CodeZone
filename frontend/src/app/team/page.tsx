@@ -48,8 +48,10 @@ interface TeamData {
 }
 
 const roleConfig: Record<string, { label: string; icon: React.ComponentType<any>; color: string }> = {
-  ADMIN: { label: '管理员', icon: Shield, color: 'text-accent' },
-  MEMBER: { label: '成员', icon: User, color: 'text-neutral-7' },
+  OWNER:     { label: '创建者', icon: Crown, color: 'text-warning' },
+  ADMIN:     { label: '管理员', icon: Shield, color: 'text-accent' },
+  MODERATOR: { label: '协管员', icon: Shield, color: 'text-neutral-6' },
+  MEMBER:    { label: '成员', icon: User, color: 'text-neutral-7' },
 };
 
 export default function TeamPage() {
@@ -61,7 +63,9 @@ export default function TeamPage() {
   const [copied, setCopied] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const isAdmin = team?.ownerId === user?.id;
+  const currentMembership = team?.members?.find(m => m.user.id === user?.id);
+  const currentRole = currentMembership?.role;
+  const isAdmin = currentRole === 'OWNER' || currentRole === 'ADMIN';
 
   const fetchTeam = async () => {
     try {
@@ -136,6 +140,20 @@ export default function TeamPage() {
     }
   };
 
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    if (!team) return;
+    setActionLoading(userId);
+    try {
+      await api.put(`/teams/${team.id}/members/${userId}/role`, { role: newRole });
+      setError('');
+      await fetchTeam();
+    } catch (err: any) {
+      setError(err.response?.data?.error || '角色变更失败');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   if (loading) {
     return (
       <TeamGuard>
@@ -204,7 +222,7 @@ export default function TeamPage() {
                     </div>
                     <div>
                       <p className="text-2xl font-medium text-neutral-10">
-                        {team?.members?.filter(m => m.role === 'ADMIN').length || 0}
+                        {team?.members?.filter(m => m.role === 'OWNER' || m.role === 'ADMIN').length || 0}
                       </p>
                       <p className="text-sm text-neutral-7">管理员</p>
                     </div>
@@ -343,6 +361,10 @@ export default function TeamPage() {
                         const role = roleConfig[member.role] || { label: member.role, icon: User, color: 'text-neutral-7' };
                         const RoleIcon = role.icon;
                         const isMe = member.user.id === user?.id;
+                        const isTargetOwner = member.role === 'OWNER';
+
+                        const availableRoles = ['ADMIN', 'MODERATOR', 'MEMBER'].filter(r => r !== member.role);
+                        const canChangeRole = isAdmin && !isMe && (!isTargetOwner || currentRole === 'OWNER');
 
                         return (
                           <div key={member.id} className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
@@ -364,9 +386,30 @@ export default function TeamPage() {
                               </div>
                             </div>
 
-                            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-2 ${role.color}`}>
-                              <RoleIcon className="h-4 w-4" />
-                              <span className="text-sm font-medium">{role.label}</span>
+                            <div className="flex items-center gap-2">
+                              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-2 ${role.color}`}>
+                                <RoleIcon className="h-4 w-4" />
+                                <span className="text-sm font-medium">{role.label}</span>
+                              </div>
+
+                              {canChangeRole && (
+                                <select
+                                  className="text-sm border border-neutral-5 rounded-lg bg-neutral-1 px-2 py-1.5 text-neutral-10 cursor-pointer focus:outline-none focus:border-accent/50 disabled:opacity-50"
+                                  value=""
+                                  disabled={actionLoading === member.user.id}
+                                  onChange={(e) => {
+                                    if (e.target.value) {
+                                      handleRoleChange(member.user.id, e.target.value);
+                                      e.target.value = '';
+                                    }
+                                  }}
+                                >
+                                  <option value="" disabled>角色</option>
+                                  {availableRoles.map(r => (
+                                    <option key={r} value={r}>{roleConfig[r]?.label || r}</option>
+                                  ))}
+                                </select>
+                              )}
                             </div>
                           </div>
                         );

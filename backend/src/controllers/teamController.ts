@@ -22,7 +22,15 @@ const joinTeamSchema = z.object({
   inviteCode: z.string().min(8, '邀请码格式不正确').max(8, '邀请码格式不正确').regex(/^[A-Z2-9]{8}$/, '邀请码格式不正确'),
 });
 
-// 创建团队（创建者自动成为 ADMIN）
+const updateMemberRoleSchema = z.object({
+  role: z.enum(['ADMIN', 'MODERATOR', 'MEMBER']),
+});
+
+function isTeamManager(role: string): boolean {
+  return role === 'OWNER' || role === 'ADMIN';
+}
+
+// 创建团队（创建者自动成为 OWNER）
 export const createTeam = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { name } = createTeamSchema.parse(req.body);
@@ -49,7 +57,7 @@ export const createTeam = async (req: AuthRequest, res: Response): Promise<void>
         members: {
           create: {
             userId: req.userId!,
-            role: 'ADMIN',
+            role: 'OWNER',
             status: 'ACTIVE',
           },
         },
@@ -141,7 +149,7 @@ export const getTeamDetail = async (req: AuthRequest, res: Response): Promise<vo
         ownerId: true,
         createdAt: true,
         updatedAt: true,
-        inviteCode: membership.role === 'ADMIN',
+        inviteCode: isTeamManager(membership.role),
         owner: {
           select: { id: true, username: true, email: true, avatar: true },
         },
@@ -182,7 +190,7 @@ export const getInviteCode = async (req: AuthRequest, res: Response): Promise<vo
       },
     });
 
-    if (!membership || membership.role !== 'ADMIN') {
+    if (!membership || !isTeamManager(membership.role)) {
       res.status(403).json({ error: '仅团队管理员可查看邀请码' });
       return;
     }
@@ -275,7 +283,7 @@ export const approveMember = async (req: AuthRequest, res: Response): Promise<vo
       },
     });
 
-    if (!operatorMembership || operatorMembership.role !== 'ADMIN') {
+    if (!operatorMembership || !isTeamManager(operatorMembership.role)) {
       res.status(403).json({ error: '仅团队管理员可批准成员' });
       return;
     }
@@ -321,7 +329,7 @@ export const rejectMember = async (req: AuthRequest, res: Response): Promise<voi
       },
     });
 
-    if (!operatorMembership || operatorMembership.role !== 'ADMIN') {
+    if (!operatorMembership || !isTeamManager(operatorMembership.role)) {
       res.status(403).json({ error: '仅团队管理员可拒绝成员' });
       return;
     }
@@ -337,7 +345,7 @@ export const rejectMember = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    if (member.role === 'ADMIN') {
+    if (isTeamManager(member.role)) {
       res.status(400).json({ error: '不能拒绝团队管理员' });
       return;
     }
@@ -366,7 +374,7 @@ export const getPendingMembers = async (req: AuthRequest, res: Response): Promis
       },
     });
 
-    if (!membership || membership.role !== 'ADMIN') {
+    if (!membership || !isTeamManager(membership.role)) {
       res.status(403).json({ error: '仅团队管理员可查看待审核列表' });
       return;
     }
@@ -388,5 +396,76 @@ export const getPendingMembers = async (req: AuthRequest, res: Response): Promis
   } catch (error) {
     logger.error('获取待审核成员失败', { error, userId: req.userId });
     res.status(500).json({ error: '获取待审核成员失败' });
+  }
+};
+
+// 变更团队成员角色（OWNER 或 ADMIN 可操作）
+export const updateMemberRole = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { teamId, userId } = req.params;
+    const { role } = updateMemberRoleSchema.parse(req.body);
+
+    const operatorMembership = await prisma.teamMember.findUnique({
+      where: {
+        teamId_userId: { teamId, userId: req.userId! },
+      },
+    });
+
+    if (!operatorMembership || !isTeamManager(operatorMembership.role)) {
+      res.status(403).json({ error: '权限不足：仅团队管理员可变更成员角色' });
+      return;
+    }
+
+    if (userId === req.userId) {
+      res.status(400).json({ error: '不能修改自己的角色' });
+      return;
+    }
+
+    const targetMember = await prisma.teamMember.findUnique({
+      where: {
+        teamId_userId: { teamId, userId },
+      },
+      include: {
+        user: {
+          select: { id: true, username: true, email: true, avatar: true },
+        },
+      },
+    });
+
+    if (!targetMember) {
+      res.status(404).json({ error: '成员不存在' });
+      return;
+    }
+
+    if (targetMember.status !== 'ACTIVE') {
+      res.status(400).json({ error: '仅可变更活跃成员的角色' });
+      return;
+    }
+
+    if (targetMember.role === 'OWNER' && operatorMembership.role !== 'OWNER') {
+      res.status(403).json({ error: '权限不足：不可修改团队创建者的角色' });
+      return;
+    }
+
+    const updatedMember = await prisma.teamMember.update({
+      where: { id: targetMember.id },
+      data: { role },
+      include: {
+        user: {
+          select: { id: true, username: true, email: true, avatar: true },
+        },
+      },
+    });
+
+    logger.info('变更成员角色', { teamId, userId, newRole: role, operatorId: req.userId });
+
+    res.json({ member: updatedMember });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: '无效的角色值' });
+      return;
+    }
+    logger.error('变更成员角色失败', { error, userId: req.userId });
+    res.status(500).json({ error: '变更成员角色失败' });
   }
 };

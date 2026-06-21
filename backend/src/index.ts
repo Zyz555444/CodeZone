@@ -16,6 +16,7 @@ import { ChatWebSocketHandler } from './websocket/ChatWebSocketHandler';
 import { setupCollaborationServer } from './collaboration/yServer';
 import { setIO } from './lib/notificationService';
 import { connectRedis, getRedisClient } from './lib/redis';
+import { prisma } from './lib/prisma';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import projectRoutes from './routes/projects';
@@ -268,10 +269,32 @@ process.on('SIGINT', () => {
   });
 });
 
+// 数据迁移：将已有团队创建者从 ADMIN 升级为 OWNER
+async function migrateTeamCreatorRoles() {
+  try {
+    const result = await prisma.$executeRaw`
+      UPDATE "TeamMember"
+      SET "role" = 'OWNER'
+      FROM "Team"
+      WHERE "TeamMember"."teamId" = "Team"."id"
+        AND "TeamMember"."userId" = "Team"."ownerId"
+        AND "TeamMember"."role" = 'ADMIN'
+    `;
+    if (result > 0) {
+      logger.info(`团队角色数据迁移完成，更新 ${result} 条记录`);
+    }
+  } catch (error: any) {
+    logger.warn('团队角色数据迁移跳过', { reason: error.message });
+  }
+}
+
 // 启动服务器
 async function startServer() {
   try {
     await connectRedis();
+
+    // 数据迁移
+    await migrateTeamCreatorRoles();
 
     // 连接 Socket.IO Redis 适配器的 Pub/Sub 客户端
     await Promise.all([pubClient.connect(), subClient.connect()]);
