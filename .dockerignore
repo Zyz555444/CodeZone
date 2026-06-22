@@ -17,10 +17,7 @@
 **/.git
 
 # Docker
-Dockerfile
 .dockerignore
-docker-compose*.yml
-docker/*.yml
 
 # IDE / OS
 .vscode
