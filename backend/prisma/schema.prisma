@@ -71,6 +71,12 @@ enum NotificationType {
   SYSTEM
 }
 
+enum AIProvider {
+  OPENAI
+  ANTHROPIC
+  CUSTOM
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -98,6 +104,8 @@ model User {
   teamMembers    TeamMember[]
   ownedTeams     Team[]          @relation("TeamOwner")
   chatMessages   ChatMessage[]
+  aiConversations AIConversation[]
+  aiUsageLogs    AIUsageLog[]
 
   @@index([email])
   @@index([username])
@@ -114,6 +122,8 @@ model Team {
   owner    User          @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members  TeamMember[]
   projects Project[]
+  aiSettings TeamAISettings?
+  aiUsageLogs AIUsageLog[]
 
   @@index([ownerId])
   @@index([inviteCode])
@@ -125,6 +135,7 @@ model TeamMember {
   userId   String
   role     TeamRole   @default(MEMBER)
   status   JoinStatus @default(PENDING)
+  aiEnabled Boolean   @default(true)
   joinedAt DateTime   @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -172,6 +183,7 @@ model Project {
   repositories Repository[]
   reviews      CodeReview[]
   activities   Activity[]
+  aiConversations AIConversation[]
 
   @@index([ownerId])
   @@index([teamId])
@@ -422,4 +434,73 @@ model Feedback {
 
   @@index([type])
   @@index([createdAt])
+}
+
+model TeamAISettings {
+  id            String     @id @default(cuid())
+  teamId        String     @unique
+  provider      AIProvider @default(OPENAI)
+  endpoint      String?
+  apiKey        String?
+  defaultModel  String?
+  enabledModels Json       @default("[]")
+  parameters    Json       @default("{}")
+  isEnabled     Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+}
+
+model AIConversation {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  title     String   @default("新对话")
+  modelId   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project  Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages AIMessage[]
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([projectId, createdAt])
+}
+
+model AIMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String
+  content        String   @default("")
+  toolCalls      Json?
+  tokenCount     Int?
+  createdAt      DateTime @default(now())
+
+  conversation AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([conversationId, createdAt])
+}
+
+model AIUsageLog {
+  id               String   @id @default(cuid())
+  teamId           String
+  userId           String
+  modelId          String?
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+  @@index([userId])
+  @@index([teamId, createdAt])
+  @@index([userId, createdAt])
 }
