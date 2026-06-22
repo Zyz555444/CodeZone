@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { CollaborativeEditorCore } from './CollaborativeEditorCore';
 import { FileTree, FileNode, getLanguageFromFile } from './FileTree';
-import { AIPanel } from './AIPanel';
-import { X, Plus, Sparkles, PanelRight, PanelLeft } from 'lucide-react';
+import { AIAgentPanel } from './AIPanel';
+import { TerminalPanel } from './TerminalPanel';
+import { InlineAIMenu } from './InlineAIMenu';
+import { X, Plus, Sparkles, PanelRight, PanelLeft, Terminal } from 'lucide-react';
 import { apiUrl } from '@/lib/env';
 import { authFetch } from '@/lib/utils';
 
@@ -25,9 +27,62 @@ export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorksp
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   const [activeFileId, setActiveFileId] = useState<string>('');
   const [showAIPanel, setShowAIPanel] = useState(false);
+  const [showTerminal, setShowTerminal] = useState(false);
   const [showFileTree, setShowFileTree] = useState(true);
 
+  const [inlineMenu, setInlineMenu] = useState<{
+    selectedText: string;
+    language: string;
+    top: number;
+    left: number;
+  } | null>(null);
+
+  const editorRef = useRef<{ getSelection: () => string | null; replaceSelection: (text: string) => void }>(null);
+
   const activeFile = openFiles.find(f => f.fileId === activeFileId);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const sel = editorRef.current?.getSelection();
+        if (sel && activeFile) {
+          const rect = document.querySelector('.monaco-editor')?.getBoundingClientRect();
+          setInlineMenu({
+            selectedText: sel,
+            language: activeFile.language,
+            top: rect ? rect.top + 50 : 100,
+            left: rect ? rect.left + (rect.width / 2) - 100 : 200,
+          });
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeFile]);
+
+  const handleInlineAIResult = useCallback((action: string, text: string) => {
+    if (action === 'fix' || action === 'refactor' || action === 'comment') {
+      editorRef.current?.replaceSelection(text);
+    }
+    setTimeout(() => setInlineMenu(null), 500);
+  }, []);
+
+  const handleEditorMount = useCallback((editor: any, monaco: any) => {
+    editorRef.current = {
+      getSelection: () => {
+        const selection = editor.getSelection();
+        if (!selection || selection.isEmpty()) return null;
+        return editor.getModel()?.getValueInRange(selection) || null;
+      },
+      replaceSelection: (text: string) => {
+        const selection = editor.getSelection();
+        if (selection && !selection.isEmpty()) {
+          editor.executeEdits('ai-replace', [{ range: selection, text }]);
+        }
+      },
+    };
+  }, []);
 
   const handleFileSelect = useCallback(async (node: FileNode) => {
     if (node.type !== 'file') return;
@@ -76,20 +131,6 @@ export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorksp
       return newFiles;
     });
   }, [activeFileId]);
-
-  const handleInsertCode = useCallback((code: string) => {
-    if (activeFile) {
-      const editor = document.querySelector('.monaco-editor') as HTMLElement;
-      if (editor) {
-        navigator.clipboard.writeText(code);
-      }
-      setOpenFiles(prev => prev.map(f =>
-        f.fileId === activeFile.fileId
-          ? { ...f, content: f.content + '\n' + code }
-          : f
-      ));
-    }
-  }, [activeFile]);
 
   const handleContentChange = useCallback((fileId: string, content: string) => {
     setOpenFiles(prev => prev.map(f =>
@@ -154,7 +195,17 @@ export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorksp
               AI
             </button>
             <button
-              onClick={() => setShowFileTree(!showFileTree)}
+              onClick={() => setShowTerminal(!showTerminal)}
+              className={`flex items-center gap-1 px-2 py-1.5 text-xs rounded-lg transition-colors ${
+                showTerminal
+                  ? 'bg-accent/10 text-accent'
+                  : 'text-neutral-6 hover:bg-neutral-2'
+              }`}
+            >
+              <Terminal className="h-3.5 w-3.5" />
+              终端
+            </button>
+            <button
               className="flex items-center gap-1 px-2 py-1.5 text-xs rounded-lg text-neutral-6 hover:bg-neutral-2 transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -163,7 +214,7 @@ export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorksp
           </div>
         </div>
 
-        <div className="flex-1 flex min-h-0">
+        <div className="flex-1 flex min-h-0 relative">
           <div className="flex-1 min-w-0">
             {activeFile ? (
               <CollaborativeEditorCore
@@ -174,6 +225,7 @@ export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorksp
                 language={activeFile.language}
                 wsUrl={wsUrl}
                 onContentChange={(content) => handleContentChange(activeFile.fileId, content)}
+                onMount={handleEditorMount}
               />
             ) : (
               <div className="flex items-center justify-center h-full text-neutral-6">
@@ -181,21 +233,38 @@ export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorksp
                   <PanelRight className="h-12 w-12 mx-auto mb-3 text-neutral-4" />
                   <p className="text-sm font-medium text-neutral-7 mb-1">选择文件开始编辑</p>
                   <p className="text-xs text-neutral-5">从左侧文件树选择文件，或创建新文件</p>
+                  <p className="text-xs text-neutral-5 mt-2">
+                    选中代码后按 <kbd className="px-1 py-0.5 bg-neutral-2 rounded text-accent">Ctrl+K</kbd> 打开 AI 菜单
+                  </p>
                 </div>
               </div>
             )}
           </div>
 
-          {showAIPanel && activeFile && (
-            <AIPanel
-              code={activeFile.content}
-              language={activeFile.language}
-              onInsertCode={handleInsertCode}
+          {inlineMenu && (
+            <InlineAIMenu
+              selectedText={inlineMenu.selectedText}
+              language={inlineMenu.language}
+              position={{ top: inlineMenu.top, left: inlineMenu.left }}
+              onClose={() => setInlineMenu(null)}
+              onResult={handleInlineAIResult}
+            />
+          )}
+
+          {showAIPanel && (
+            <AIAgentPanel
+              projectId={projectId}
               onClose={() => setShowAIPanel(false)}
               position="right"
             />
           )}
         </div>
+
+        <TerminalPanel
+          projectId={projectId}
+          visible={showTerminal}
+          onClose={() => setShowTerminal(false)}
+        />
       </div>
     </div>
   );

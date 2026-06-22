@@ -6,10 +6,11 @@ import { Sidebar } from '@/components/Sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Bell, User, Lock, Palette, Check, Save } from 'lucide-react';
+import { Bell, User, Lock, Palette, Check, Save, Sparkles } from 'lucide-react';
 import { TeamGuard } from '@/components/TeamGuard';
 import { api } from '@/lib/api';
 import { useTheme } from 'next-themes';
+import Link from 'next/link';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profile');
@@ -80,6 +81,7 @@ export default function SettingsPage() {
     { id: 'security', label: '安全设置', icon: Lock },
     { id: 'notifications', label: '通知设置', icon: Bell },
     { id: 'appearance', label: '外观设置', icon: Palette },
+    { id: 'ai', label: 'AI 设置', icon: Sparkles, href: '/settings/ai' },
   ];
 
   return (
@@ -100,15 +102,24 @@ export default function SettingsPage() {
                   <nav className="space-y-1">
                     {tabs.map((tab) => {
                       const Icon = tab.icon;
+                      const className = `w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg transition-colors ${
+                        activeTab === tab.id
+                          ? 'bg-neutral-2 text-neutral-10 font-medium'
+                          : 'text-neutral-7 hover:text-neutral-9 hover:bg-neutral-2'
+                      }`;
+                      if ('href' in tab && tab.href) {
+                        return (
+                          <Link key={tab.id} href={tab.href} className={className}>
+                            <Icon className="h-4 w-4" />
+                            {tab.label}
+                          </Link>
+                        );
+                      }
                       return (
                         <button
                           key={tab.id}
                           onClick={() => setActiveTab(tab.id)}
-                          className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg transition-colors ${
-                            activeTab === tab.id
-                              ? 'bg-neutral-2 text-neutral-10 font-medium'
-                              : 'text-neutral-7 hover:text-neutral-9 hover:bg-neutral-2'
-                          }`}
+                          className={className}
                         >
                           <Icon className="h-4 w-4" />
                           {tab.label}

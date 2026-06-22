@@ -2,130 +2,174 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from './ui/Button';
-import { Loader2, Send, Sparkles, Code2, MessageSquare, FileSearch, Bug, Wand2, Copy, Check, X } from 'lucide-react';
-import { apiUrl } from '@/lib/env';
-import { authFetch } from '@/lib/utils';
+import {
+  Loader2, Send, Sparkles, X, Square, Plus, MessageSquare,
+  Trash2, Copy, Check, ChevronDown, FileText, Bot,
+} from 'lucide-react';
+import { useAIStore } from '@/stores/aiStore';
+import {
+  streamChat, listConversations, createConversation,
+  getConversation, deleteConversation,
+} from '@/lib/ai';
 
-type AITab = 'chat' | 'explain' | 'review' | 'generate';
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-interface AIPanelProps {
-  code: string;
-  language: string;
-  onInsertCode: (code: string) => void;
+interface AIAgentPanelProps {
+  projectId: string;
+  teamId?: string;
   onClose: () => void;
   position?: 'right' | 'bottom';
 }
 
-const TAB_ITEMS: { key: AITab; label: string; icon: React.ReactNode }[] = [
-  { key: 'chat', label: 'AI Chat', icon: <MessageSquare className="h-3.5 w-3.5" /> },
-  { key: 'explain', label: '解释', icon: <FileSearch className="h-3.5 w-3.5" /> },
-  { key: 'review', label: '审查', icon: <Bug className="h-3.5 w-3.5" /> },
-  { key: 'generate', label: '生成', icon: <Wand2 className="h-3.5 w-3.5" /> },
-];
-
-export function AIPanel({ code, language, onInsertCode, onClose, position = 'right' }: AIPanelProps) {
-  const [activeTab, setActiveTab] = useState<AITab>('chat');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }: AIAgentPanelProps) {
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState('');
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
   const chatRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    conversations,
+    activeConversationId,
+    messages,
+    isStreaming,
+    streamContent,
+    contextFiles,
+    setConversations,
+    setActiveConversation,
+    addConversation,
+    removeConversation,
+    setMessages,
+    addMessage,
+    setIsStreaming,
+    appendStreamContent,
+    resetStreamContent,
+    setError,
+    clearError,
+    error,
+  } = useAIStore();
 
   useEffect(() => {
     chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages, result]);
+  }, [messages, streamContent]);
 
-  const callAI = useCallback(async (endpoint: string, body: Record<string, unknown>) => {
-    const res = await authFetch(apiUrl(`/api/ai/${endpoint}`), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
+  useEffect(() => {
+    if (projectId) loadConversations();
+  }, [projectId]);
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: '请求失败' }));
-      throw new Error(err.error || `请求失败 (${res.status})`);
+  const loadConversations = async () => {
+    try {
+      const data = await listConversations(projectId);
+      setConversations(data.conversations || []);
+    } catch {
+      // silent
     }
+  };
 
-    return res.json();
-  }, []);
+  const handleSelectConversation = async (id: string) => {
+    setActiveConversation(id);
+    setShowHistory(false);
+    try {
+      const data = await getConversation(id);
+      setMessages(data.conversation?.messages || []);
+    } catch {
+      setMessages([]);
+    }
+  };
 
-  const handleChatSend = async () => {
-    if (!input.trim() || loading) return;
-    const userMsg: ChatMessage = { role: 'user', content: input };
-    setMessages(prev => [...prev, userMsg]);
+  const handleNewConversation = async () => {
+    abortStream();
+    resetStreamContent();
+    setActiveConversation(null);
+    setMessages([]);
+    setShowHistory(false);
+    clearError();
+  };
+
+  const handleDeleteConversation = async (id: string) => {
+    try {
+      await deleteConversation(id);
+      removeConversation(id);
+      if (activeConversationId === id) {
+        setActiveConversation(null);
+        setMessages([]);
+      }
+    } catch {
+      // silent
+    }
+  };
+
+  const abortStream = () => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    setIsStreaming(false);
+  };
+
+  const handleSend = async () => {
+    const text = input.trim();
+    if (!text || isStreaming) return;
+
     setInput('');
-    setLoading(true);
-    setError('');
+    clearError();
+    setIsStreaming(true);
+    resetStreamContent();
+
+    const userMsg = { role: 'user', content: text };
+    const displayMessages = [
+      ...messages.map((m) => ({ role: m.role, content: m.content })),
+      userMsg,
+    ];
+    addMessage({ id: '', role: 'user', content: text, createdAt: new Date().toISOString() });
+
+    const abortController = new AbortController();
+    abortRef.current = abortController;
 
     try {
-      const data = await callAI('chat', {
-        messages: [
-          { role: 'system', content: `You are a helpful coding assistant. The user is working with ${language} code. Be concise and helpful.` },
-          ...messages.slice(-4),
-          userMsg,
-        ],
-      });
-      setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
+      await streamChat(
+        {
+          conversationId: activeConversationId || undefined,
+          projectId,
+          messages: displayMessages,
+          contextFiles: contextFiles.length > 0 ? contextFiles : undefined,
+          teamId,
+        },
+        {
+          onToken: (token) => appendStreamContent(token),
+          onDone: async (convId) => {
+            const finalContent = streamContent + '';
+            addMessage({ id: '', role: 'assistant', content: finalContent, createdAt: new Date().toISOString() });
+
+            if (convId && !activeConversationId) {
+              setActiveConversation(convId);
+              loadConversations();
+            } else if (activeConversationId) {
+              loadConversations();
+            }
+            setIsStreaming(false);
+            abortRef.current = null;
+          },
+          onError: (err) => {
+            setError(err);
+            setIsStreaming(false);
+            abortRef.current = null;
+          },
+        },
+        abortController.signal,
+      );
+    } catch {
+      setIsStreaming(false);
+      abortRef.current = null;
     }
   };
 
-  const handleExplain = async () => {
-    if (!code || loading) return;
-    setLoading(true);
-    setError('');
-    setResult('');
-    try {
-      const data = await callAI('explain', { code, language });
-      setResult(data.explanation);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
+  const handleStop = () => {
+    abortStream();
+    if (streamContent) {
+      addMessage({ id: '', role: 'assistant', content: streamContent, createdAt: new Date().toISOString() });
     }
-  };
-
-  const handleReview = async () => {
-    if (!code || loading) return;
-    setLoading(true);
-    setError('');
-    setResult('');
-    try {
-      const data = await callAI('review', { code, language });
-      setResult(data.review);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenerate = async () => {
-    if (!input.trim() || loading) return;
-    setLoading(true);
-    setError('');
-    setResult('');
-    try {
-      const data = await callAI('generate', { description: input, language, context: code });
-      setResult(data.code);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
+    resetStreamContent();
   };
 
   const handleCopy = (text: string) => {
@@ -134,182 +178,180 @@ export function AIPanel({ code, language, onInsertCode, onClose, position = 'rig
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'chat':
-        return (
-          <div className="flex flex-col h-full">
-            <div ref={chatRef} className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
-              {messages.length === 0 && (
-                <div className="text-center text-neutral-6 text-sm py-8">
-                  <Sparkles className="h-6 w-6 mx-auto mb-2 text-accent/60" />
-                  <p>AI 编码助手已就绪</p>
-                  <p className="text-xs mt-1">可以询问代码问题、请求帮助等</p>
-                </div>
-              )}
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
-                    msg.role === 'user'
-                      ? 'bg-accent text-white'
-                      : 'bg-neutral-2 text-neutral-9'
-                  }`}>
-                    <div className="whitespace-pre-wrap break-words">{msg.content}</div>
-                  </div>
-                </div>
-              ))}
-              {loading && (
-                <div className="flex justify-start">
-                  <div className="bg-neutral-2 rounded-xl px-3 py-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-accent" />
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="border-t border-neutral-3 p-3">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleChatSend()}
-                  placeholder="向 AI 提问..."
-                  className="flex-1 bg-neutral-2 border border-neutral-3 rounded-lg px-3 py-2 text-sm text-neutral-9 placeholder-neutral-6 focus:outline-none focus:border-accent/50"
-                />
-                <Button onClick={handleChatSend} disabled={loading || !input.trim()} size="sm" className="px-3">
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'explain':
-        return (
-          <div className="flex flex-col h-full p-3">
-            <div className="flex gap-2 mb-3">
-              <Button onClick={handleExplain} disabled={loading || !code} size="sm" className="gap-2">
-                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileSearch className="h-3.5 w-3.5" />}
-                解释当前代码
-              </Button>
-            </div>
-            {result && (
-              <div className="flex-1 min-h-0 relative">
-                <div className="absolute top-2 right-2 z-10">
-                  <button onClick={() => handleCopy(result)} className="p-1.5 rounded-lg hover:bg-neutral-3 text-neutral-6 hover:text-neutral-9 transition-colors">
-                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-                <div className="bg-neutral-2 rounded-xl p-4 text-sm text-neutral-9 whitespace-pre-wrap h-full overflow-y-auto leading-relaxed">
-                  {result}
-                </div>
-              </div>
-            )}
-          </div>
-        );
-
-      case 'review':
-        return (
-          <div className="flex flex-col h-full p-3">
-            <div className="flex gap-2 mb-3">
-              <Button onClick={handleReview} disabled={loading || !code} size="sm" className="gap-2">
-                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bug className="h-3.5 w-3.5" />}
-                审查代码
-              </Button>
-            </div>
-            {result && (
-              <div className="flex-1 min-h-0 relative">
-                <div className="absolute top-2 right-2 z-10">
-                  <button onClick={() => handleCopy(result)} className="p-1.5 rounded-lg hover:bg-neutral-3 text-neutral-6 hover:text-neutral-9 transition-colors">
-                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-                <div className="bg-neutral-2 rounded-xl p-4 text-sm text-neutral-9 whitespace-pre-wrap h-full overflow-y-auto leading-relaxed">
-                  {result}
-                </div>
-              </div>
-            )}
-          </div>
-        );
-
-      case 'generate':
-        return (
-          <div className="flex flex-col h-full p-3">
-            <div className="flex gap-2 mb-3">
-              <input
-                type="text"
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleGenerate()}
-                placeholder="描述你要生成的代码..."
-                className="flex-1 bg-neutral-2 border border-neutral-3 rounded-lg px-3 py-2 text-sm text-neutral-9 placeholder-neutral-6 focus:outline-none focus:border-accent/50"
-              />
-              <Button onClick={handleGenerate} disabled={loading || !input.trim()} size="sm" className="gap-2">
-                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
-                生成
-              </Button>
-            </div>
-            {result && (
-              <div className="flex-1 min-h-0 relative">
-                <div className="absolute top-2 right-2 z-10 flex gap-1">
-                  <button onClick={() => handleCopy(result)} className="p-1.5 rounded-lg hover:bg-neutral-3 text-neutral-6 hover:text-neutral-9 transition-colors" title="复制">
-                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                  </button>
-                  <button onClick={() => onInsertCode(result)} className="p-1.5 rounded-lg hover:bg-accent/10 text-neutral-6 hover:text-accent transition-colors" title="插入到编辑器">
-                    <Code2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <pre className="bg-neutral-2 rounded-xl p-4 text-sm text-neutral-9 h-full overflow-auto font-mono">
-                  <code>{result}</code>
-                </pre>
-              </div>
-            )}
-          </div>
-        );
-    }
-  };
-
   const isRight = position === 'right';
 
   return (
     <div className={`bg-white border-neutral-3 flex flex-col ${
       isRight ? 'w-80 border-l' : 'border-t'
     }`}>
-      <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-3">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-3 shrink-0">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-accent" />
-          <span className="text-sm font-medium text-neutral-9">AI Assistant</span>
-        </div>
-        <button onClick={onClose} className="p-1 rounded-lg hover:bg-neutral-2 text-neutral-6">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
-      <div className="flex border-b border-neutral-3 px-2 gap-1">
-        {TAB_ITEMS.map(tab => (
           <button
-            key={tab.key}
-            onClick={() => { setActiveTab(tab.key); setResult(''); setError(''); }}
-            className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-medium border-b-2 transition-colors -mb-[1px] ${
-              activeTab === tab.key
-                ? 'border-accent text-accent'
-                : 'border-transparent text-neutral-6 hover:text-neutral-9'
-            }`}
+            onClick={() => setShowHistory(!showHistory)}
+            className="p-1 rounded-lg hover:bg-neutral-2 text-neutral-6"
+            title="对话历史"
           >
-            {tab.icon}
-            {tab.label}
+            <MessageSquare className="h-4 w-4" />
           </button>
-        ))}
+          <span className="text-sm font-medium text-neutral-9">AI Agent</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleNewConversation}
+            className="p-1 rounded-lg hover:bg-neutral-2 text-neutral-6"
+            title="新对话"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-neutral-2 text-neutral-6">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
-      {error && (
-        <div className="mx-3 mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
-          {error}
+      {showHistory && (
+        <div className="border-b border-neutral-3 max-h-48 overflow-y-auto shrink-0">
+          <div className="p-2">
+            <p className="text-xs text-neutral-6 px-2 py-1">对话历史</p>
+            {conversations.length === 0 && (
+              <p className="text-xs text-neutral-6 px-2 py-2">暂无对话</p>
+            )}
+            {conversations.map((conv) => (
+              <div
+                key={conv.id}
+                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-sm group ${
+                  activeConversationId === conv.id
+                    ? 'bg-accent/10 text-accent'
+                    : 'text-neutral-8 hover:bg-neutral-2'
+                }`}
+                onClick={() => handleSelectConversation(conv.id)}
+              >
+                <Bot className="h-3.5 w-3.5 shrink-0" />
+                <span className="flex-1 truncate">{conv.title}</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv.id); }}
+                  className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-neutral-3 text-neutral-6"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      <div className="flex-1 min-h-0 overflow-hidden">
-        {renderTabContent()}
+      {error && (
+        <div className="mx-3 mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 shrink-0">
+          {error}
+          <button onClick={clearError} className="ml-2 underline">关闭</button>
+        </div>
+      )}
+
+      <div ref={chatRef} className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+        {messages.length === 0 && !isStreaming && (
+          <div className="text-center text-neutral-6 text-sm py-8">
+            <Sparkles className="h-6 w-6 mx-auto mb-2 text-accent/60" />
+            <p className="font-medium">AI Coding Agent</p>
+            <p className="text-xs mt-1">输入需求，AI 将帮你完成编程任务</p>
+            <div className="mt-3 space-y-1.5 text-xs">
+              <p className="text-neutral-5">快捷指令:</p>
+              <p><code className="bg-neutral-2 px-1.5 py-0.5 rounded text-accent">/explain</code> 解释选中的代码</p>
+              <p><code className="bg-neutral-2 px-1.5 py-0.5 rounded text-accent">/review</code> 审查代码质量</p>
+              <p><code className="bg-neutral-2 px-1.5 py-0.5 rounded text-accent">/generate</code> 生成代码</p>
+              <p><code className="bg-neutral-2 px-1.5 py-0.5 rounded text-accent">/fix</code> 修复代码问题</p>
+            </div>
+          </div>
+        )}
+
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
+              msg.role === 'user'
+                ? 'bg-accent text-white'
+                : 'bg-neutral-2 text-neutral-9'
+            }`}>
+              {msg.role === 'assistant' ? (
+                <div className="prose prose-sm max-w-none prose-neutral whitespace-pre-wrap break-words leading-relaxed">
+                  {msg.content}
+                </div>
+              ) : (
+                <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+              )}
+              {msg.role === 'assistant' && msg.content && (
+                <div className="flex gap-1 mt-1.5 pt-1 border-t border-neutral-3/50">
+                  <button
+                    onClick={() => handleCopy(msg.content)}
+                    className="p-1 rounded hover:bg-neutral-3 text-neutral-6 text-xs flex items-center gap-1"
+                  >
+                    {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {isStreaming && streamContent && (
+          <div className="flex justify-start">
+            <div className="max-w-[85%] rounded-xl px-3 py-2 text-sm bg-neutral-2 text-neutral-9">
+              <div className="prose prose-sm max-w-none prose-neutral whitespace-pre-wrap break-words leading-relaxed">
+                {streamContent}
+                <span className="inline-block w-2 h-4 bg-accent animate-pulse ml-0.5 align-middle" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isStreaming && !streamContent && (
+          <div className="flex justify-start">
+            <div className="bg-neutral-2 rounded-xl px-3 py-2">
+              <Loader2 className="h-4 w-4 animate-spin text-accent" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {contextFiles.length > 0 && (
+        <div className="px-3 py-1.5 border-t border-neutral-3 flex items-center gap-1.5 flex-wrap shrink-0">
+          <FileText className="h-3 w-3 text-neutral-6" />
+          {contextFiles.map((fid) => (
+            <span key={fid} className="text-xs bg-accent/10 text-accent px-1.5 py-0.5 rounded">
+              {fid.slice(0, 12)}...
+            </span>
+          ))}
+          <span className="text-xs text-neutral-6 ml-auto">
+            {contextFiles.length} 个上下文文件
+          </span>
+        </div>
+      )}
+
+      <div className="border-t border-neutral-3 p-3 shrink-0">
+        <div className="flex gap-2">
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && !isStreaming) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder={isStreaming ? 'AI 正在生成...' : '描述你的需求...'}
+            disabled={isStreaming}
+            className="flex-1 bg-neutral-2 border border-neutral-3 rounded-lg px-3 py-2 text-sm text-neutral-9 placeholder-neutral-6 focus:outline-none focus:border-accent/50 disabled:opacity-50"
+          />
+          {isStreaming ? (
+            <Button onClick={handleStop} size="sm" className="px-3 bg-red-500 hover:bg-red-600">
+              <Square className="h-4 w-4 fill-current" />
+            </Button>
+          ) : (
+            <Button onClick={handleSend} disabled={!input.trim()} size="sm" className="px-3">
+              <Send className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

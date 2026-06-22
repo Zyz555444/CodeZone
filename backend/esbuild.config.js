@@ -23,6 +23,7 @@ esbuild.build({
   format: 'cjs',
   sourcemap: false,
   logLevel: 'info',
+  external: ['node-pty', 'ws'],
 }).then(() => {
   console.log('esbuild done:', entryPoints.length, 'files')
 }).catch(() => process.exit(1))

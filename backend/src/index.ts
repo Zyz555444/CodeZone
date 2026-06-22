@@ -14,6 +14,7 @@ import { sanitizeBody } from './middleware/sanitize';
 import { WebSocketHandler } from './websocket/WebSocketHandler';
 import { ChatWebSocketHandler } from './websocket/ChatWebSocketHandler';
 import { setupCollaborationServer } from './collaboration/yServer';
+import { setupTerminalServer } from './terminal/TerminalServer';
 import { setIO } from './lib/notificationService';
 import { connectRedis, getRedisClient } from './lib/redis';
 import { prisma } from './lib/prisma';
@@ -33,6 +34,10 @@ import activityRoutes from './routes/activities';
 import dashboardRoutes from './routes/dashboard';
 import dependencyRoutes from './routes/dependencies';
 import aiRoutes from './routes/ai';
+import aiSettingsRoutes from './routes/aiSettings';
+import aiConversationsRoutes from './routes/aiConversations';
+import usageRoutes from './routes/usage';
+import aiPermissionsRoutes from './routes/aiPermissions';
 
 dotenv.config();
 
@@ -199,6 +204,9 @@ chatHandler.initialize();
 // Yjs 协作编辑服务
 setupCollaborationServer(httpServer);
 
+// 终端 WebSocket 服务
+setupTerminalServer(httpServer);
+
 // 路由 - 认证端点使用严格限制
 app.use('/api/auth/login', strictLimiter);
 app.use('/api/auth/register', strictLimiter);
@@ -223,6 +231,10 @@ app.use('/api/search', searchRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/ai', sanitizeBody, aiRoutes);
+app.use('/api/ai', aiSettingsRoutes);
+app.use('/api/ai/conversations', aiConversationsRoutes);
+app.use('/api/ai/usage', usageRoutes);
+app.use('/api/ai/permissions', aiPermissionsRoutes);
 
 // 健康检查 - 不记录日志
 app.get('/health', (req, res) => {
