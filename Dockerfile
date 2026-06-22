@@ -111,7 +111,8 @@ WORKDIR /app
 RUN --mount=type=cache,target=/var/cache/apk \
     apk add --no-cache curl openssl netcat-openbsd
 
-# 复制完整 node_modules（含 prisma CLI，供 start.sh 迁移使用）
+# 复制完整 node_modules（先复制根 node_modules 获得所有 hoist 依赖，再叠加 backend 专属）
+COPY --from=backend-builder --chown=node:node /app/node_modules ./node_modules
 COPY --from=backend-builder --chown=node:node /app/backend/node_modules ./node_modules
 COPY --from=backend-builder --chown=node:node /app/backend/dist ./dist
 COPY --from=backend-builder --chown=node:node /app/backend/prisma ./prisma
