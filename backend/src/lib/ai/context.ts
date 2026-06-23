@@ -21,7 +21,6 @@ function estimateTokens(text: string): number {
 function formatFileTree(files: Array<{ path: string; type: string; language?: string | null }>, indent = ''): string {
   const lines: string[] = [];
   for (const file of files.sort((a, b) => a.path.localeCompare(b.path))) {
-    const icon = file.type === 'DIRECTORY' ? '' : '';
     const lang = file.language ? ` (${file.language})` : '';
     lines.push(`${indent}${file.path}${lang}`);
   }

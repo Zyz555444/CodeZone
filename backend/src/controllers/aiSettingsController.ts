@@ -88,8 +88,6 @@ export async function updateSettings(req: AuthRequest, res: Response): Promise<v
 
     const parsed = settingsSchema.parse(req.body);
 
-    const existing = await prisma.teamAISettings.findUnique({ where: { teamId } });
-
     const updateData: Record<string, unknown> = {};
     if (parsed.provider !== undefined) updateData.provider = parsed.provider;
     if (parsed.endpoint !== undefined) updateData.endpoint = parsed.endpoint;
@@ -139,7 +137,6 @@ export async function updateSettings(req: AuthRequest, res: Response): Promise<v
 
 export async function validateSettings(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { teamId } = req.params;
     const body = z.object({
       provider: z.enum(['OPENAI', 'ANTHROPIC', 'CUSTOM']),
       endpoint: z.string().optional(),

@@ -181,7 +181,7 @@ export async function chatWithAI(req: AuthRequest, res: Response): Promise<void>
 }
 
 export async function streamChat(req: AuthRequest, res: Response): Promise<void> {
-  const { conversationId, projectId, messages, contextFiles, model, teamId } = req.body;
+  const { conversationId, projectId, messages, contextFiles, teamId } = req.body;
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     res.status(400).json({ error: 'messages array is required' });
@@ -198,7 +198,7 @@ export async function streamChat(req: AuthRequest, res: Response): Promise<void>
   const abortController = new AbortController();
   req.on('close', () => abortController.abort());
 
-  let convId = conversationId as string | undefined;
+  const convId = conversationId as string | undefined;
 
   try {
     const teamConfig = await getTeamConfig(teamId);
