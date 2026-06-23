@@ -7,7 +7,7 @@ FROM node:22-alpine AS deps
 WORKDIR /app
 
 RUN --mount=type=cache,target=/var/cache/apk \
-    apk add --no-cache libc6-compat
+    apk add --no-cache libc6-compat python3 make g++
 
 COPY package.json package-lock.json ./
 COPY frontend/package.json ./frontend/
