@@ -91,6 +91,12 @@ export const getReview = async (req: AuthRequest, res: Response): Promise<void> 
       return;
     }
 
+    const accessibleIds = await getAccessibleProjectIds(req.userId!);
+    if (!accessibleIds.includes(review.projectId)) {
+      res.status(403).json({ error: '无权访问此审查' });
+      return;
+    }
+
     res.json({ review });
   } catch (error) {
     logger.error('获取审查详情失败', { error, userId: req.userId });

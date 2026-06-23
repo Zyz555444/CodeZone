@@ -72,6 +72,26 @@ export const createTask = async (req: AuthRequest, res: Response): Promise<void>
   try {
     const body = createTaskSchema.parse(req.body);
 
+    const project = await prisma.project.findUnique({
+      where: { id: body.projectId },
+      select: { id: true, ownerId: true },
+    });
+    if (!project) {
+      res.status(404).json({ error: '项目不存在' });
+      return;
+    }
+
+    const isOwner = project.ownerId === req.userId;
+    if (!isOwner) {
+      const membership = await prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId: body.projectId, userId: req.userId! } },
+      });
+      if (!membership) {
+        res.status(403).json({ error: '无权在此项目中创建任务' });
+        return;
+      }
+    }
+
     const task = await prisma.task.create({
       data: {
         ...body,
@@ -128,6 +148,7 @@ export const getTask = async (req: AuthRequest, res: Response): Promise<void> =>
     const task = await prisma.task.findUnique({
       where: { id },
       include: {
+        project: { select: { ownerId: true, visibility: true } },
         assignee: {
           select: { id: true, username: true, avatar: true },
         },
@@ -151,6 +172,17 @@ export const getTask = async (req: AuthRequest, res: Response): Promise<void> =>
     if (!task) {
       res.status(404).json({ error: '任务不存在' });
       return;
+    }
+
+    const isOwner = task.project.ownerId === req.userId;
+    if (!isOwner) {
+      const membership = await prisma.projectMember.findFirst({
+        where: { projectId: task.projectId, userId: req.userId },
+      });
+      if (!membership && task.project.visibility === 'PRIVATE') {
+        res.status(403).json({ error: '无权访问此任务' });
+        return;
+      }
     }
 
     res.json({ task });
@@ -220,12 +252,17 @@ export const updateTask = async (req: AuthRequest, res: Response): Promise<void>
     invalidateCache(`tasks:user:${req.userId}`).catch(() => {});
 
     if (assigneeId && assigneeId !== task.assigneeId && assigneeId !== req.userId) {
-      createAndPushNotification(
-        assigneeId,
-        '任务分配更新',
-        `你被分配了任务 "${updatedTask.title}"`,
-        'TASK'
-      );
+      const isMember = await prisma.projectMember.findFirst({
+        where: { projectId: task.projectId, userId: assigneeId },
+      });
+      if (isMember || task.project.ownerId === assigneeId) {
+        createAndPushNotification(
+          assigneeId,
+          '任务分配更新',
+          `你被分配了任务 "${updatedTask.title}"`,
+          'TASK'
+        );
+      }
     }
   } catch (error) {
     logger.error('更新任务失败', { error, userId: req.userId });

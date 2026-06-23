@@ -31,6 +31,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const body = registerSchema.parse(req.body);
 
+    const email = body.email.toLowerCase();
+
     // 密码强度检查
     if (!isPasswordStrong(body.password)) {
       res.status(400).json({ 
@@ -44,7 +46,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
-          { email: body.email },
+          { email: email },
           { username: body.username },
         ],
       },
@@ -61,7 +63,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     // 创建用户
     const user = await prisma.user.create({
       data: {
-        email: body.email,
+        email: email,
         username: body.username,
         password: hashedPassword,
       },
@@ -84,7 +86,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       const redis = getRedisClient();
       await redis.set(
         `session:${token}`,
-        JSON.stringify({ userId: user.id }),
+        JSON.stringify({ userId: user.id, isActive: true }),
         { EX: 7 * 24 * 60 * 60 }
       );
     }
@@ -115,9 +117,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const body = loginSchema.parse(req.body);
 
+    const email = body.email.toLowerCase();
+
     // 查找用户
     const user = await prisma.user.findUnique({
-      where: { email: body.email },
+      where: { email: email },
     });
 
     if (!user || !user.password) {
@@ -162,7 +166,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       const redis = getRedisClient();
       await redis.set(
         `session:${token}`,
-        JSON.stringify({ userId: user.id }),
+        JSON.stringify({ userId: user.id, isActive: user.isActive }),
         { EX: 7 * 24 * 60 * 60 }
       );
     }

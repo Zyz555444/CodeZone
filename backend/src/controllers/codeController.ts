@@ -1,6 +1,7 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
+import { hasProjectAccess } from '../lib/projectAccess';
 
 function buildFileTree(files: any[]): any[] {
   const map = new Map<string, any>();
@@ -22,12 +23,17 @@ function buildFileTree(files: any[]): any[] {
   return roots;
 }
 
-export const getFilesTree = async (req: Request, res: Response): Promise<void> => {
+export const getFilesTree = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { projectId } = req.query;
 
     if (!projectId) {
       res.status(400).json({ error: '项目 ID 不能为空' });
+      return;
+    }
+
+    if (!(await hasProjectAccess(req.userId!, projectId as string))) {
+      res.status(403).json({ error: '无权访问此项目' });
       return;
     }
 
@@ -44,7 +50,7 @@ export const getFilesTree = async (req: Request, res: Response): Promise<void> =
   }
 };
 
-export const getFile = async (req: Request, res: Response): Promise<void> => {
+export const getFile = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -54,6 +60,11 @@ export const getFile = async (req: Request, res: Response): Promise<void> => {
 
     if (!file) {
       res.status(404).json({ error: '文件不存在' });
+      return;
+    }
+
+    if (!(await hasProjectAccess(req.userId!, file.projectId))) {
+      res.status(403).json({ error: '无权访问此文件' });
       return;
     }
 
@@ -94,9 +105,19 @@ export const updateFile = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
-export const getFiles = async (req: Request, res: Response): Promise<void> => {
+export const getFiles = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { projectId, parentId } = req.query;
+
+    if (!projectId) {
+      res.status(400).json({ error: '项目 ID 不能为空' });
+      return;
+    }
+
+    if (!(await hasProjectAccess(req.userId!, projectId as string))) {
+      res.status(403).json({ error: '无权访问此项目' });
+      return;
+    }
 
     const where: any = {
       projectId: projectId as string,

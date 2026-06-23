@@ -19,7 +19,7 @@ function getTokenFromCookie(): string | null {
   if (cachedToken !== null && now - cachedTokenTs < TOKEN_CACHE_TTL) {
     return cachedToken;
   }
-  const match = document.cookie.match(/(?:^|;\\s*)auth-token=([^;]*)/);
+  const match = document.cookie.match(/(?:^|;\s*)auth-token=([^;]*)/);
   cachedToken = match ? decodeURIComponent(match[1]) : null;
   cachedTokenTs = now;
   return cachedToken;

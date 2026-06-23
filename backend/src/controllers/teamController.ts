@@ -136,8 +136,8 @@ export const getTeamDetail = async (req: AuthRequest, res: Response): Promise<vo
       },
     });
 
-    if (!membership) {
-      res.status(403).json({ error: '你不在该团队中' });
+    if (!membership || membership.status !== 'ACTIVE') {
+      res.status(403).json({ error: '你不在该团队中或尚未通过审核' });
       return;
     }
 

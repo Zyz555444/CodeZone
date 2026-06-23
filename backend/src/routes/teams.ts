@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
 import {
   createTeam,
   getMyTeams,
@@ -28,8 +28,8 @@ router.get('/:id/invite-code', getInviteCode);
 router.post('/join', joinTeam);
 
 // 成员管理（管理员操作）- 需要 ADMIN 或 OWNER 角色
-router.post('/:teamId/members/:userId/approve', authorize('ADMIN', 'OWNER'), approveMember);
-router.delete('/:teamId/members/:userId/reject', authorize('ADMIN', 'OWNER'), rejectMember);
+router.post('/:teamId/members/:userId/approve', approveMember);
+router.delete('/:teamId/members/:userId/reject', rejectMember);
 router.put('/:teamId/members/:userId/role', updateMemberRole);
 
 // 待审核列表

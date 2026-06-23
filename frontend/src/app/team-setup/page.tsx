@@ -79,6 +79,7 @@ export default function TeamSetupPage() {
     try {
       const { data } = await api.post('/teams/join', { inviteCode: inviteCode.trim().toUpperCase() });
       setJoinResult({ success: true, message: data.message, teamName: data.teamName });
+      setTeamStatus(false, []);
     } catch (err: any) {
       setJoinResult({ success: false, message: err.response?.data?.error || '加入失败' });
     } finally {

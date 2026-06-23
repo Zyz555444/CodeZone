@@ -285,6 +285,27 @@ export const getProjectMembers = async (req: AuthRequest, res: Response): Promis
   try {
     const { id } = req.params;
 
+    const project = await prisma.project.findUnique({
+      where: { id },
+      select: { ownerId: true, visibility: true },
+    });
+
+    if (!project) {
+      res.status(404).json({ error: '项目不存在' });
+      return;
+    }
+
+    const isOwner = project.ownerId === req.userId;
+    if (!isOwner) {
+      const membership = await prisma.projectMember.findFirst({
+        where: { projectId: id, userId: req.userId },
+      });
+      if (!membership && project.visibility === 'PRIVATE') {
+        res.status(403).json({ error: '无权访问此项目成员列表' });
+        return;
+      }
+    }
+
     const members = await prisma.projectMember.findMany({
       where: { projectId: id },
       include: {
@@ -333,12 +354,34 @@ export const addMember = async (req: AuthRequest, res: Response): Promise<void> 
       return;
     }
 
+    // 检查被添加的用户是否存在
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { isActive: true },
+    });
+    if (!targetUser) {
+      res.status(404).json({ error: '用户不存在' });
+      return;
+    }
+
+    // 检查是否已是项目成员
+    const existingMember = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId: id, userId } },
+    });
+    if (existingMember) {
+      res.status(409).json({ error: '该用户已是项目成员' });
+      return;
+    }
+
+    const validRoles = ['ADMIN', 'MEMBER'];
+    const safeRole = validRoles.includes(role) ? role : 'MEMBER';
+
     // 添加成员
     const member = await prisma.projectMember.create({
       data: {
         projectId: id,
         userId,
-        role: role || 'MEMBER',
+        role: safeRole,
       },
       include: {
         user: {

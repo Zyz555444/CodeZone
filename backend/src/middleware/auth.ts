@@ -46,9 +46,12 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
         const cachedSession = await redis.get(`session:${token}`);
         if (cachedSession) {
           const sessionData = JSON.parse(cachedSession);
-          if (sessionData.userId) {
+          if (sessionData.userId && sessionData.isActive !== false) {
             req.userId = sessionData.userId;
             cacheHit = true;
+          } else if (sessionData.userId && sessionData.isActive === false) {
+            res.status(403).json({ error: '账号已被禁用，请联系管理员' });
+            return;
           }
         }
       } catch {
@@ -65,10 +68,16 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     const { prisma } = await import('../lib/prisma');
     const session = await prisma.session.findUnique({
       where: { token },
+      include: { user: { select: { isActive: true } } },
     });
 
     if (!session) {
       res.status(401).json({ error: '认证令牌已失效' });
+      return;
+    }
+
+    if (!session.user.isActive) {
+      res.status(403).json({ error: '账号已被禁用，请联系管理员' });
       return;
     }
 
@@ -80,7 +89,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
         if (ttlSeconds > 0) {
           await redis.set(
             `session:${token}`,
-            JSON.stringify({ userId: session.userId }),
+            JSON.stringify({ userId: session.userId, isActive: session.user.isActive }),
             { EX: Math.min(ttlSeconds, 7 * 24 * 60 * 60) }
           );
         }

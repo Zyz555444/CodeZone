@@ -30,8 +30,13 @@ export const createSubTask = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     if (task.creatorId !== req.userId && task.project.ownerId !== req.userId) {
-      res.status(403).json({ error: '无权操作此任务' });
-      return;
+      const membership = await prisma.projectMember.findFirst({
+        where: { projectId: task.projectId, userId: req.userId! },
+      });
+      if (!membership) {
+        res.status(403).json({ error: '无权操作此任务' });
+        return;
+      }
     }
 
     const subTask = await prisma.subTask.create({
@@ -68,8 +73,13 @@ export const updateSubTask = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     if (subTask.task.creatorId !== req.userId && subTask.task.project.ownerId !== req.userId) {
-      res.status(403).json({ error: '无权操作此子任务' });
-      return;
+      const membership = await prisma.projectMember.findFirst({
+        where: { projectId: subTask.task.projectId, userId: req.userId! },
+      });
+      if (!membership) {
+        res.status(403).json({ error: '无权操作此子任务' });
+        return;
+      }
     }
 
     const updated = await prisma.subTask.update({
@@ -106,8 +116,13 @@ export const deleteSubTask = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     if (subTask.task.creatorId !== req.userId && subTask.task.project.ownerId !== req.userId) {
-      res.status(403).json({ error: '无权操作此子任务' });
-      return;
+      const membership = await prisma.projectMember.findFirst({
+        where: { projectId: subTask.task.projectId, userId: req.userId! },
+      });
+      if (!membership) {
+        res.status(403).json({ error: '无权操作此子任务' });
+        return;
+      }
     }
 
     await prisma.subTask.delete({

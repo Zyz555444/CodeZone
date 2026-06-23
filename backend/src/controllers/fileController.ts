@@ -97,10 +97,15 @@ export const updateFileName = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    // 权限检查：项目所有者可以修改文件
+    // 权限检查：项目所有者或成员可以修改文件
     if (existing.project.ownerId !== req.userId) {
-      res.status(403).json({ error: '无权修改此文件' });
-      return;
+      const membership = await prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId: existing.projectId, userId: req.userId! } },
+      });
+      if (!membership) {
+        res.status(403).json({ error: '无权修改此文件' });
+        return;
+      }
     }
 
     const file = await prisma.codeFile.update({
@@ -127,10 +132,15 @@ export const deleteFile = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    // 权限检查：项目所有者可以删除文件
+    // 权限检查：项目所有者或成员可以删除文件
     if (existing.project.ownerId !== req.userId) {
-      res.status(403).json({ error: '无权删除此文件' });
-      return;
+      const membership = await prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId: existing.projectId, userId: req.userId! } },
+      });
+      if (!membership) {
+        res.status(403).json({ error: '无权删除此文件' });
+        return;
+      }
     }
 
     const idsToDelete = await collectDescendantIds(existing.projectId, id);

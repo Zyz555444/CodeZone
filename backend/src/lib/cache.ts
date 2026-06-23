@@ -31,18 +31,22 @@ export async function getCachedOrFetch<T>(
 export async function invalidateCache(key: string): Promise<void> {
   if (!isRedisConnected()) return;
   const redis = getRedisClient();
-  redis.del(key).catch((err) => {
+  try {
+    await redis.del(key);
+  } catch (err) {
     logger.warn('缓存失效失败', { key, error: err });
-  });
+  }
 }
 
 export async function invalidateCachePattern(pattern: string): Promise<void> {
   if (!isRedisConnected()) return;
   const redis = getRedisClient();
-  const keys = await redis.keys(pattern);
-  if (keys.length > 0) {
-    redis.del(keys).catch((err) => {
-      logger.warn('缓存批量失效失败', { pattern, error: err });
-    });
+  try {
+    const keys = await redis.keys(pattern);
+    if (keys.length > 0) {
+      await redis.del(keys);
+    }
+  } catch (err) {
+    logger.warn('缓存批量失效失败', { pattern, error: err });
   }
 }

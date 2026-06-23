@@ -81,7 +81,6 @@ function TasksContent() {
   };
 
   const handleStatusChange = async (taskId: string, newStatus: Task['status']) => {
-    const previousTasks = tasks;
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
     );
@@ -89,7 +88,7 @@ function TasksContent() {
       await api.patch(`/tasks/${taskId}`, { status: newStatus });
     } catch (error) {
       console.error('更新任务状态失败:', error);
-      setTasks(previousTasks);
+      fetchTasks();
     }
   };
 
@@ -105,6 +104,7 @@ function TasksContent() {
     IN_PROGRESS: filteredTasks.filter(t => t.status === 'IN_PROGRESS'),
     IN_REVIEW: filteredTasks.filter(t => t.status === 'IN_REVIEW'),
     DONE: filteredTasks.filter(t => t.status === 'DONE'),
+    BLOCKED: filteredTasks.filter(t => t.status === 'BLOCKED'),
   }), [filteredTasks]);
 
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
@@ -279,6 +279,7 @@ function TasksContent() {
                   {renderColumn('进行中', 'IN_PROGRESS', tasksByStatus.IN_PROGRESS)}
                   {renderColumn('审查中', 'IN_REVIEW', tasksByStatus.IN_REVIEW)}
                   {renderColumn('已完成', 'DONE', tasksByStatus.DONE)}
+                  {renderColumn('已阻塞', 'BLOCKED', tasksByStatus.BLOCKED)}
                 </div>
               )}
             </div>

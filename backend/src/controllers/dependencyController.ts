@@ -75,7 +75,7 @@ export const addDependency = async (req: AuthRequest, res: Response): Promise<vo
           },
         },
       });
-    });
+    }, { isolationLevel: 'Serializable' });
 
     res.status(201).json({ dependency });
   } catch (error: any) {

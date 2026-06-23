@@ -23,7 +23,7 @@ export const getComments = async (req: AuthRequest, res: Response): Promise<void
       res.status(404).json({ error: '任务不存在' });
       return;
     }
-    if (req.userId && !(await hasProjectAccess(req.userId, task.projectId))) {
+    if (!req.userId || !(await hasProjectAccess(req.userId, task.projectId))) {
       res.status(403).json({ error: '无权访问此任务' });
       return;
     }

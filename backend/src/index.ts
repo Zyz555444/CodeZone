@@ -142,6 +142,15 @@ const profileUpdateLimiter = rateLimit({
   },
 });
 
+// 健康检查 - 在速率限制之前注册以豁免限流
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
 // 应用通用速率限制
 app.use(generalLimiter);
 
@@ -235,15 +244,6 @@ app.use('/api/ai', aiSettingsRoutes);
 app.use('/api/ai/conversations', aiConversationsRoutes);
 app.use('/api/ai/usage', usageRoutes);
 app.use('/api/ai/permissions', aiPermissionsRoutes);
-
-// 健康检查 - 不记录日志
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-  });
-});
 
 // 404 处理
 app.use((req, res) => {
