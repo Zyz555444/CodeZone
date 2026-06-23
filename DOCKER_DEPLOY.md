@@ -24,7 +24,8 @@ docker compose logs -f
 - **deps 阶段**: 共享依赖安装，利用缓存
 - **frontend-builder**: 构建 Next.js 前端
 - **backend-builder**: 构建 Node.js 后端
-- **runner**: 生产镜像，仅包含必要文件
+- **frontend**: 前端生产镜像，仅包含必要文件
+- **backend**: 后端生产镜像，仅包含必要文件
 
 ### 2. 缓存优化
 - BuildKit 缓存挂载 (`--mount=type=cache`)
@@ -63,11 +64,11 @@ docker compose build --no-cache
 
 # 查看日志
 docker compose logs -f
-docker compose logs -f app
+docker compose logs -f backend
 docker compose logs -f postgres
 
 # 进入容器
-docker compose exec app sh
+docker compose exec backend sh
 docker compose exec postgres psql -U codezone -d codezone
 
 # 重启服务
@@ -88,8 +89,8 @@ docker stats
 | JWT_SECRET | dev-secret-key-change-in-production | JWT 密钥 |
 | DATABASE_URL | postgresql://codezone:codezone_password@postgres:5432/codezone | 数据库连接 |
 | REDIS_URL | redis://redis:6379 | Redis 连接 |
-| NEXT_PUBLIC_API_URL | http://localhost:4000/api | 前端 API 地址 |
-| NEXT_PUBLIC_WS_URL | ws://localhost:4000 | WebSocket 地址 |
+| NEXT_PUBLIC_API_URL | http://localhost:12321/api | 前端 API 地址 |
+| NEXT_PUBLIC_WS_URL | ws://localhost:10101 | WebSocket 地址 |
 
 ## 故障排查
 
@@ -124,8 +125,8 @@ docker compose exec postgres psql -U codezone -d codezone
 
 ```bash
 # 检查端口占用
-lsof -i :3000
-lsof -i :4000
+lsof -i :12321
+lsof -i :10101
 
 # 修改 docker-compose.yml 中的端口映射
 ```
@@ -140,7 +141,7 @@ docker stats
 docker compose logs --tail=100
 
 # 性能分析
-docker compose exec app node --prof dist/index.js
+docker compose exec backend node --prof dist/index.js
 ```
 
 ## 生产部署
