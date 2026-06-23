@@ -1,7 +1,7 @@
 # ============================================
 # 阶段1: 依赖安装 (npm + apk 缓存加速)
 # ============================================
-FROM node:22-alpine AS deps
+FROM node:24-alpine AS deps
 WORKDIR /app
 
 RUN --mount=type=cache,target=/var/cache/apk \
@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/root/.npm \
 # ============================================
 # 阶段2: 前端构建
 # ============================================
-FROM node:22-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=768"
@@ -48,7 +48,7 @@ RUN --mount=type=cache,target=/app/frontend/.next/cache \
 # ============================================
 # 阶段3: 前端生产镜像
 # ============================================
-FROM node:22-alpine AS frontend
+FROM node:24-alpine AS frontend
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=512"
@@ -72,7 +72,7 @@ CMD ["node", "server.js"]
 # ============================================
 # 阶段4: 后端构建
 # ============================================
-FROM node:22-alpine AS backend-builder
+FROM node:24-alpine AS backend-builder
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=768"
 
@@ -99,7 +99,7 @@ RUN --mount=type=cache,target=/root/.cache/esbuild \
 # ============================================
 # 阶段5: 后端生产镜像
 # ============================================
-FROM node:22-alpine AS backend
+FROM node:24-alpine AS backend
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=512"
 
