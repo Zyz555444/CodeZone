@@ -242,7 +242,7 @@ export const updateTask = async (req: AuthRequest, res: Response): Promise<void>
         status,
         priority,
         assigneeId,
-        dueDate: dueDate ? new Date(dueDate) : undefined,
+        ...(dueDate !== undefined ? { dueDate: dueDate ? new Date(dueDate) : null } : {}),
         ...(completedAtValue !== undefined ? { completedAt: completedAtValue } : {}),
       },
     });
