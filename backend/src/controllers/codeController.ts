@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
 import { hasProjectAccess } from '../lib/projectAccess';
+import { logger } from '../utils/logger';
 
 function buildFileTree(files: any[]): any[] {
   const map = new Map<string, any>();
@@ -46,6 +47,7 @@ export const getFilesTree = async (req: AuthRequest, res: Response): Promise<voi
 
     res.json({ files: tree });
   } catch (error) {
+    logger.error('获取文件树失败', { error, userId: req.userId });
     res.status(500).json({ error: '获取文件树失败' });
   }
 };
@@ -70,6 +72,7 @@ export const getFile = async (req: AuthRequest, res: Response): Promise<void> =>
 
     res.json({ file });
   } catch (error) {
+    logger.error('获取文件失败', { error, userId: req.userId });
     res.status(500).json({ error: '获取文件失败' });
   }
 };
@@ -88,10 +91,15 @@ export const updateFile = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    // 权限检查：项目所有者可以更新文件
+    // 权限检查：项目所有者或成员可以更新文件
     if (existing.project.ownerId !== req.userId) {
-      res.status(403).json({ error: '无权更新此文件' });
-      return;
+      const membership = await prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId: existing.projectId, userId: req.userId! } },
+      });
+      if (!membership) {
+        res.status(403).json({ error: '无权更新此文件' });
+        return;
+      }
     }
 
     const file = await prisma.codeFile.update({
@@ -101,6 +109,7 @@ export const updateFile = async (req: AuthRequest, res: Response): Promise<void>
 
     res.json({ file });
   } catch (error) {
+    logger.error('更新文件失败', { error, userId: req.userId });
     res.status(500).json({ error: '更新文件失败' });
   }
 };
@@ -143,6 +152,7 @@ export const getFiles = async (req: AuthRequest, res: Response): Promise<void> =
 
     res.json({ files });
   } catch (error) {
+    logger.error('获取文件列表失败', { error, userId: req.userId });
     res.status(500).json({ error: '获取文件列表失败' });
   }
 };

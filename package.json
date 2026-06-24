@@ -1,7 +1,7 @@
 {
   "name": "codezone",
   "version": "1.0.0",
-  "description": "A comprehensive collaboration platform for programming teams",
+  "description": "A full-stack collaborative development platform for programming teams, featuring project management, Kanban task boards, real-time collaborative code editing (Monaco Editor + Yjs), code review, and instant messaging",
   "private": true,
   "workspaces": {
     "packages": [
@@ -33,5 +33,7 @@
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
   },
+  "license": "MIT",
+  "keywords": ["codezone", "collaboration", "code-editor", "real-time-collaboration", "project-management", "kanban", "code-review", "monaco-editor", "websocket", "yjs", "nextjs", "express", "typescript", "prisma", "postgresql", "redis", "team-productivity", "developer-tools", "fullstack", "docker"],
   "dependencies": {}
 }

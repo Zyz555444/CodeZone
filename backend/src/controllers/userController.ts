@@ -23,8 +23,8 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
     
     if (q) {
       where.OR = [
-        { username: { contains: q as string } },
-        { email: { contains: q as string } },
+        { username: { contains: q as string, mode: 'insensitive' } },
+        { email: { contains: q as string, mode: 'insensitive' } },
       ];
     }
 

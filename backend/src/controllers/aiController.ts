@@ -232,8 +232,10 @@ export async function streamChat(req: AuthRequest, res: Response): Promise<void>
 
     if (!abortController.signal.aborted && fullContent) {
       if (convId) {
+        // 从 messages 中找到最后一条 role === 'user' 的消息保存
+        const lastUserMessage = [...(messages as Message[])].reverse().find((m) => m.role === 'user');
         await prisma.aIMessage.create({
-          data: { conversationId: convId, role: 'user', content: messages[messages.length - 1]?.content || '' },
+          data: { conversationId: convId, role: 'user', content: lastUserMessage?.content || '' },
         });
         await prisma.aIMessage.create({
           data: { conversationId: convId, role: 'assistant', content: fullContent },

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { signToken } from '../lib/jwt';
@@ -81,14 +82,18 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       },
     });
 
-    // 将会话缓存到 Redis
+    // 将会话缓存到 Redis（失败不影响注册结果）
     if (isRedisConnected()) {
-      const redis = getRedisClient();
-      await redis.set(
-        `session:${token}`,
-        JSON.stringify({ userId: user.id, isActive: true }),
-        { EX: 7 * 24 * 60 * 60 }
-      );
+      try {
+        const redis = getRedisClient();
+        await redis.set(
+          `session:${token}`,
+          JSON.stringify({ userId: user.id, isActive: true }),
+          { EX: 7 * 24 * 60 * 60 }
+        );
+      } catch (redisError) {
+        logger.warn('Redis 会话缓存写入失败（注册已成功）', { error: redisError });
+      }
     }
 
     logger.info('用户注册成功', { userId: user.id, email: user.email });
@@ -106,6 +111,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: '验证失败', details: error.errors });
+      return;
+    }
+    if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
+      res.status(400).json({ error: '该邮箱或用户名已被注册' });
       return;
     }
     logger.error('注册失败', { error });
@@ -161,14 +170,18 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       },
     });
 
-    // 将会话缓存到 Redis
+    // 将会话缓存到 Redis（失败不影响登录结果）
     if (isRedisConnected()) {
-      const redis = getRedisClient();
-      await redis.set(
-        `session:${token}`,
-        JSON.stringify({ userId: user.id, isActive: user.isActive }),
-        { EX: 7 * 24 * 60 * 60 }
-      );
+      try {
+        const redis = getRedisClient();
+        await redis.set(
+          `session:${token}`,
+          JSON.stringify({ userId: user.id, isActive: user.isActive }),
+          { EX: 7 * 24 * 60 * 60 }
+        );
+      } catch (redisError) {
+        logger.warn('Redis 会话缓存写入失败（登录已成功）', { error: redisError });
+      }
     }
 
     logger.info('用户登录成功', { userId: user.id, email: user.email });

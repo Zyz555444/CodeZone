@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { AuthRequest } from '../middleware/auth';
+import { logger } from '../utils/logger';
 
 const createFileSchema = z.object({
   projectId: z.string(),
@@ -74,6 +75,7 @@ export const createFile = async (req: AuthRequest, res: Response): Promise<void>
       res.status(400).json({ error: '验证失败', details: error.errors });
       return;
     }
+    logger.error('创建文件失败', { error, userId: req.userId });
     res.status(500).json({ error: '创建文件失败' });
   }
 };
@@ -115,6 +117,7 @@ export const updateFileName = async (req: AuthRequest, res: Response): Promise<v
 
     res.json({ file });
   } catch (error) {
+    logger.error('更新文件名失败', { error, userId: req.userId });
     res.status(500).json({ error: '更新文件名失败' });
   }
 };
@@ -151,6 +154,7 @@ export const deleteFile = async (req: AuthRequest, res: Response): Promise<void>
 
     res.json({ success: true });
   } catch (error) {
+    logger.error('删除文件失败', { error, userId: req.userId });
     res.status(500).json({ error: '删除文件失败' });
   }
 };

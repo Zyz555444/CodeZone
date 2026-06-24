@@ -5,6 +5,7 @@ import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { createAndPushNotification } from '../lib/notificationService';
 import { getCachedOrFetch, invalidateCache } from '../lib/cache';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 const createTaskSchema = z.object({
   projectId: z.string(),
@@ -13,6 +14,15 @@ const createTaskSchema = z.object({
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).default('MEDIUM'),
   assigneeId: z.string().optional(),
   dueDate: z.string().optional(),
+});
+
+const updateTaskSchema = z.object({
+  title: z.string().min(1, '任务标题不能为空').optional(),
+  description: z.string().optional(),
+  status: z.enum(['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'BLOCKED']).optional(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
+  assigneeId: z.string().optional().nullable(),
+  dueDate: z.string().optional().nullable(),
 });
 
 export const getTasks = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -195,7 +205,8 @@ export const getTask = async (req: AuthRequest, res: Response): Promise<void> =>
 export const updateTask = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { title, description, status, priority, assigneeId, dueDate } = req.body;
+    const body = updateTaskSchema.parse(req.body);
+    const { title, description, status, priority, assigneeId, dueDate } = body;
 
     const task = await prisma.task.findUnique({
       where: { id },
@@ -265,6 +276,14 @@ export const updateTask = async (req: AuthRequest, res: Response): Promise<void>
       }
     }
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: '验证失败', details: error.errors });
+      return;
+    }
+    if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
+      res.status(409).json({ error: '数据冲突' });
+      return;
+    }
     logger.error('更新任务失败', { error, userId: req.userId });
     res.status(500).json({ error: '更新任务失败' });
   }

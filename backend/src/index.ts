@@ -225,12 +225,12 @@ app.use('/api/users', userRoutes);
 app.use('/api/users/password', passwordUpdateLimiter);
 // 用户资料更新端点专用限流
 app.use('/api/users/profile', profileUpdateLimiter);
-// 对所有写操作路由应用输入清理
+// 对所有写操作路由应用输入清理（代码/文件路由除外，因为sanitize会破坏代码内容）
 app.use('/api/projects', sanitizeBody, projectRoutes);
-app.use('/api/tasks', dependencyRoutes);
+app.use('/api/tasks', sanitizeBody, dependencyRoutes);
 app.use('/api/tasks', sanitizeBody, taskRoutes);
-app.use('/api/code', sanitizeBody, codeRoutes);
-app.use('/api/files', sanitizeBody, fileRoutes);
+app.use('/api/code', codeRoutes);
+app.use('/api/files', fileRoutes);
 app.use('/api/reviews', sanitizeBody, reviewRoutes);
 app.use('/api/notifications', sanitizeBody, notificationRoutes);
 app.use('/api/teams', sanitizeBody, teamRoutes);
