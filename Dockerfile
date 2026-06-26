@@ -29,9 +29,9 @@ ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
 
 WORKDIR /app/frontend
 
-# 安装glibc兼容层（@next/swc-linux-x64-gnu需要）
+# 安装glibc兼容层（@next/swc-linux-x64-gnu需要ld-linux-x86-64.so.2）
 RUN --mount=type=cache,target=/var/cache/apk \
-    apk add --no-cache libc6-compat
+    apk add --no-cache gcompat
 
 # 先复制根 node_modules（包含所有 hoist 的包和 .bin）
 COPY --from=deps /app/node_modules ./node_modules
