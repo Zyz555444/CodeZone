@@ -8,6 +8,8 @@ import {
   improveCode,
   chatWithAI,
   streamChat,
+  agentExecute,
+  abortAgent,
 } from '../controllers/aiController';
 
 const router = Router();
@@ -21,5 +23,7 @@ router.post('/review', reviewCode);
 router.post('/improve', improveCode);
 router.post('/chat', chatWithAI);
 router.post('/chat/stream', streamChat);
+router.post('/agent', agentExecute);
+router.post('/agent/abort', abortAgent);
 
 export default router;

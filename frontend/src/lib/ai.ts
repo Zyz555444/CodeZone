@@ -1,10 +1,143 @@
 import { apiUrl } from './env';
 import { authFetch } from './utils';
 
+export type AIErrorType = 'auth' | 'rate_limit' | 'server' | 'timeout' | 'network' | 'abort' | 'unknown';
+
+export interface AIError {
+  type: AIErrorType;
+  retryable: boolean;
+  message: string;
+  suggestion?: string;
+}
+
+function classifyHttpError(statusCode: number, body?: { error?: string; message?: string }): AIError {
+  const msg = body?.error || body?.message || `请求失败 (${statusCode})`;
+
+  if (statusCode === 401 || statusCode === 403) {
+    return { type: 'auth', retryable: false, message: msg, suggestion: '请检查 API Key 或团队 AI 设置' };
+  }
+  if (statusCode === 429) {
+    return { type: 'rate_limit', retryable: true, message: msg, suggestion: '请求过于频繁，请稍后重试' };
+  }
+  if (statusCode >= 500) {
+    return { type: 'server', retryable: true, message: msg, suggestion: '服务器错误，请稍后重试' };
+  }
+  return { type: 'unknown', retryable: false, message: msg };
+}
+
+function classifyNetworkError(err: Error): AIError {
+  const name = err.name || '';
+  const msg = err.message || '';
+
+  if (name === 'AbortError') {
+    return { type: 'abort', retryable: false, message: '操作已取消' };
+  }
+  if (name === 'TimeoutError' || msg.includes('timeout') || msg.includes('超时')) {
+    return { type: 'timeout', retryable: true, message: '请求超时', suggestion: '请检查网络连接后重试' };
+  }
+  if (msg.includes('fetch') || msg.includes('network') || msg.includes('Failed to fetch') || msg.includes('连接')) {
+    return { type: 'network', retryable: false, message: '网络错误，请检查连接' };
+  }
+  return { type: 'unknown', retryable: false, message: msg || '未知错误' };
+}
+
+function formatAIError(err: AIError): string {
+  if (err.suggestion) return `${err.message}。${err.suggestion}`;
+  return err.message;
+}
+
+async function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  aiError: AIError,
+): Promise<T> {
+  if (!aiError.retryable) throw new Error(aiError.message);
+
+  if (aiError.type === 'rate_limit') {
+    const maxRetries = 3;
+    for (let i = 0; i < maxRetries; i++) {
+      const wait = Math.min(1000 * Math.pow(2, i), 8000);
+      await delay(wait);
+      try {
+        return await fn();
+      } catch (e) {
+        if (e instanceof Error && e.message === aiError.message) continue;
+        throw e;
+      }
+    }
+  }
+
+  if (aiError.type === 'server' || aiError.type === 'timeout') {
+    await delay(1000);
+    return fn();
+  }
+
+  throw new Error(aiError.message);
+}
+
 interface StreamCallbacks {
   onToken: (token: string) => void;
   onDone: (conversationId?: string) => void;
-  onError: (error: string) => void;
+  onError: (error: AIError) => void;
+}
+
+interface AgentCallbacks {
+  onToken: (token: string) => void;
+  onThinking: (content: string) => void;
+  onToolCall: (toolId: string, toolName: string, toolArgs: Record<string, unknown>) => void;
+  onToolResult: (toolId: string, toolName: string, result: string) => void;
+  onWriteFile: (filePath: string, content: string) => void;
+  onDone: (conversationId?: string, totalTokens?: number) => void;
+  onError: (error: AIError) => void;
+}
+
+interface SSEEvent {
+  type: string;
+  [key: string]: unknown;
+}
+
+async function parseSSEStream<T extends SSEEvent>(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  onEvent: (event: T) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  try {
+    while (true) {
+      if (signal?.aborted) break;
+
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split('\n\n');
+      buffer = events.pop() || '';
+
+      for (const event of events) {
+        const trimmed = event.trim();
+        if (!trimmed) continue;
+
+        const dataLine = trimmed.startsWith('data: ')
+          ? trimmed.slice(6)
+          : trimmed;
+
+        try {
+          const data = JSON.parse(dataLine);
+          onEvent(data as T);
+        } catch {
+          continue;
+        }
+      }
+    }
+  } catch (e: unknown) {
+    if (e instanceof Error && e.name === 'AbortError') return;
+    throw e;
+  }
 }
 
 export async function streamChat(
@@ -27,53 +160,126 @@ export async function streamChat(
   });
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: '请求失败' }));
-    callbacks.onError(err.error || `请求失败 (${response.status})`);
+    const errBody = await response.json().catch(() => ({}));
+    callbacks.onError(classifyHttpError(response.status, errBody));
     return;
   }
 
   const reader = response.body?.getReader();
   if (!reader) {
-    callbacks.onError('无法读取响应流');
+    callbacks.onError({ type: 'unknown', retryable: false, message: '无法读取响应流' });
     return;
   }
 
-  const decoder = new TextDecoder();
-  let buffer = '';
-
   try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const jsonStr = line.slice(6);
-        try {
-          const data = JSON.parse(jsonStr);
-          if (data.type === 'token') {
-            callbacks.onToken(data.content || '');
-          } else if (data.type === 'done') {
-            callbacks.onDone(data.conversationId);
-            return;
-          } else if (data.type === 'error') {
-            callbacks.onError(data.message || 'AI 服务错误');
-            return;
-          }
-        } catch {
-          // skip unparseable lines
-        }
+    await parseSSEStream(reader, (data: SSEEvent) => {
+      if (data.type === 'token') {
+        callbacks.onToken((data.content as string) || '');
+      } else if (data.type === 'done') {
+        callbacks.onDone(data.conversationId as string | undefined);
+      } else if (data.type === 'error') {
+        callbacks.onError(classifyHttpError(500, { message: (data.message as string) || 'AI 服务错误' }));
       }
-    }
+    }, abortSignal);
   } catch (e: unknown) {
-    if (e instanceof Error && e.name !== 'AbortError') {
-      callbacks.onError(e.message || '连接中断');
+    if (e instanceof Error && e.name === 'AbortError') {
+      callbacks.onError({ type: 'abort', retryable: false, message: '操作已取消' });
+    } else {
+      callbacks.onError(classifyNetworkError(e instanceof Error ? e : new Error('连接中断')));
     }
   }
+}
+
+export async function agentExecute(
+  body: {
+    task: string;
+    projectId: string;
+    conversationId?: string;
+    contextFiles?: string[];
+    model?: string;
+    teamId?: string;
+  },
+  callbacks: AgentCallbacks,
+  abortSignal?: AbortSignal,
+): Promise<void> {
+  const controller = new AbortController();
+  const signal = abortSignal || controller.signal;
+
+  const response = await authFetch(apiUrl('/api/ai/agent'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!response.ok) {
+    const errBody = await response.json().catch(() => ({}));
+    callbacks.onError(classifyHttpError(response.status, errBody));
+    return;
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    callbacks.onError({ type: 'unknown', retryable: false, message: '无法读取响应流' });
+    return;
+  }
+
+  try {
+    await parseSSEStream(reader, (data: SSEEvent) => {
+      switch (data.type) {
+        case 'token':
+          callbacks.onToken((data.content as string) || '');
+          break;
+        case 'thinking':
+          callbacks.onThinking((data.content as string) || '');
+          break;
+        case 'tool_call':
+          callbacks.onToolCall(
+            data.toolId as string,
+            data.toolName as string,
+            (data.toolArgs as Record<string, unknown>) || {},
+          );
+          break;
+        case 'tool_result':
+          callbacks.onToolResult(
+            data.toolId as string,
+            data.toolName as string,
+            (data.toolResult as string) || '',
+          );
+          break;
+        case 'write_file':
+          callbacks.onWriteFile(
+            (data.filePath as string) || '',
+            (data.content as string) || '',
+          );
+          break;
+        case 'done':
+          callbacks.onDone(
+            data.conversationId as string | undefined,
+            data.totalTokens as number | undefined,
+          );
+          return;
+        case 'error': {
+          callbacks.onError(classifyHttpError(500, { message: (data.message as string) || 'Agent 执行失败' }));
+          return;
+        }
+      }
+    }, abortSignal);
+  } catch (e: unknown) {
+    if (e instanceof Error && e.name === 'AbortError') {
+      callbacks.onError({ type: 'abort', retryable: false, message: '操作已取消' });
+    } else {
+      callbacks.onError(classifyNetworkError(e instanceof Error ? e : new Error('连接中断')));
+    }
+  }
+}
+
+export async function abortAgentExecute(conversationId: string): Promise<void> {
+  await authFetch(apiUrl('/api/ai/agent/abort'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ conversationId }),
+  });
 }
 
 export async function getAISettings(teamId: string) {

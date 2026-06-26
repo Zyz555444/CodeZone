@@ -61,10 +61,8 @@ export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorksp
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeFile]);
 
-  const handleInlineAIResult = useCallback((action: string, text: string) => {
-    if (action === 'fix' || action === 'refactor' || action === 'comment') {
-      editorRef.current?.replaceSelection(text);
-    }
+  const handleInlineAIApply = useCallback((replacementText: string) => {
+    editorRef.current?.replaceSelection(replacementText);
     setTimeout(() => setInlineMenu(null), 500);
   }, []);
 
@@ -247,7 +245,7 @@ export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorksp
               language={inlineMenu.language}
               position={{ top: inlineMenu.top, left: inlineMenu.left }}
               onClose={() => setInlineMenu(null)}
-              onResult={handleInlineAIResult}
+              onApplyEdit={handleInlineAIApply}
             />
           )}
 

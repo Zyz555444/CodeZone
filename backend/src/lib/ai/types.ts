@@ -1,8 +1,10 @@
 export type AIProviderType = 'OPENAI' | 'ANTHROPIC' | 'CUSTOM';
 
 export interface Message {
-  role: 'system' | 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
+  tool_call_id?: string;
+  tool_calls?: ToolCallRequest[];
 }
 
 export interface ChatOptions {
@@ -12,9 +14,11 @@ export interface ChatOptions {
 }
 
 export interface StreamChunk {
-  type: 'token' | 'done' | 'error';
+  type: 'token' | 'done' | 'error' | 'tool_call' | 'tool_result' | 'thinking';
   content?: string;
   error?: string;
+  tool?: ToolCallRequest;
+  result?: ToolExecutionResult;
 }
 
 export interface ModelInfo {
@@ -44,10 +48,64 @@ export interface ToolCall {
   arguments: Record<string, unknown>;
 }
 
+export interface ToolCallRequest {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
 export interface ToolResult {
   toolCallId: string;
   output: string;
   error?: string;
+}
+
+export interface ToolDefinition {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+}
+
+export interface ToolExecutionResult {
+  success: boolean;
+  output: string;
+  error?: string;
+}
+
+export interface AgentContext {
+  projectId: string;
+  userId: string;
+  teamId?: string;
+  currentFileId?: string;
+  selectedFileIds?: string[];
+}
+
+export interface AgentLoopOptions {
+  maxLoops?: number;
+  temperature?: number;
+  maxTokens?: number;
+  model?: string;
+  signal?: AbortSignal;
+}
+
+export interface AgentStreamEvent {
+  type: 'token' | 'tool_call' | 'tool_result' | 'thinking' | 'write_file' | 'done' | 'error';
+  content?: string;
+  toolName?: string;
+  toolId?: string;
+  toolArgs?: Record<string, unknown>;
+  toolResult?: string;
+  filePath?: string;
+  patch?: { old: string; new: string };
+  conversationId?: string;
+  totalTokens?: number;
+  message?: string;
 }
 
 export interface AIProvider {

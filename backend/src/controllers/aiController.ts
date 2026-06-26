@@ -2,7 +2,6 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { prisma } from '../lib/prisma';
-import { decryptApiKey } from '../lib/ai/crypto';
 import {
   aiCodeCompletion,
   aiExplainCode,
@@ -13,43 +12,55 @@ import {
   aiStreamChat,
 } from '../lib/ai/service';
 import { collectProjectContext, buildContextSystemPrompt } from '../lib/ai/context';
-import { Message } from '../lib/ai/types';
+import { executeAgentTask, generateConversationTitle } from '../lib/ai/agent';
+import { getTeamConfig } from '../lib/ai/teamConfigHelper';
+import { writeSSEEvent, setupSSEConnection, createAbortController } from '../lib/ai/sse';
+import type { Message } from '../lib/ai/types';
 
 const MAX_CODE_LENGTH = 50000;
 const MAX_MESSAGE_LENGTH = 2000;
 
-function safeError(error: unknown): string {
-  if (error instanceof Error) {
-    if (error.name === 'AbortError') return 'AI 请求超时，请重试';
-    if (error.message.includes('429')) return 'AI 请求过于频繁，请稍后再试';
-    if (error.message.includes('401') || error.message.includes('403')) return 'AI 服务认证失败';
-    logger.error('AI error:', error.message);
-  }
-  return 'AI 服务暂时不可用，请稍后重试';
+const activeAgentAborts = new Map<string, AbortController>();
+
+function registerAgentAbort(conversationId: string, controller: AbortController): void {
+  activeAgentAborts.set(conversationId, controller);
 }
 
-async function getTeamConfig(teamId?: string) {
-  if (!teamId) return null;
-  const settings = await prisma.teamAISettings.findUnique({
-    where: { teamId },
-    select: {
-      provider: true,
-      endpoint: true,
-      apiKey: true,
-      defaultModel: true,
-      enabledModels: true,
-      parameters: true,
-    },
-  });
-  if (!settings?.apiKey) return null;
-  return {
-    provider: settings.provider as 'OPENAI' | 'ANTHROPIC' | 'CUSTOM',
-    endpoint: settings.endpoint || undefined,
-    apiKey: decryptApiKey(settings.apiKey),
-    defaultModel: settings.defaultModel || undefined,
-    enabledModels: settings.enabledModels as string[],
-    parameters: settings.parameters as Record<string, unknown>,
-  };
+function unregisterAgentAbort(conversationId: string): void {
+  activeAgentAborts.delete(conversationId);
+}
+
+export { getTeamConfig } from '../lib/ai/teamConfigHelper';
+
+function classifyError(error: unknown): {
+  type: 'auth' | 'rate_limit' | 'server' | 'timeout' | 'network' | 'unknown';
+  retryable: boolean;
+  message: string;
+} {
+  const msg = error instanceof Error ? error.message : String(error);
+
+  if (/429/.test(msg)) {
+    return { type: 'rate_limit', retryable: true, message: 'AI 请求过于频繁，请稍后再试' };
+  }
+  if (msg.includes('401') || msg.includes('403')) {
+    return { type: 'auth', retryable: false, message: 'AI 服务认证失败，请检查 API Key 配置' };
+  }
+  if (msg.includes('timeout') || msg.includes('ETIMEDOUT') || (error instanceof Error && error.name === 'AbortError')) {
+    return { type: 'timeout', retryable: true, message: 'AI 请求超时，请重试' };
+  }
+  if (/5\d\d/.test(msg)) {
+    return { type: 'server', retryable: true, message: 'AI 服务器错误，请稍后重试' };
+  }
+  if (msg.includes('ECONNREFUSED') || msg.includes('ENOTFOUND') || msg.includes('ECONNRESET')) {
+    return { type: 'network', retryable: false, message: '网络连接失败，请检查网络' };
+  }
+
+  logger.error('AI error:', msg);
+  return { type: 'unknown', retryable: false, message: 'AI 服务暂时不可用，请稍后重试' };
+}
+
+function safeError(error: unknown): string {
+  return classifyError(error).message;
 }
 
 export async function codeCompletion(req: AuthRequest, res: Response): Promise<void> {
@@ -68,7 +79,8 @@ export async function codeCompletion(req: AuthRequest, res: Response): Promise<v
     res.json({ completion });
   } catch (error: unknown) {
     logger.error('AI completion error:', error);
-    res.status(500).json({ error: safeError(error) });
+    const classified = classifyError(error);
+    res.status(classified.type === 'rate_limit' ? 429 : 500).json({ error: classified.message, type: classified.type, retryable: classified.retryable });
   }
 }
 
@@ -188,16 +200,8 @@ export async function streamChat(req: AuthRequest, res: Response): Promise<void>
     return;
   }
 
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-    'X-Accel-Buffering': 'no',
-  });
-
-  const abortController = new AbortController();
-  req.on('close', () => abortController.abort());
-
+  setupSSEConnection(res);
+  const abortController = createAbortController(req);
   const convId = conversationId as string | undefined;
 
   try {
@@ -223,16 +227,15 @@ export async function streamChat(req: AuthRequest, res: Response): Promise<void>
 
       if (chunk.type === 'token' && chunk.content) {
         fullContent += chunk.content;
-        res.write(`data: ${JSON.stringify({ type: 'token', content: chunk.content })}\n\n`);
+        writeSSEEvent(res, { type: 'token', content: chunk.content });
       } else if (chunk.type === 'error') {
-        res.write(`data: ${JSON.stringify({ type: 'error', message: chunk.error })}\n\n`);
+        writeSSEEvent(res, { type: 'error', message: chunk.error });
         break;
       }
     }
 
     if (!abortController.signal.aborted && fullContent) {
       if (convId) {
-        // 从 messages 中找到最后一条 role === 'user' 的消息保存
         const lastUserMessage = [...(messages as Message[])].reverse().find((m) => m.role === 'user');
         await prisma.aIMessage.create({
           data: { conversationId: convId, role: 'user', content: lastUserMessage?.content || '' },
@@ -246,14 +249,121 @@ export async function streamChat(req: AuthRequest, res: Response): Promise<void>
         });
       }
 
-      res.write(`data: ${JSON.stringify({ type: 'done', conversationId: convId })}\n\n`);
+      writeSSEEvent(res, { type: 'done', conversationId: convId });
     } else {
-      res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+      writeSSEEvent(res, { type: 'done' });
     }
   } catch (error: unknown) {
     logger.error('AI stream chat error:', error);
-    res.write(`data: ${JSON.stringify({ type: 'error', message: safeError(error) })}\n\n`);
+    writeSSEEvent(res, { type: 'error', message: safeError(error) });
   } finally {
     res.end();
+  }
+}
+
+export async function agentExecute(req: AuthRequest, res: Response): Promise<void> {
+  const { task, projectId, conversationId, contextFiles, teamId, model } = req.body;
+
+  if (!task || typeof task !== 'string' || task.length > 10000) {
+    res.status(400).json({ error: 'task is required and must be a string (max 10000 chars)' });
+    return;
+  }
+
+  setupSSEConnection(res);
+  const abortController = createAbortController(req);
+  const convId = conversationId as string | undefined;
+
+  if (convId) {
+    registerAgentAbort(convId, abortController);
+  }
+
+  try {
+    const agentContext = {
+      projectId: projectId || '',
+      userId: req.userId || '',
+      teamId: teamId || undefined,
+      currentFileId: undefined,
+      selectedFileIds: contextFiles || [],
+    };
+
+    const options = {
+      maxLoops: 25,
+      temperature: 0.5,
+      maxTokens: 4096,
+      model: model || undefined,
+      signal: abortController.signal,
+    };
+
+    const history: Message[] = [];
+    const stream = executeAgentTask(task, agentContext, options, history);
+
+    let fullContent = '';
+    const toolCallsLog: Array<unknown> = [];
+
+    for await (const event of stream) {
+      if (abortController.signal.aborted) break;
+
+      if (event.type === 'token' && event.content) {
+        fullContent += event.content;
+        writeSSEEvent(res, { type: 'token', content: event.content });
+      } else if (event.type === 'thinking' && event.content) {
+        writeSSEEvent(res, { type: 'thinking', content: event.content });
+      } else if (event.type === 'tool_call' && event.toolName) {
+        const logEntry = { toolId: event.toolId, toolName: event.toolName, toolArgs: event.toolArgs, status: 'running', timestamp: new Date().toISOString() };
+        toolCallsLog.push(logEntry);
+        writeSSEEvent(res, { type: 'tool_call', toolId: event.toolId, toolName: event.toolName, toolArgs: event.toolArgs });
+      } else if (event.type === 'tool_result' && event.toolName) {
+        writeSSEEvent(res, { type: 'tool_result', toolId: event.toolId, toolName: event.toolName, toolResult: event.toolResult });
+      } else if (event.type === 'write_file' && event.filePath) {
+        writeSSEEvent(res, { type: 'write_file', filePath: event.filePath, content: event.content });
+      } else if (event.type === 'done') {
+        if (convId && fullContent) {
+          const title = await generateConversationTitle(task);
+          await prisma.aIMessage.create({
+            data: { conversationId: convId, role: 'user', content: task },
+          });
+          await prisma.aIMessage.create({
+            data: { conversationId: convId, role: 'assistant', content: fullContent, toolCalls: toolCallsLog },
+          });
+          await prisma.aIConversation.update({
+            where: { id: convId },
+            data: { updatedAt: new Date(), title },
+          });
+        }
+        writeSSEEvent(res, { type: 'done', conversationId: convId, totalTokens: event.totalTokens });
+      } else if (event.type === 'error') {
+        writeSSEEvent(res, { type: 'error', message: event.message || 'Agent 执行失败' });
+      }
+    }
+  } catch (error: unknown) {
+    logger.error('AI agent execute error:', error);
+    try {
+      writeSSEEvent(res, { type: 'error', message: safeError(error) });
+    } catch {
+      // stream already closed
+    }
+  } finally {
+    if (convId) {
+      unregisterAgentAbort(convId);
+    }
+    res.end();
+  }
+}
+
+export async function abortAgent(req: AuthRequest, res: Response): Promise<void> {
+  const { conversationId } = req.body;
+
+  if (!conversationId) {
+    res.status(400).json({ error: 'conversationId is required' });
+    return;
+  }
+
+  const controller = activeAgentAborts.get(conversationId);
+  if (controller) {
+    controller.abort();
+    activeAgentAborts.delete(conversationId);
+    res.json({ success: true, message: 'Agent 已中止' });
+  } else {
+    res.json({ success: true, message: '未找到运行的 Agent 任务' });
   }
 }

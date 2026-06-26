@@ -1,0 +1,173 @@
+# 需求实施计划
+
+- [ ] 1. 后端 Agent 引擎重构
+  - [ ] 1.1 升级 AgentLoop（`backend/src/lib/ai/agent.ts`）
+    - 循环上限 15 → 25
+    - 实现流式 tool_call 接收（边收边 yield 事件）
+    - 实现并行工具执行（可并行的工具并发执行，写类工具串行）
+    - 实现工具结果按 token 预算截断（MAX_TOOL_OUTPUT_TOKENS=8000）
+    - system prompt 三级注入：基础能力 → 项目上下文 → 用户自定义指令
+    - 清理第 144-147 行死代码
+    - 修复 `teamConfig as any` 为正确类型
+    - AbortSignal 传播到工具执行层
+    - Agent 完成后自动生成对话标题
+    - 参照 design.md 1.1 节
+  - [ ] 1.2 扩展工具系统（`backend/src/lib/ai/tools.ts`）
+    - 新增 `replace_in_file` 工具（精准替换，唯一匹配校验）
+    - 新增 `grep_files` 工具（正则搜索，结果上限 50，含上下文行）
+    - 新增 `glob_files` 工具（glob 模式匹配，结果上限 200）
+    - 新增 `execute_command` 工具（沙箱执行，危险命令黑名单，超时 30s，输出上限 50KB）
+    - 新增 `web_fetch` 工具（仅 HTTPS，超时 15s，响应上限 100KB）
+    - 新增 `read_lints` 工具（调用 eslint/tsc 读取诊断）
+    - 清理未使用的 `ToolCall` 和 `ToolResult` 类型
+    - 将 `DANGEROUS_COMMANDS_PATTERNS` 连接给 execute_command
+    - 参照 design.md 1.2 节
+  - [ ] 1.3 提取公共 SSE 模块（`backend/src/lib/ai/sse.ts` — 新增）
+    - 实现 `writeSSEEvent(res, event)` 函数
+    - 实现 `handleClientDisconnect(req, abortController)` 函数
+    - 从 aiController 中迁移 SSE 写入逻辑
+    - 参照 design.md 1.4 节
+  - [ ] 1.4 修复 aiController（`backend/src/controllers/aiController.ts`）
+    - 修复 agentExecute 中 `toolCalls: {}` → `[]`
+    - 对话持久化使用 SSE 公共模块
+    - 新增 `abortAgent` 处理函数
+    - 实现 `classifyError()` 错误分类函数（401/403/429/5xx/timeout）
+    - 参照 design.md 1.3 节
+  - [ ] 1.5 新增路由（`backend/src/routes/ai.ts`）
+    - 新增 `POST /api/ai/agent/abort` 路由
+    - 参照 design.md 1.3 节
+  - [ ] 1.6 升级上下文感知（`backend/src/lib/ai/context.ts`）
+    - token 估算改用 `js-tiktoken` (gpt-4o 分词器)
+    - token 预算从 12K 提升到 32K（可配置）
+    - 文件树分页懒加载（首批 200 条）
+    - 自动关联文件收集：当前文件 + 同目录兄弟(10) + import 依赖(单层) + 最近编辑(5)
+    - 按优先级裁剪上下文：当前文件 > 依赖 > 同目录 > 文件树摘要
+    - 当前文件最大 16K tokens
+    - `buildContextSystemPrompt` 避免与 agent system prompt 重复
+    - 参照 design.md 4.1 节
+
+- [ ] 2. 检查点 - 确保后端所有修改编译通过，类型检查无新增错误
+
+- [ ] 3. 前端状态管理重构
+  - [ ] 3.1 重构 aiStore（`frontend/src/stores/aiStore.ts`）
+    - 安装 `immer` 依赖
+    - 拆分为 agent/chat/editor 三个 slice
+    - agent slice：isAgentMode, thinkingContent, toolCalls, filePatches, loopCount, isExecuting, abortController
+    - chat slice：conversations, activeConversationId, messages, isStreaming, streamContent, selectedModel, contextFiles
+    - editor slice（新增）：activeFileId, editorState, diffFiles, inlineCommand
+    - 所有 actions 使用 immer 的 mutate 写法
+    - 参照 design.md 4.2 节
+  - [ ] 3.2 提取公共 SSE 解析（`frontend/src/lib/ai.ts`）
+    - 实现 `parseSSEStream<T>(response, onEvent, signal?)` 公共函数
+    - 使用双换行 `\n\n` 分割 SSE 事件
+    - streamChat 和 agentExecute 重构为使用 parseSSEStream
+    - 添加 content-type 检查
+    - 添加超时处理（120s）
+    - 参照 design.md 4.3 节
+
+- [ ] 4. 编辑器深度集成
+  - [ ] 4.1 创建 EditorCommandBus（`frontend/src/components/EditorCommandBus.tsx` — 新增）
+    - React Context + useReducer 模式
+    - 支持命令：goto, diff, replace, focus, agent_start, agent_done
+    - 支持事件：ctrl_k_prompt, selection_changed, file_opened, agent_abort
+    - 导出 `useEditorCommandBus()` hook 和 `<EditorCommandProvider>` 组件
+    - 参照 design.md 2.1 节
+  - [ ] 4.2 升级 GhostTextProvider（`frontend/src/components/GhostTextProvider.tsx`）
+    - 添加 800ms 防抖
+    - 上下文改为 token 预算限制（前 4000 + 后 1000 token）
+    - 光标移动超过 10 字符则丢弃结果
+    - Tab 接受后显示"AI 建议已应用"状态栏提示
+    - 修复 provider 配置字段名拼写
+    - 参照 design.md 2.2 节
+  - [ ] 4.3 升级 InlinePrompt/Ctrl+K（`frontend/src/components/CodeEditor.tsx` 中的 InlinePrompt 子组件）
+    - Ctrl+K → agentExecute（Agent 模式替代 streamChat）
+    - Agent 执行过程中编辑器右上角显示旋转指示器
+    - 变更通过 EditorCommandBus 以 DiffEditor 展示
+    - 支持中间取消（Esc 或点击指示器）
+    - 取消后保留已完成的部分结果
+    - 参照 design.md 2.3 节
+  - [ ] 4.4 升级 InlineAIMenu（`frontend/src/components/InlineAIMenu.tsx`）
+    - fix 操作完成后通过 EditorCommandBus 以 DiffEditor 展示
+    - 所有操作完成后将结果写回编辑器
+    - 菜单位置智能边界检测（四方向动态调整）
+    - 操作切换时清除上次状态
+    - 参照 design.md 2.4 节
+  - [ ] 4.5 创建 InlineDiffEditor（`frontend/src/components/InlineDiffEditor.tsx` — 新增）
+    - 使用 Monaco DiffEditor（`@monaco-editor/react` DiffEditor 组件）
+    - 底部滑出面板（高度 40%）
+    - 键盘快捷键：⌘Y 接受 / ⌘N 拒绝 / → 下一个 / ⌘Shift+Y 全接受
+    - 接受 → 调用 writeFileHandler 写入数据库
+    - 拒绝 → 丢弃 diff
+    - 深色模式跟随编辑器主题
+    - 参照 design.md 2.5 节
+
+- [ ] 5. 检查点 - 确保前端编译通过，类型检查无新增错误
+
+- [ ] 6. 推理可视化升级
+  - [ ] 6.1 升级 AgentThinking（`frontend/src/components/AgentThinking.tsx`）
+    - 实现流式 thinking 打字机渲染效果
+    - 工具调用卡片含文件路径（可点击 → EditorCommandBus.goto）、耗时、token 消耗
+    - 状态动画：running 脉冲、completed 绿色对勾、error 红色叉号
+    - 连续同类型工具调用自动分组折叠
+    - pending 状态用灰色时钟图标 + "等待中"文本
+    - 工具图标映射扩展（新增 grep/glob/web_fetch/read_lints/replace_in_file 图标）
+    - 修复 FilePatchActions 类型与 aiStore 对齐
+    - 工具参数显示值修复 HTML 实体问题
+    - 参照 design.md 3.1 节
+  - [ ] 6.2 升级 FilePatchPreview（`frontend/src/components/FilePatchPreview.tsx`）
+    - SimpleDiff → Monaco DiffEditor（使用 `@monaco-editor/react` DiffEditor）
+    - 修复 `oldContent=""` 导致全绿问题
+    - 全接受/全拒绝按钮
+    - 接受/拒绝按钮使用 Yohaku 语义色（success/error）
+    - 快捷键支持
+    - 参照 design.md 3.2 节
+
+- [ ] 7. AIPanel 全面重构（`frontend/src/components/AIPanel.tsx`）
+  - 使用新的 aiStore（agent/chat/editor slices）
+  - 集成 EditorCommandBus（通过 Context 接收命令、发送事件）
+  - 集成升级版 AgentThinking（含流式 thinking、分组折叠、文件跳转）
+  - 集成升级版 FilePatchPreview（Monaco DiffEditor）
+  - 集成 InlineDiffEditor（底部滑出面板）
+  - 修复 `copied` 全局共享问题（改为 `Map<string, boolean>`）
+  - 修复 `addMessage` 的 `as any` 类型断言
+  - 模式切换时清理状态（thinking/toolCalls/filePatches）
+  - 错误处理：按 AIError 类型展示不同横幅（auth/rate_limit/server/timeout）
+  - 参照 design.md 第五节、3.1、3.2 节
+
+- [ ] 8. 错误处理与韧性
+  - [ ] 8.1 实现前端错误分类处理（`frontend/src/lib/ai.ts`）
+    - 定义 `AIError` 类型（type/retryable/message/suggestion）
+    - 在 SSE 流中按错误类型触发不同 UI 行为
+    - rate_limit：指数退避重试（1s→2s→4s），最多 3 次
+    - server/timeout：最多重试 1 次
+    - auth/abort：不重试
+    - 参照 design.md 5.1 节
+  - [ ] 8.2 实现心跳检测与自动恢复（`frontend/src/lib/ai.ts`）
+    - Agent 执行期间每 5s 检测 SSE 连接状态
+    - 断连后通过轮询 `/api/ai/conversations/:id` 恢复
+    - 恢复后自动重连 SSE 流
+    - 参照 design.md 5.2 节
+  - [ ] 8.3 完善取消机制（前后端联动）
+    - 前端 AbortController 取消 fetch
+    - 后端 AbortSignal 停止 Agent 循环
+    - POST /api/ai/agent/abort 主动中止
+    - 取消后保存已完成的消息历史
+    - 参照 design.md 5.3 节
+
+- [ ] 9. 检查点 - 确保所有组件正常渲染、流程通畅
+
+- [ ] 10. 类型清理与构建验证
+  - [ ] 10.1 后端类型清理
+    - tools.ts：移除未使用的 ToolCall/ToolResult 类型
+    - agent.ts：移除 `teamConfig as any`
+    - aiController.ts：统一使用 classifyError
+    - 参照 design.md 6.1 节
+  - [ ] 10.2 前端类型清理
+    - AIPanel：移除所有 `as any`；`copied` 改为 per-message 状态
+    - AgentThinking：FilePatchActions 类型对齐
+    - GhostTextProvider：Monaco 类型明确导入
+    - 参照 design.md 6.2 节
+  - [ ] 10.3 前后端构建验证
+    - 前端 `npx tsc --noEmit` + `npm run build`
+    - 后端 `npx tsc --noEmit` + `npm run build`
+    - 确认无新增类型错误或构建警告

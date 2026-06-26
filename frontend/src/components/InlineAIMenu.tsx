@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FileSearch, Bug, Wand2, MessageSquare, Loader2, X } from 'lucide-react';
-import { authFetch } from '@/lib/utils';
-import { apiUrl } from '@/lib/env';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { FileSearch, Bug, Wand2, MessageSquare, Loader2, X, TestTube, BookOpen } from 'lucide-react';
+import { streamChat } from '@/lib/ai';
 
 interface Position {
   top: number;
@@ -15,73 +14,147 @@ interface InlineAIMenuProps {
   language: string;
   position: Position;
   onClose: () => void;
-  onResult: (action: string, text: string) => void;
+  onApplyEdit: (text: string) => void;
+  projectId?: string;
+  teamId?: string;
 }
 
-type AIAction = 'explain' | 'fix' | 'refactor' | 'comment';
+type AIAction = 'explain' | 'fix' | 'refactor' | 'comment' | 'test' | 'docs';
 
-export function InlineAIMenu({ selectedText, language, position, onClose, onResult }: InlineAIMenuProps) {
+const MENU_WIDTH = 360;
+const MENU_MAX_HEIGHT = 400;
+
+export function InlineAIMenu({ selectedText, language, position, onClose, onApplyEdit, projectId, teamId }: InlineAIMenuProps) {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState('');
+  const [streamContent, setStreamContent] = useState('');
   const [activeAction, setActiveAction] = useState<AIAction | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const callAI = useCallback(async (action: AIAction, prompt: string) => {
+  const adjustedPosition = useCallback((): React.CSSProperties => {
+    const style: React.CSSProperties = { top: position.top, left: position.left };
+    if (typeof window === 'undefined') return style;
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    if (position.left + MENU_WIDTH > vw - 16) {
+      style.left = Math.max(8, vw - MENU_WIDTH - 16);
+    }
+    if (position.top + 200 > vh - 16) {
+      style.bottom = vh - position.top + 8;
+      delete style.top;
+    }
+    if (position.left < 8) {
+      style.left = 8;
+    }
+
+    return style;
+  }, [position]);
+
+  const callStreamAI = useCallback(async (action: AIAction, systemPrompt: string) => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+    abortRef.current = new AbortController();
+
     setLoading(true);
     setActiveAction(action);
-    setResult('');
+    setStreamContent('');
+
     try {
-      const res = await authFetch(apiUrl('/api/ai/chat'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await streamChat(
+        {
+          projectId: projectId || '',
           messages: [
-            { role: 'system', content: `You are an expert ${language} developer. ${prompt} Respond in Chinese.` },
+            { role: 'system', content: systemPrompt },
             { role: 'user', content: selectedText },
           ],
-        }),
-      });
-      if (!res.ok) throw new Error('AI 请求失败');
-      const data = await res.json();
-      const text = data.reply || '';
-      setResult(text);
-      onResult(action, text);
-    } catch (e: unknown) {
-      setResult(e instanceof Error ? e.message : '请求失败');
-    } finally {
+          teamId,
+        },
+        {
+          onToken: (token) => {
+            setStreamContent((prev) => prev + token);
+          },
+          onDone: () => {
+            setLoading(false);
+          },
+          onError: (error) => {
+            setStreamContent(error.suggestion ? `${error.message}。${error.suggestion}` : error.message);
+            setLoading(false);
+          },
+        },
+        abortRef.current.signal,
+      );
+    } catch {
       setLoading(false);
     }
-  }, [selectedText, language, onResult]);
+  }, [selectedText, projectId, teamId]);
 
-  const actions: { key: AIAction; label: string; icon: React.ReactNode; prompt: string }[] = [
+  const handleClose = useCallback(() => {
+    abortRef.current?.abort();
+    setActiveAction(null);
+    setStreamContent('');
+    setLoading(false);
+    onClose();
+  }, [onClose]);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        handleClose();
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [handleClose]);
+
+  const cleanCodeResult = (text: string): string => {
+    return text
+      .replace(/^```[\s\S]*?\n/, '')
+      .replace(/\n```$/, '')
+      .trim();
+  };
+
+  const actions: { key: AIAction; label: string; icon: React.ReactNode; prompt: string; replaceEditor: boolean }[] = [
     {
-      key: 'explain', label: '解释', icon: <FileSearch className="h-3.5 w-3.5" />,
-      prompt: 'Explain the following code clearly and concisely.',
+      key: 'explain', label: '解释', icon: <FileSearch className="h-3.5 w-3.5" />, replaceEditor: false,
+      prompt: `You are an expert ${language} developer. Explain the following code clearly and concisely in Chinese.`,
     },
     {
-      key: 'fix', label: '修复', icon: <Bug className="h-3.5 w-3.5" />,
-      prompt: 'Find and fix bugs, issues, or problems in the following code. Return ONLY the fixed code, no explanation.',
+      key: 'fix', label: '修复', icon: <Bug className="h-3.5 w-3.5" />, replaceEditor: true,
+      prompt: `You are an expert ${language} developer. Find and fix bugs in the following code. Return ONLY the fixed code without markdown fences.`,
     },
     {
-      key: 'refactor', label: '优化', icon: <Wand2 className="h-3.5 w-3.5" />,
-      prompt: 'Refactor the following code to improve quality, readability, and performance. Return ONLY the refactored code.',
+      key: 'refactor', label: '优化', icon: <Wand2 className="h-3.5 w-3.5" />, replaceEditor: true,
+      prompt: `You are an expert ${language} developer. Refactor the following code to improve quality, readability, and performance. Return ONLY the refactored code without markdown fences.`,
     },
     {
-      key: 'comment', label: '注释', icon: <MessageSquare className="h-3.5 w-3.5" />,
-      prompt: 'Add helpful comments to the following code. Return ONLY the commented code.',
+      key: 'comment', label: '注释', icon: <MessageSquare className="h-3.5 w-3.5" />, replaceEditor: true,
+      prompt: `You are an expert ${language} developer. Add helpful comments to the following code. Return ONLY the commented code without markdown fences.`,
+    },
+    {
+      key: 'test', label: '测试', icon: <TestTube className="h-3.5 w-3.5" />, replaceEditor: true,
+      prompt: `You are an expert ${language} developer. Generate comprehensive unit tests for the following code. Return ONLY the test code without markdown fences.`,
+    },
+    {
+      key: 'docs', label: '文档', icon: <BookOpen className="h-3.5 w-3.5" />, replaceEditor: true,
+      prompt: `You are an expert ${language} developer. Generate documentation for the following code. Return ONLY the documentation without markdown fences.`,
     },
   ];
 
   return (
     <div
-      className="absolute z-50 bg-white border border-neutral-3 rounded-xl shadow-lg overflow-hidden"
-      style={{ top: position.top, left: position.left }}
+      ref={menuRef}
+      className="absolute z-50 bg-white border border-neutral-4 rounded-xl shadow-float"
+      style={adjustedPosition()}
     >
       {!activeAction ? (
-        <div className="p-1.5 flex gap-1">
+        <div className="p-1.5 flex flex-wrap gap-1 max-w-[360px]">
           {actions.map((act) => (
             <button
               key={act.key}
-              onClick={() => callAI(act.key, act.prompt)}
+              onClick={() => callStreamAI(act.key, act.prompt)}
               disabled={loading}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg hover:bg-neutral-2 text-neutral-7 hover:text-neutral-9 transition-colors disabled:opacity-50"
             >
@@ -89,27 +162,51 @@ export function InlineAIMenu({ selectedText, language, position, onClose, onResu
               {act.label}
             </button>
           ))}
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-neutral-2 text-neutral-6 ml-1">
+          <button onClick={handleClose} className="p-1.5 rounded-lg hover:bg-neutral-2 text-neutral-6 ml-1">
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
       ) : loading ? (
-        <div className="p-3 flex items-center gap-2 text-sm text-neutral-6">
-          <Loader2 className="h-4 w-4 animate-spin text-accent" />
-          <span>AI 处理中...</span>
+        <div className="p-3" style={{ maxWidth: MENU_WIDTH, maxHeight: MENU_MAX_HEIGHT }}>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-medium text-neutral-8">
+              {actions.find(a => a.key === activeAction)?.label} 生成中...
+            </span>
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />
+            <button onClick={handleClose} className="ml-auto p-0.5 rounded hover:bg-neutral-2 text-neutral-6">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <pre className="text-xs text-neutral-8 whitespace-pre-wrap font-mono bg-neutral-1 border border-neutral-4 p-2 rounded-lg max-h-60 overflow-y-auto">
+            {streamContent || '...'}
+          </pre>
         </div>
       ) : (
-        <div className="p-3 max-w-lg max-h-48 overflow-y-auto">
+        <div className="p-3" style={{ maxWidth: MENU_WIDTH, maxHeight: MENU_MAX_HEIGHT }}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-neutral-8">
               {actions.find(a => a.key === activeAction)?.label} 结果
             </span>
-            <button onClick={onClose} className="p-0.5 rounded hover:bg-neutral-2 text-neutral-6">
-              <X className="h-3.5 w-3.5" />
-            </button>
+            <div className="flex items-center gap-1">
+              {actions.find(a => a.key === activeAction)?.replaceEditor && (
+                <button
+                  onClick={() => {
+                    const cleaned = cleanCodeResult(streamContent);
+                    onApplyEdit(cleaned || streamContent);
+                    handleClose();
+                  }}
+                  className="px-2 py-0.5 text-xs rounded-md bg-accent text-white hover:bg-accent/90"
+                >
+                  应用
+                </button>
+              )}
+              <button onClick={handleClose} className="p-0.5 rounded hover:bg-neutral-2 text-neutral-6">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
-          <pre className="text-xs text-neutral-8 whitespace-pre-wrap font-mono bg-neutral-2 p-2 rounded-lg">
-            {result}
+          <pre className="text-xs text-neutral-8 whitespace-pre-wrap font-mono bg-neutral-1 border border-neutral-4 p-2 rounded-lg max-h-60 overflow-y-auto">
+            {streamContent}
           </pre>
         </div>
       )}
