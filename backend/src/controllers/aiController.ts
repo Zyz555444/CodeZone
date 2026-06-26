@@ -23,15 +23,17 @@ const MAX_MESSAGE_LENGTH = 2000;
 const activeAgentAborts = new Map<string, AbortController>();
 
 function registerAgentAbort(conversationId: string, controller: AbortController): void {
-  const existing = activeAgentAborts.get(conversationId);
-  if (existing) {
-    existing.abort();
-  }
-  activeAgentAborts.set(conversationId, controller);
+   const existing = activeAgentAborts.get(conversationId);
+   if (existing) {
+     existing.abort();
+   }
+   activeAgentAborts.set(conversationId, controller);
 }
 
-function unregisterAgentAbort(conversationId: string): void {
-  activeAgentAborts.delete(conversationId);
+function unregisterAgentAbort(conversationId: string, controller: AbortController): void {
+   if (activeAgentAborts.get(conversationId) === controller) {
+     activeAgentAborts.delete(conversationId);
+   }
 }
 
 export { getTeamConfig } from '../lib/ai/teamConfigHelper';
@@ -322,21 +324,25 @@ export async function agentExecute(req: AuthRequest, res: Response): Promise<voi
         writeSSEEvent(res, { type: 'tool_result', toolId: event.toolId, toolName: event.toolName, toolResult: event.toolResult });
       } else if (event.type === 'write_file' && event.filePath) {
         writeSSEEvent(res, { type: 'write_file', filePath: event.filePath, content: event.content });
-      } else if (event.type === 'done') {
-        if (convId && fullContent) {
-          const title = await generateConversationTitle(task);
-          await prisma.aIMessage.create({
-            data: { conversationId: convId, role: 'user', content: task },
-          });
-          await prisma.aIMessage.create({
-            data: { conversationId: convId, role: 'assistant', content: fullContent, toolCalls: toolCallsLog },
-          });
-          await prisma.aIConversation.update({
-            where: { id: convId },
-            data: { updatedAt: new Date(), title },
-          });
-        }
-        writeSSEEvent(res, { type: 'done', conversationId: convId, totalTokens: event.totalTokens });
+     } else if (event.type === 'done') {
+         try {
+           if (convId && fullContent) {
+             const title = await generateConversationTitle(task);
+             await prisma.aIMessage.create({
+               data: { conversationId: convId, role: 'user', content: task },
+             });
+             await prisma.aIMessage.create({
+               data: { conversationId: convId, role: 'assistant', content: fullContent, toolCalls: toolCallsLog },
+             });
+             await prisma.aIConversation.update({
+               where: { id: convId },
+               data: { updatedAt: new Date(), title },
+             });
+           }
+         } catch (persistErr) {
+           logger.error('Failed to persist conversation:', persistErr);
+         }
+         writeSSEEvent(res, { type: 'done', conversationId: convId, totalTokens: event.totalTokens });
       } else if (event.type === 'error') {
         writeSSEEvent(res, { type: 'error', message: event.message || 'Agent 执行失败' });
       }
@@ -348,12 +354,12 @@ export async function agentExecute(req: AuthRequest, res: Response): Promise<voi
     } catch {
       // stream already closed
     }
-  } finally {
-    if (convId) {
-      unregisterAgentAbort(convId);
-    }
-    res.end();
-  }
+   } finally {
+     if (convId) {
+       unregisterAgentAbort(convId, abortController);
+     }
+     res.end();
+   }
 }
 
 export async function abortAgent(req: AuthRequest, res: Response): Promise<void> {

@@ -116,11 +116,13 @@ async function buildAgentMessages(
 }
 
 function parseStreamChunkForToolCall(chunk: StreamChunk): ToolCallRequest | null {
-  if (chunk.type === 'tool_call' && chunk.tool) {
-    return chunk.tool;
-  }
-  return null;
+   if (chunk.type === 'tool_call' && chunk.tool) {
+     return chunk.tool;
+   }
+   return null;
 }
+
+
 
 export async function* executeAgentTask(
   task: string,
@@ -136,10 +138,6 @@ export async function* executeAgentTask(
 
   const toolDefs = getToolDefinitions();
   const messages = [...initialMessages];
-  if (toolDefs.length > 0 && messages.length > 0) {
-    (messages[0] as unknown as Record<string, unknown>).tool_choice = 'auto';
-    (messages[0] as unknown as Record<string, unknown>).tools = toolDefs;
-  }
 
   let loopCount = 0;
   let totalTokens = 0;
@@ -155,41 +153,43 @@ export async function* executeAgentTask(
       const stream = aiStreamChat(messages, {
         temperature: options.temperature ?? 0.5,
         maxTokens: options.maxTokens ?? 4096,
+        tools: toolDefs.length > 0 ? toolDefs : undefined,
+        tool_choice: toolDefs.length > 0 ? 'auto' : undefined,
       }, teamConfig);
 
-      let content = '';
-      const toolCalls: ToolCallRequest[] = [];
+       let content = '';
+       const toolCalls: ToolCallRequest[] = [];
 
-      for await (const chunk of stream) {
-        if (signal?.aborted) break;
+       for await (const chunk of stream) {
+         if (signal?.aborted) break;
 
-        if (chunk.type === 'token' && chunk.content) {
-          content += chunk.content;
-          totalTokens++;
-          yield { type: 'token', content: chunk.content };
-        } else if (chunk.type === 'tool_call') {
-          const tc = parseStreamChunkForToolCall(chunk);
-          if (tc) {
-            toolCalls.push(tc);
-            let args: Record<string, unknown> = {};
-            try {
-              args = typeof tc.function.arguments === 'string'
-                ? JSON.parse(tc.function.arguments)
-                : (tc.function.arguments as unknown as Record<string, unknown>) || {};
-            } catch { /* parse error, use empty args */ }
+         if (chunk.type === 'token' && chunk.content) {
+           content += chunk.content;
+           totalTokens++;
+           yield { type: 'token', content: chunk.content };
+         } else if (chunk.type === 'tool_call') {
+           const tc = parseStreamChunkForToolCall(chunk);
+           if (tc) {
+             toolCalls.push(tc);
+             let args: Record<string, unknown> = {};
+             try {
+               args = typeof tc.function.arguments === 'string'
+                 ? JSON.parse(tc.function.arguments)
+                 : (tc.function.arguments as unknown as Record<string, unknown>) || {};
+             } catch { /* parse error, use empty args */ }
 
-            yield {
-              type: 'tool_call',
-              toolId: tc.id,
-              toolName: tc.function.name,
-              toolArgs: args,
-            };
-          }
-        } else if (chunk.type === 'error') {
-          yield { type: 'error', message: chunk.error || 'AI 服务错误' };
-          return;
-        }
-      }
+             yield {
+               type: 'tool_call',
+               toolId: tc.id,
+               toolName: tc.function.name,
+               toolArgs: args,
+             };
+           }
+         } else if (chunk.type === 'error') {
+           yield { type: 'error', message: chunk.error || 'AI 服务错误' };
+           return;
+         }
+       }
 
       if (signal?.aborted) {
         yield { type: 'error', message: '任务已取消' };

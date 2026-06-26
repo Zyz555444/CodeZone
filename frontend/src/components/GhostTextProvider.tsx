@@ -17,9 +17,10 @@ const MAX_PREFIX_TOKENS = 4000;
 const MAX_SUFFIX_TOKENS = 1000;
 
 export function GhostTextProvider({ editor: editorInst, monaco, language, enabled = true }: GhostTextProviderProps) {
-  const providerRef = useRef<{ dispose: () => void } | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   const providerRef = useRef<{ dispose: () => void } | null>(null);
+   const abortRef = useRef<AbortController | null>(null);
+   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   const pendingResolveRef = useRef<((value: languages.InlineCompletions) => void) | null>(null);
 
   const estimateTokens = useCallback((text: string): number => {
     return Math.ceil(text.length / 4);
@@ -89,22 +90,27 @@ export function GhostTextProvider({ editor: editorInst, monaco, language, enable
           suffixText = suffixText.slice(0, suffixText.lastIndexOf('\n'));
         }
 
-        return new Promise((resolve) => {
-          if (timerRef.current) {
-            clearTimeout(timerRef.current);
-          }
+         return new Promise((resolve) => {
+           if (timerRef.current) {
+             clearTimeout(timerRef.current);
+           }
+           if (pendingResolveRef.current) {
+             pendingResolveRef.current({ items: [] as languages.InlineCompletion[] });
+           }
+           pendingResolveRef.current = resolve;
 
-          timerRef.current = setTimeout(async () => {
-            if (token.isCancellationRequested) {
-              resolve({ items: [] as languages.InlineCompletion[] });
-              return;
-            }
+           timerRef.current = setTimeout(async () => {
+             pendingResolveRef.current = null;
+             if (token.isCancellationRequested) {
+               resolve({ items: [] as languages.InlineCompletion[] });
+               return;
+             }
 
-            const ghostText = await getGhostText(prefixText, suffixText);
-            if (!ghostText || token.isCancellationRequested) {
-              resolve({ items: [] as languages.InlineCompletion[] });
-              return;
-            }
+             const ghostText = await getGhostText(prefixText, suffixText);
+             if (!ghostText || token.isCancellationRequested) {
+               resolve({ items: [] as languages.InlineCompletion[] });
+               return;
+             }
 
             const lines = ghostText.split('\n');
             resolve({
@@ -128,11 +134,15 @@ export function GhostTextProvider({ editor: editorInst, monaco, language, enable
 
     providerRef.current = { dispose: () => provider.dispose() };
 
-    return () => {
-      provider.dispose();
-      if (timerRef.current) clearTimeout(timerRef.current);
-      if (abortRef.current) abortRef.current.abort();
-    };
+     return () => {
+       provider.dispose();
+       if (timerRef.current) clearTimeout(timerRef.current);
+       if (abortRef.current) abortRef.current.abort();
+       if (pendingResolveRef.current) {
+         pendingResolveRef.current({ items: [] });
+         pendingResolveRef.current = null;
+       }
+     };
   }, [editorInst, monaco, language, enabled, getGhostText, estimateTokens]);
 
   return null;

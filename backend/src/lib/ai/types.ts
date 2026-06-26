@@ -11,6 +11,8 @@ export interface ChatOptions {
   temperature?: number;
   maxTokens?: number;
   topP?: number;
+  tools?: ToolDefinition[];
+  tool_choice?: string;
 }
 
 export interface StreamChunk {

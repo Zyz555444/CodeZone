@@ -122,12 +122,19 @@ async function parseSSEStream<T extends SSEEvent>(
         const trimmed = event.trim();
         if (!trimmed) continue;
 
-        const dataLine = trimmed.startsWith('data: ')
-          ? trimmed.slice(6)
-          : trimmed;
+        const lines = trimmed.split('\n');
+        const dataLines: string[] = [];
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            dataLines.push(line.slice(6));
+          }
+        }
+        if (dataLines.length === 0) continue;
+
+        const combinedData = dataLines.join('\n');
 
         try {
-          const data = JSON.parse(dataLine);
+          const data = JSON.parse(combinedData);
           onEvent(data as T);
         } catch {
           continue;
@@ -202,8 +209,15 @@ export async function agentExecute(
   callbacks: AgentCallbacks,
   abortSignal?: AbortSignal,
 ): Promise<void> {
-  const controller = abortSignal ? null : new AbortController();
-  const signal = abortSignal || controller!.signal;
+   const controller = new AbortController();
+   if (abortSignal) {
+     if (abortSignal.aborted) {
+       controller.abort();
+     } else {
+       abortSignal.addEventListener('abort', () => controller.abort(), { once: true });
+     }
+   }
+   const signal = controller.signal;
 
   const response = await authFetch(apiUrl('/api/ai/agent'), {
     method: 'POST',

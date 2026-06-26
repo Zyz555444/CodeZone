@@ -127,31 +127,31 @@ export function CodeEditor({
             },
           });
 
-          if (!cursorStyleRef.current) {
-            cursorStyleRef.current = document.createElement('style');
-            document.head.appendChild(cursorStyleRef.current);
-          }
+       if (!cursorStyleRef.current) {
+             cursorStyleRef.current = document.createElement('style');
+             document.head.appendChild(cursorStyleRef.current);
+           }
 
-          const styles = `
-            .remote-cursor-decoration-${cursor.userId} {
-              background-color: ${cursor.color}40;
-            }
-            .remote-cursor-decoration-${cursor.userId}::before {
-              content: '${cursor.userName || cursor.userId.slice(0, 2)}';
-              position: absolute;
-              top: -1.2em;
-              left: 0;
-              background: ${cursor.color};
-              color: white;
-              font-size: 10px;
-              padding: 1px 4px;
-              border-radius: 3px;
-              white-space: nowrap;
-              z-index: 10;
-            }
-          `;
+           const styles = `
+             .remote-cursor-decoration-${cursor.userId} {
+               background-color: ${cursor.color}40;
+             }
+             .remote-cursor-decoration-${cursor.userId}::before {
+               content: '${cursor.userName || cursor.userId.slice(0, 2)}';
+               position: absolute;
+               top: -1.2em;
+               left: 0;
+               background: ${cursor.color};
+               color: white;
+               font-size: 10px;
+               padding: 1px 4px;
+               border-radius: 3px;
+               white-space: nowrap;
+               z-index: 10;
+             }
+           `;
 
-          cursorStyleRef.current.textContent = styles;
+           cursorStyleRef.current.textContent += styles;
         }
       });
 
@@ -238,12 +238,12 @@ export function CodeEditor({
     wsService.on('code:cursor_move', onCursorMove);
     wsService.on('code:online_users', onOnlineUsers);
 
-    return () => {
-      wsService.off('code:change', onCodeChange);
-      wsService.off('code:cursor_move', onCursorMove);
-      wsService.off('code:online_users', onOnlineUsers);
-    };
-  }, [fileId, user, getCursorColor]);
+     return () => {
+       wsService.off('code:change', onCodeChange);
+       wsService.off('code:cursor_move', onCursorMove);
+       wsService.off('code:online_users', onOnlineUsers);
+     };
+   }, [fileId, user?.id, getCursorColor]);
 
   useEffect(() => {
     updateRemoteCursorDecorations(remoteCursors);

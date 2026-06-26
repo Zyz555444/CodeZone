@@ -210,18 +210,19 @@ export const useAIStore = create<AIStore>((set) => ({
   incrementLoop: () => set((s) => ({ loopCount: s.loopCount + 1 })),
   setExecuting: (exec) => set({ isExecuting: exec }),
   setAbortController: (ctrl) => set({ abortController: ctrl }),
-  resetAgent: () => {
-    const ctrl = useAIStore.getState().abortController;
-    ctrl?.abort();
-    set({
-      thinkingContent: '',
-      toolCalls: [],
-      filePatches: [],
-      loopCount: 0,
-      isExecuting: false,
-      abortController: null,
-    });
-  },
+   resetAgent: () => {
+     const ctrl = useAIStore.getState().abortController;
+     ctrl?.abort();
+     set({
+       thinkingContent: '',
+       toolCalls: [],
+       filePatches: [],
+       loopCount: 0,
+       isExecuting: false,
+       isAgentMode: false,
+       abortController: null,
+     });
+   },
 
   // Editor actions
   setActiveFile: (fileId) => set({ activeFileId: fileId }),

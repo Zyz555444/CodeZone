@@ -84,8 +84,8 @@ async function readFileHandler(
   context: AgentContext,
 ): Promise<ToolExecutionResult> {
   const filePath = args.filePath as string | undefined;
-  const offset = (args.offset as number) || 0;
-  const limit = Math.min((args.limit as number) || 200, 200);
+   const offset = (args.offset as number) ?? 0;
+   const limit = Math.min((args.limit as number) ?? 200, 200);
 
   if (!filePath) {
     return { success: false, output: '', error: 'filePath 参数必填' };
@@ -477,14 +477,14 @@ async function executeCommandHandler(
   }
 
   try {
-    const { stdout, stderr } = await execAsync(command, {
-      cwd: workdir,
-      timeout: 30000,
-      maxBuffer: 50 * 1024,
-    });
+     const { stdout, stderr } = await execAsync(command, {
+       cwd: workdir,
+       timeout: 30000,
+       maxBuffer: 200 * 1024,
+     });
 
-    const output = stdout + (stderr ? `\n[stderr]\n${stderr}` : '');
-    const truncated = output.length > 50000 ? output.slice(0, 50000) + '\n...输出已截断 (50KB限制)' : output;
+     const output = stdout + (stderr ? `\n[stderr]\n${stderr}` : '');
+     const truncated = output.length > 200000 ? output.slice(0, 200000) + '\n...输出已截断 (200KB限制)' : output;
 
     return { success: true, output: truncated || '(命令执行成功，无输出)' };
   } catch (error: unknown) {
@@ -554,9 +554,14 @@ async function readLintsHandler(
 ): Promise<ToolExecutionResult> {
   const filePath = args.path as string | undefined;
 
-  if (filePath && !/^[a-zA-Z0-9_\-/.]+$/.test(filePath)) {
-    return { success: false, output: '', error: '路径包含非法字符，只允许字母、数字、下划线、连字符、点和斜杠' };
-  }
+   if (filePath) {
+     if (!/^[a-zA-Z0-9_\-/.]+$/.test(filePath)) {
+       return { success: false, output: '', error: '路径包含非法字符，只允许字母、数字、下划线、连字符、点和斜杠' };
+     }
+     if (filePath.includes('..')) {
+       return { success: false, output: '', error: '路径禁止包含目录穿越序列 (..)' };
+     }
+   }
 
   try {
     const cwd = '/workspace';
