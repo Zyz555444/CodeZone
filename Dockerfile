@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/root/.npm \
 # ============================================
 # 阶段2: 前端构建
 # ============================================
-FROM node:24-alpine AS frontend-builder
+FROM node:24 AS frontend-builder
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=768"
@@ -42,9 +42,8 @@ COPY frontend/middleware.ts ./middleware.ts
 COPY frontend/src ./src
 
 # 利用 Next.js 构建缓存加速
-# CI环境禁用Turbopack（Alpine不支持），使用Webpack
 RUN --mount=type=cache,target=/app/frontend/.next/cache \
-    CI=true npm run build
+    npm run build
 
 # ============================================
 # 阶段3: 前端生产镜像

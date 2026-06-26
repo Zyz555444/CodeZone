@@ -2,9 +2,6 @@
 const nextConfig = {
   output: 'standalone',
   transpilePackages: ['lucide-react'],
-  experimental: {
-    turbo: !process.env.CI,
-  },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || '/api',
     NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || '/socket.io',
