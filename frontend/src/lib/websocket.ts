@@ -5,7 +5,7 @@ class WebSocketService {
   private url: string;
 
   constructor() {
-    this.url = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:10101';
+    this.url = process.env.NEXT_PUBLIC_WS_URL || '/socket.io';
   }
 
   connect(token: string): void {

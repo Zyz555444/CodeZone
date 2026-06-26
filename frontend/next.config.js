@@ -4,7 +4,7 @@ const nextConfig = {
   transpilePackages: ['lucide-react'],
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || '/api',
-    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:10101',
+    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || '/socket.io',
   },
   allowedHosts: ['.monkeycode-ai.online'],
   async rewrites() {

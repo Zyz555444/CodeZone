@@ -33,7 +33,7 @@ read -p "是否使用 Docker 启动数据库？(y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "🐳 启动 Docker 容器..."
-    docker-compose -f docker/docker-compose.yml up -d
+    docker-compose -f docker-compose.yml up -d
     
     echo "等待数据库启动..."
     sleep 5
@@ -51,6 +51,6 @@ cd ..
 echo ""
 echo "🎯 启动开发服务器..."
 echo "前端：http://localhost:3000"
-echo "后端：http://localhost:4000"
+echo "后端：http://localhost:10101"
 echo ""
 npm run dev

@@ -23,7 +23,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=768"
 ARG NEXT_PUBLIC_API_URL=/api
-ARG NEXT_PUBLIC_WS_URL=ws://localhost:10101
+ARG NEXT_PUBLIC_WS_URL=/socket.io
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
 
@@ -60,7 +60,9 @@ WORKDIR /app
 RUN --mount=type=cache,target=/var/cache/apk \
     apk add --no-cache curl
 
-COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone ./
+COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone/frontend/* ./
+COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone/frontend/.next ./.next
+COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone/node_modules ./node_modules
 COPY --from=frontend-builder --chown=node:node /app/frontend/.next/static ./.next/static
 COPY --from=frontend-builder --chown=node:node /app/frontend/next.config.js ./
 COPY --from=frontend-builder --chown=node:node /app/frontend/package.json ./
@@ -79,7 +81,7 @@ ENV NODE_OPTIONS="--max-old-space-size=768"
 WORKDIR /app
 
 RUN --mount=type=cache,target=/var/cache/apk \
-    apk add --no-cache openssl
+    apk add --no-cache openssl python3 make g++
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json ./

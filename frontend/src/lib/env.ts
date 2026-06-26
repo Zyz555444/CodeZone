@@ -1,5 +1,5 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:10101';
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || '/socket.io';
 
 export function apiUrl(path: string): string {
   // 如果 API_URL 以 /api 结尾，且 path 也以 /api 开头，避免双前缀
