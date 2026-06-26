@@ -46,8 +46,12 @@ Thumbs.db
 .parcel-cache
 *.tsbuildinfo
 
-# Docs extra
+# Docs
 CONTRIBUTING.md
+README.md
+LICENSE
+.monkeycode/
+docs/
 
 # CI
 .github
@@ -55,3 +59,7 @@ CONTRIBUTING.md
 # Logs
 *.log
 logs
+
+# Compose files (not needed in Dockerfile build context)
+docker-compose*.yml
+docker/docker-compose*.yml

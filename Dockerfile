@@ -13,7 +13,7 @@ COPY backend/package.json ./backend/
 COPY .npmrc ./
 
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --no-audit --no-fund
+    npm ci --no-audit --no-fund --prefer-offline
 
 # ============================================
 # 阶段2: 前端构建
@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/root/.npm \
 FROM node:24-alpine AS frontend-builder
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_OPTIONS="--max-old-space-size=768"
+ENV NODE_OPTIONS="--max-old-space-size=1536"
 ARG NEXT_PUBLIC_API_URL=/api
 ARG NEXT_PUBLIC_WS_URL=/socket.io
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
@@ -77,7 +77,7 @@ CMD ["node", "server.js"]
 # ============================================
 FROM node:24-alpine AS backend-builder
 ENV NODE_ENV=production
-ENV NODE_OPTIONS="--max-old-space-size=768"
+ENV NODE_OPTIONS="--max-old-space-size=1536"
 
 WORKDIR /app
 
@@ -85,9 +85,8 @@ RUN --mount=type=cache,target=/var/cache/apk \
     apk add --no-cache openssl python3 make g++
 
 COPY --from=deps /app/node_modules ./node_modules
-COPY package.json package-lock.json ./
-COPY backend/package.json ./backend/
 COPY --from=deps /app/backend/node_modules ./backend/node_modules
+COPY backend/package.json ./backend/
 COPY backend/tsconfig.json ./backend/
 COPY backend/esbuild.config.js ./backend/
 COPY backend/prisma ./backend/prisma/
