@@ -29,10 +29,6 @@ ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
 
 WORKDIR /app/frontend
 
-# 安装glibc兼容层（@next/swc-linux-x64-gnu需要ld-linux-x86-64.so.2）
-RUN --mount=type=cache,target=/var/cache/apk \
-    apk add --no-cache gcompat
-
 # 先复制根 node_modules（包含所有 hoist 的包和 .bin）
 COPY --from=deps /app/node_modules ./node_modules
 # 再叠加 frontend 专属 node_modules（覆盖 hoist 的版本）
@@ -46,8 +42,9 @@ COPY frontend/middleware.ts ./middleware.ts
 COPY frontend/src ./src
 
 # 利用 Next.js 构建缓存加速
+# Alpine musl与SWC原生绑定不兼容，回退Webpack
 RUN --mount=type=cache,target=/app/frontend/.next/cache \
-    npm run build
+    npx next build --webpack
 
 # ============================================
 # 阶段3: 前端生产镜像
