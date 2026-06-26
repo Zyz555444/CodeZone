@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/root/.npm \
 # ============================================
 # 阶段2: 前端构建
 # ============================================
-FROM node:24 AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=768"
@@ -28,6 +28,10 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
 
 WORKDIR /app/frontend
+
+# 安装glibc兼容层（@next/swc-linux-x64-gnu需要）
+RUN --mount=type=cache,target=/var/cache/apk \
+    apk add --no-cache libc6-compat
 
 # 先复制根 node_modules（包含所有 hoist 的包和 .bin）
 COPY --from=deps /app/node_modules ./node_modules
