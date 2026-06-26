@@ -62,7 +62,7 @@ RUN --mount=type=cache,target=/var/cache/apk \
     apk add --no-cache curl
 
 COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone/frontend/* ./
-COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone/frontend/.next ./.next
+COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone/.next ./.next
 COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone/node_modules ./node_modules
 COPY --from=frontend-builder --chown=node:node /app/frontend/.next/static ./.next/static
 COPY --from=frontend-builder --chown=node:node /app/frontend/next.config.js ./
