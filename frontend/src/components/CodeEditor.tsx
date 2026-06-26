@@ -156,9 +156,9 @@ export function CodeEditor({
       });
 
       editor.deltaDecorations(
-        editor.getModel()?.getAllDecorations()?.map((d) => d.id).filter((id) =>
-          id.includes('remote-cursor') || id === 'cursor-style',
-        ) || [],
+        editor.getModel()?.getAllDecorations()?.filter((d) =>
+          d.options.className?.includes('remote-cursor-decoration-') || d.id === 'cursor-style',
+        ).map((d) => d.id) || [],
         decorations,
       );
     },

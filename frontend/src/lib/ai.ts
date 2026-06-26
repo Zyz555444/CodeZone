@@ -41,7 +41,7 @@ function classifyNetworkError(err: Error): AIError {
   return { type: 'unknown', retryable: false, message: msg || '未知错误' };
 }
 
-function formatAIError(err: AIError): string {
+export function formatAIError(err: AIError): string {
   if (err.suggestion) return `${err.message}。${err.suggestion}`;
   return err.message;
 }
@@ -202,8 +202,8 @@ export async function agentExecute(
   callbacks: AgentCallbacks,
   abortSignal?: AbortSignal,
 ): Promise<void> {
-  const controller = new AbortController();
-  const signal = abortSignal || controller.signal;
+  const controller = abortSignal ? null : new AbortController();
+  const signal = abortSignal || controller!.signal;
 
   const response = await authFetch(apiUrl('/api/ai/agent'), {
     method: 'POST',

@@ -23,6 +23,10 @@ const MAX_MESSAGE_LENGTH = 2000;
 const activeAgentAborts = new Map<string, AbortController>();
 
 function registerAgentAbort(conversationId: string, controller: AbortController): void {
+  const existing = activeAgentAborts.get(conversationId);
+  if (existing) {
+    existing.abort();
+  }
   activeAgentAborts.set(conversationId, controller);
 }
 
@@ -250,6 +254,8 @@ export async function streamChat(req: AuthRequest, res: Response): Promise<void>
       }
 
       writeSSEEvent(res, { type: 'done', conversationId: convId });
+    } else if (abortController.signal.aborted) {
+      writeSSEEvent(res, { type: 'aborted' });
     } else {
       writeSSEEvent(res, { type: 'done' });
     }

@@ -69,7 +69,6 @@ const statusIcons: Record<string, React.ReactNode> = {
 interface ToolGroup {
   toolName: string;
   tools: ToolCall[];
-  collapsed: boolean;
 }
 
 function groupConsecutiveCalls(calls: ToolCall[]): ToolGroup[] {
@@ -79,7 +78,7 @@ function groupConsecutiveCalls(calls: ToolCall[]): ToolGroup[] {
     if (last && last.toolName === call.toolName) {
       last.tools.push(call);
     } else {
-      groups.push({ toolName: call.toolName, tools: [call], collapsed: true });
+      groups.push({ toolName: call.toolName, tools: [call] });
     }
   }
   return groups;
@@ -140,13 +139,14 @@ export function AgentThinking({
         const first = group.tools[0];
 
         if (isGrouped) {
+          const allCollapsed = group.tools.every((t) => t.collapsed);
           return (
             <div key={first.toolId} className="border border-neutral-4 rounded-lg overflow-hidden">
               <button
                 onClick={() => group.tools.forEach((t) => onToggleStep(t.toolId))}
                 className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-neutral-2 transition-colors"
               >
-                {first.collapsed
+                {allCollapsed
                   ? <ChevronRight className="h-3 w-3 text-neutral-6 shrink-0" />
                   : <ChevronDown className="h-3 w-3 text-neutral-6 shrink-0" />
                 }
@@ -161,7 +161,7 @@ export function AgentThinking({
                 </span>
               </button>
 
-              {!first.collapsed && group.tools.map((tool) => (
+              {!allCollapsed && group.tools.map((tool) => (
                 <ToolCallDetail
                   key={tool.toolId}
                   tool={tool}

@@ -554,11 +554,15 @@ async function readLintsHandler(
 ): Promise<ToolExecutionResult> {
   const filePath = args.path as string | undefined;
 
+  if (filePath && !/^[a-zA-Z0-9_\-/.]+$/.test(filePath)) {
+    return { success: false, output: '', error: '路径包含非法字符，只允许字母、数字、下划线、连字符、点和斜杠' };
+  }
+
   try {
     const cwd = '/workspace';
     let results = '';
 
-    const eslintArgs = filePath ? `${filePath}` : 'src/ --ext .ts,.tsx,.js,.jsx';
+    const eslintArgs = filePath ? filePath : 'src/ --ext .ts,.tsx,.js,.jsx';
     try {
       const { stdout } = await execAsync(`cd ${cwd}/frontend && npx eslint ${eslintArgs} --format compact 2>&1 || true`, {
         cwd,

@@ -130,26 +130,25 @@ export async function* executeAgentTask(
 ): AsyncGenerator<AgentStreamEvent> {
   const maxLoops = options.maxLoops ?? MAX_LOOPS;
   const signal = options.signal;
+
+  const teamConfig = context.teamId ? await getTeamConfig(context.teamId) : null;
+  const { messages: initialMessages } = await buildAgentMessages(task, context, history, teamConfig);
+
+  const toolDefs = getToolDefinitions();
+  const messages = [...initialMessages];
+  if (toolDefs.length > 0 && messages.length > 0) {
+    (messages[0] as unknown as Record<string, unknown>).tool_choice = 'auto';
+    (messages[0] as unknown as Record<string, unknown>).tools = toolDefs;
+  }
+
   let loopCount = 0;
   let totalTokens = 0;
 
-  const teamConfig = context.teamId ? await getTeamConfig(context.teamId) : null;
-  const { messages } = await buildAgentMessages(task, context, history, teamConfig);
-
-  yield { type: 'thinking', content: '正在分析项目上下文...' };
-
   while (loopCount < maxLoops) {
+    loopCount++;
     if (signal?.aborted) {
       yield { type: 'error', message: '任务已取消' };
       return;
-    }
-
-    const toolDefs = getToolDefinitions();
-    const lastMsg = messages[messages.length - 1];
-
-    if (toolDefs.length > 0 && lastMsg.role === 'user') {
-      (lastMsg as unknown as Record<string, unknown>).tool_choice = 'auto';
-      (lastMsg as unknown as Record<string, unknown>).tools = toolDefs;
     }
 
     try {
@@ -269,6 +268,7 @@ export async function* executeAgentTask(
             };
           }
 
+          if (signal?.aborted) break;
           handleToolResult(tc, result);
         }
       }
@@ -302,7 +302,6 @@ export async function* executeAgentTask(
         handleToolResult(tc, result);
       }
 
-      loopCount++;
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Agent 执行失败';
       logger.error('Agent loop error:', msg);

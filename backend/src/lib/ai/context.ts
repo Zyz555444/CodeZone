@@ -101,31 +101,29 @@ export async function collectProjectContext(
     }
   }
 
-  if (currentFileId) {
-    const recentFiles = allFiles
-      .filter((f: { id: string; path: string; type: string; content: string | null; language: string | null; updatedAt: Date | null }) => f.id !== currentFileId && f.type === 'FILE' && f.content)
-      .sort((a: { updatedAt: Date | null }, b: { updatedAt: Date | null }) => {
-        const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-        const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-        return dateB - dateA;
-      })
-      .slice(0, RECENT_FILES_LIMIT);
+  const recentFiles = allFiles
+    .filter((f: { id: string; path: string; type: string; content: string | null; language: string | null; updatedAt: Date | null }) => f.id !== currentFileId && f.type === 'FILE' && f.content)
+    .sort((a: { updatedAt: Date | null }, b: { updatedAt: Date | null }) => {
+      const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return dateB - dateA;
+    })
+    .slice(0, RECENT_FILES_LIMIT);
 
-    for (const rf of recentFiles) {
-      if (currentTokens >= maxTokens) break;
-      if (context.selectedFiles.find((sf) => sf.path === rf.path)) continue;
+  for (const rf of recentFiles) {
+    if (currentTokens >= maxTokens) break;
+    if (context.selectedFiles.find((sf) => sf.path === rf.path)) continue;
 
-      const rfTokens = estimateTokens(rf.content!);
-      const truncated = rfTokens > 2000
-        ? rf.content!.slice(0, 2000 * 3.2) + '\n// ...截断'
-        : rf.content!;
-      context.selectedFiles.push({
-        path: rf.path,
-        content: truncated,
-        language: rf.language || 'text',
-      });
-      currentTokens += estimateTokens(truncated);
-    }
+    const rfTokens = estimateTokens(rf.content!);
+    const truncated = rfTokens > 2000
+      ? rf.content!.slice(0, 2000 * 3.2) + '\n// ...截断'
+      : rf.content!;
+    context.selectedFiles.push({
+      path: rf.path,
+      content: truncated,
+      language: rf.language || 'text',
+    });
+    currentTokens += estimateTokens(truncated);
   }
 
   if (selectedFileIds) {

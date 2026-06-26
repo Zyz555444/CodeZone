@@ -17,5 +17,6 @@ export function setupSSEConnection(res: Response): void {
 export function createAbortController(req: AuthRequest): AbortController {
   const abortController = new AbortController();
   req.on('close', () => abortController.abort());
+  req.on('error', () => abortController.abort());
   return abortController;
 }
