@@ -115,7 +115,7 @@ COPY --from=backend-builder --chown=node:node /app/backend/dist ./dist
 COPY --from=backend-builder --chown=node:node /app/backend/prisma ./prisma
 
 COPY docker/start.sh ./start.sh
-RUN chmod +x start.sh
+RUN chmod +x start.sh && mkdir -p /app/logs && chown node:node /app/logs
 
 EXPOSE 10101
 USER node

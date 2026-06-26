@@ -44,5 +44,8 @@ WHERE "TeamMember"."teamId" = "Team"."id"
   AND "TeamMember"."role" = 'ADMIN';
 SQL
 
+echo "==> 创建日志目录..."
+mkdir -p /app/logs
+
 echo "==> 启动后端服务..."
 exec node dist/index.js

@@ -1,4 +1,5 @@
 import winston from 'winston';
+import path from 'path';
 
 const logLevel = process.env.LOG_LEVEL || 'info';
 
@@ -9,17 +10,19 @@ const logFormat = winston.format.combine(
   winston.format.json()
 );
 
+const logDir = path.resolve(process.cwd(), 'logs');
+
 const logger = winston.createLogger({
   level: logLevel,
   format: logFormat,
   defaultMeta: { service: 'codezone-backend' },
   transports: [
     new winston.transports.File({
-      filename: 'logs/error.log',
+      filename: path.join(logDir, 'errors.log'),
       level: 'error',
     }),
     new winston.transports.File({
-      filename: 'logs/combined.log',
+      filename: path.join(logDir, 'combined.log'),
     }),
   ],
 });
