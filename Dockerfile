@@ -42,8 +42,9 @@ COPY frontend/middleware.ts ./middleware.ts
 COPY frontend/src ./src
 
 # 利用 Next.js 构建缓存加速
+# CI环境禁用Turbopack（Alpine不支持），使用Webpack
 RUN --mount=type=cache,target=/app/frontend/.next/cache \
-    npm run build
+    CI=true npm run build
 
 # ============================================
 # 阶段3: 前端生产镜像

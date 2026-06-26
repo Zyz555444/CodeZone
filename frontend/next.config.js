@@ -3,7 +3,7 @@ const nextConfig = {
   output: 'standalone',
   transpilePackages: ['lucide-react'],
   experimental: {
-    turbo: false,
+    turbo: !process.env.CI,
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || '/api',
