@@ -66,6 +66,13 @@ export const Header = React.memo(function Header() {
     };
   }, [user, mounted, token, setConnected, setOnlineCount]);
 
+  // 当 teams 加载完成后重新加入团队房间
+  React.useEffect(() => {
+    if (!wsService.socketInstance?.connected) return;
+    if (!teams || teams.length === 0) return;
+    wsService.joinTeam(teams[0].id);
+  }, [teams]);
+
   const handleLogout = () => {
     setConnected(false);
     setOnlineCount(0);

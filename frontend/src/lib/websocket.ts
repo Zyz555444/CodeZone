@@ -13,8 +13,10 @@ class WebSocketService {
       return;
     }
 
-    // 清理旧连接
-    this.disconnect();
+    // 如果 socket 已存在但尚未连接，不要重复创建，避免覆盖已有的监听器
+    if (this.socket) {
+      return;
+    }
 
     this.socket = io(this.url, {
       auth: { token },
