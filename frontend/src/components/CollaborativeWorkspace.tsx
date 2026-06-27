@@ -91,14 +91,14 @@ export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorksp
       return;
     }
 
-    const fileId = `${projectId}:${node.path}`;
+    const fileId = `${projectId}:${node.id}`;
     let content = '';
 
     try {
-      const res = await authFetch(apiUrl(`/api/code/${projectId}/file?path=${encodeURIComponent(node.path)}`));
+      const res = await authFetch(apiUrl(`/api/code/files/${node.id}`));
       if (res.ok) {
         const data = await res.json();
-        content = data.content || '';
+        content = data.file?.content || '';
       }
     } catch {
       console.warn('Failed to load file content:', node.path);

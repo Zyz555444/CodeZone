@@ -6,9 +6,11 @@ import { apiUrl } from '@/lib/env';
 import { authFetch } from '@/lib/utils';
 
 interface FileNode {
+  id: string;
   name: string;
   path: string;
   type: 'file' | 'directory';
+  language?: string;
   children?: FileNode[];
 }
 
@@ -113,10 +115,10 @@ export function FileTree({ projectId, onFileSelect, activeFilePath }: FileTreePr
     setLoading(true);
     setError('');
     try {
-      const res = await authFetch(apiUrl(`/api/code/${projectId}/tree`));
+      const res = await authFetch(apiUrl(`/api/code/files?projectId=${encodeURIComponent(projectId)}`));
       if (!res.ok) throw new Error('加载文件树失败');
       const data = await res.json();
-      setFiles(data.tree || data.files || []);
+      setFiles(data.files || []);
     } catch (e: any) {
       setError(e.message);
       setFiles(getDefaultFiles());
@@ -169,15 +171,17 @@ export function FileTree({ projectId, onFileSelect, activeFilePath }: FileTreePr
 function getDefaultFiles(): FileNode[] {
   return [
     {
+      id: '_default_src',
       name: 'src',
       path: 'src',
       type: 'directory',
       children: [
-        { name: 'index.ts', path: 'src/index.ts', type: 'file' },
-        { name: 'App.tsx', path: 'src/App.tsx', type: 'file' },
+        { id: '_default_index', name: 'index.ts', path: 'src/index.ts', type: 'file' },
+        { id: '_default_app', name: 'App.tsx', path: 'src/App.tsx', type: 'file' },
       ],
     },
     {
+      id: '_default_pkg',
       name: 'package.json',
       path: 'package.json',
       type: 'file',
