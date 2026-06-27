@@ -78,6 +78,8 @@ RUN --mount=type=cache,target=/var/cache/apk \
     apk add --no-cache curl
 
 COPY --from=frontend-builder --chown=node:node /app/frontend/standalone/ ./
+# standalone/.next 不含完整 static 文件，从构建输出补全
+COPY --from=frontend-builder --chown=node:node /app/frontend/.next/static ./.next/static
 
 EXPOSE 12321
 USER node
