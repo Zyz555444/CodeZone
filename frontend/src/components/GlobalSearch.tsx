@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Search, FolderKanban, CheckSquare, FileText, User, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -47,6 +48,12 @@ export function GlobalSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const router = useRouter();
+
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const flatResults = useMemo(() => {
     if (!results) return [];
@@ -148,7 +155,7 @@ export function GlobalSearch() {
         </kbd>
       </button>
 
-      {isOpen && (
+      {isOpen && mounted && createPortal(
         <div
           className="fixed inset-0 z-[100] bg-black/50 flex items-start justify-center pt-[20vh]"
           onClick={() => setIsOpen(false)}
@@ -222,7 +229,8 @@ export function GlobalSearch() {
               })}
             </div>
           </Card>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
