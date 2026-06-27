@@ -49,17 +49,17 @@ RUN --mount=type=cache,target=/app/frontend/.next/cache \
     npx next build --webpack
 
 # 标准化 standalone 输出：消除 workspace 检测差异
-# 无论 Next.js 输出 flat 还是 frontend/ 子目录，统一整理到 /standalone
-RUN rm -rf /standalone && mkdir -p /standalone && \
-    cd /app/frontend/.next/standalone && \
+# 无论 Next.js 输出 flat 还是 frontend/ 子目录，统一整理到 standalone/
+RUN rm -rf standalone && mkdir -p standalone && \
+    cd .next/standalone && \
     if [ -f frontend/server.js ]; then \
         echo "[standalone] workspace mode, extracting frontend/"; \
-        cp -a frontend/. /standalone/ && \
-        cp -a .next /standalone/ && \
-        cp -a node_modules /standalone/; \
+        cp -a frontend/. /app/frontend/standalone/ && \
+        cp -a .next /app/frontend/standalone/ && \
+        cp -a node_modules /app/frontend/standalone/; \
     else \
         echo "[standalone] flat mode"; \
-        cp -a . /standalone/; \
+        cp -a . /app/frontend/standalone/; \
     fi
 
 # ============================================
