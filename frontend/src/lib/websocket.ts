@@ -37,6 +37,29 @@ class WebSocketService {
     this.socket.on('disconnect', (reason) => {
       console.warn('[WebSocket] 已断开:', reason);
     });
+
+    this.socket.on('reconnect_attempt', (attempt) => {
+      console.warn(`[WebSocket] 重连尝试 ${attempt}/5...`);
+    });
+
+    this.socket.on('reconnect_error', (error) => {
+      console.error('[WebSocket] 重连失败:', error.message);
+    });
+
+    this.socket.on('reconnect_failed', () => {
+      console.error('[WebSocket] 重连耗尽，60秒后发起新一轮重连...');
+      // 不清除 socket 对象，保留所有已注册的监听器
+      // 延迟后通过 socket.connect() 手动发起新一轮重连
+      setTimeout(() => {
+        if (this.socket?.connected) {
+          console.warn('[WebSocket] 已恢复连接，跳过手动重连');
+          return;
+        }
+        if (!this.socket) return;
+        console.warn('[WebSocket] 手动发起新一轮重连...');
+        this.socket.connect();
+      }, 60000);
+    });
   }
 
   disconnect(): void {
