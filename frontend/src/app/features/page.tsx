@@ -42,10 +42,10 @@ export default function FeaturesPage() {
     <div className="min-h-screen bg-neutral-1">
       <div className="container mx-auto max-w-5xl px-6 py-16">
         <div className="text-center mb-12">
-          <h1 className="font-serif text-5xl font-medium text-neutral-10 mb-4">
+          <h1 className="font-serif text-display-48 font-medium text-neutral-10 mb-4">
             功能特性
           </h1>
-          <p className="text-xl text-neutral-7 max-w-2xl mx-auto">
+          <p className="text-title-20 text-neutral-7 max-w-2xl mx-auto">
             CodeZone 提供完整的团队协作开发解决方案
           </p>
         </div>

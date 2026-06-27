@@ -60,19 +60,19 @@ function NewTaskForm() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="font-serif text-2xl">新建任务</CardTitle>
+                  <CardTitle className="font-serif text-title-24">新建任务</CardTitle>
                   <CardDescription>创建一个新的任务并分配给团队成员</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-6">
                     {error && (
-                      <div className="p-3 rounded-lg bg-red-50 text-error text-sm">
+                      <div className="p-3 rounded-lg bg-red-50 text-error text-copy-13">
                         {error}
                       </div>
                     )}
 
                     <div className="space-y-2">
-                      <label htmlFor="title" className="text-sm font-medium">
+                      <label htmlFor="title" className="text-copy-13 font-medium">
                         任务标题 <span className="text-error">*</span>
                       </label>
                       <Input
@@ -85,7 +85,7 @@ function NewTaskForm() {
                     </div>
 
                     <div className="space-y-2">
-                      <label htmlFor="description" className="text-sm font-medium">
+                      <label htmlFor="description" className="text-copy-13 font-medium">
                         描述
                       </label>
                       <textarea
@@ -99,7 +99,7 @@ function NewTaskForm() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label htmlFor="priority" className="text-sm font-medium">
+                        <label htmlFor="priority" className="text-copy-13 font-medium">
                           优先级
                         </label>
                         <select
@@ -116,7 +116,7 @@ function NewTaskForm() {
                       </div>
 
                       <div className="space-y-2">
-                        <label htmlFor="dueDate" className="text-sm font-medium">
+                        <label htmlFor="dueDate" className="text-copy-13 font-medium">
                           截止日期
                         </label>
                         <Input
@@ -129,7 +129,7 @@ function NewTaskForm() {
                     </div>
 
                     <div className="space-y-2">
-                      <label htmlFor="assigneeId" className="text-sm font-medium">
+                      <label htmlFor="assigneeId" className="text-copy-13 font-medium">
                         负责人
                       </label>
                       <div className="flex gap-2">

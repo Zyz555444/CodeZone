@@ -85,7 +85,7 @@ export const Header = React.memo(function Header() {
       <div className="container mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         {/* Left: Logo */}
         <div className="flex items-center gap-6">
-          <Link href="/" className="font-serif text-xl font-medium tracking-tight">
+          <Link href="/" className="font-serif text-title-20 font-medium tracking-tight">
             CodeZone
           </Link>
         </div>
@@ -93,7 +93,7 @@ export const Header = React.memo(function Header() {
         {/* Center: Team Name */}
         <div className="hidden md:flex items-center justify-center flex-1">
           {user && teams.length > 0 && (
-            <span className="text-sm font-medium text-neutral-7">
+            <span className="text-copy-13 font-medium text-neutral-7">
               {teams[0].name}
             </span>
           )}
@@ -111,14 +111,14 @@ export const Header = React.memo(function Header() {
                 {isConnected ? (
                   <Wifi className="h-3.5 w-3.5 text-success" />
                 ) : (
-                  <WifiOff className="h-3.5 w-3.5 text-neutral-5" />
+                  <WifiOff className="h-3.5 w-3.5 text-neutral-7" />
                 )}
-                <span className="text-xs text-neutral-7">
+                <span className="text-label-12 text-neutral-7">
                   {isConnected ? '已连接' : '未连接'}
                 </span>
                 <div className="flex items-center gap-1 ml-1 border-l border-neutral-4 pl-1">
                   <Users className="h-3.5 w-3.5 text-neutral-6" />
-                  <span className="text-xs text-neutral-7">{onlineCount}</span>
+                  <span className="text-label-12 text-neutral-7">{onlineCount}</span>
                 </div>
               </div>
 

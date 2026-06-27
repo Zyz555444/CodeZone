@@ -53,7 +53,7 @@ export default function FeedbackPage() {
             <div className="container mx-auto max-w-2xl px-6 py-8">
               {/* Header */}
               <div className="text-center mb-8">
-                <h1 className="font-serif text-3xl font-medium text-neutral-10 mb-2">
+                <h1 className="font-serif text-title-28 font-medium text-neutral-10 mb-2">
                   意见反馈
                 </h1>
                 <p className="text-neutral-7">
@@ -67,7 +67,7 @@ export default function FeedbackPage() {
                     <div className="w-16 h-16 rounded-full bg-success/20 flex items-center justify-center mx-auto mb-4">
                       <CheckCircle2 className="h-8 w-8 text-success" />
                     </div>
-                    <h3 className="font-serif text-xl font-medium text-neutral-10 mb-2">
+                    <h3 className="font-serif text-title-20 font-medium text-neutral-10 mb-2">
                       感谢反馈！
                     </h3>
                     <p className="text-neutral-7">
@@ -84,7 +84,7 @@ export default function FeedbackPage() {
                 ) : (
                   <>
                     <CardHeader>
-                      <CardTitle className="font-serif text-xl">提交反馈</CardTitle>
+                      <CardTitle className="font-serif text-title-20">提交反馈</CardTitle>
                       <CardDescription className="text-neutral-7">
                         请详细描述您的问题或建议
                       </CardDescription>
@@ -92,7 +92,7 @@ export default function FeedbackPage() {
                     <CardContent className="space-y-6">
                       {/* Feedback Type */}
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-neutral-9">
+                        <label className="text-copy-13 font-medium text-neutral-9">
                           反馈类型
                         </label>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -111,7 +111,7 @@ export default function FeedbackPage() {
                                 }`}
                               >
                                 <Icon className="h-5 w-5" />
-                                <span className="text-sm">{type.label}</span>
+                                <span className="text-copy-13">{type.label}</span>
                               </button>
                             );
                           })}
@@ -120,7 +120,7 @@ export default function FeedbackPage() {
 
                       {/* Feedback Content */}
                       <div className="space-y-2">
-                        <label htmlFor="feedback" className="text-sm font-medium text-neutral-9">
+                        <label htmlFor="feedback" className="text-copy-13 font-medium text-neutral-9">
                           详细内容 <span className="text-error">*</span>
                         </label>
                         <textarea
@@ -135,7 +135,7 @@ export default function FeedbackPage() {
 
                       {/* Contact */}
                       <div className="space-y-2">
-                        <label htmlFor="contact" className="text-sm font-medium text-neutral-9">
+                        <label htmlFor="contact" className="text-copy-13 font-medium text-neutral-9">
                           联系方式（可选）
                         </label>
                         <Input

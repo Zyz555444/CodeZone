@@ -129,7 +129,7 @@ export function AgentThinking({
   return (
     <div className="space-y-1 my-2" id="agent-thinking-scroll-anchor">
       {thinkingContent && (
-        <div className="text-xs text-neutral-6 px-2.5 py-1.5 bg-neutral-2 rounded-lg border border-neutral-4 max-h-32 overflow-y-auto whitespace-pre-wrap">
+        <div className="text-label-12 text-neutral-6 px-2.5 py-1.5 bg-neutral-2 rounded-lg border border-neutral-4 max-h-32 overflow-y-auto whitespace-pre-wrap">
           {thinkingContent}
         </div>
       )}
@@ -144,7 +144,7 @@ export function AgentThinking({
             <div key={first.toolId} className="border border-neutral-4 rounded-lg overflow-hidden">
               <button
                 onClick={() => group.tools.forEach((t) => onToggleStep(t.toolId))}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-neutral-2 transition-colors"
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-label-12 hover:bg-neutral-2 transition-colors"
               >
                 {allCollapsed
                   ? <ChevronRight className="h-3 w-3 text-neutral-6 shrink-0" />
@@ -179,7 +179,7 @@ export function AgentThinking({
           <div key={first.toolId} className="border border-neutral-4 rounded-lg overflow-hidden">
             <button
               onClick={() => onToggleStep(first.toolId)}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-neutral-2 transition-colors"
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-label-12 hover:bg-neutral-2 transition-colors"
             >
               {first.collapsed
                 ? <ChevronRight className="h-3 w-3 text-neutral-6 shrink-0" />
@@ -207,10 +207,10 @@ export function AgentThinking({
               )}
 
               {first.status === 'running' && (
-                <span className="animate-pulse text-xs text-accent ml-auto">执行中...</span>
+                <span className="animate-pulse text-label-12 text-accent ml-auto">执行中...</span>
               )}
               {first.status === 'pending' && (
-                <span className="text-xs text-neutral-6 ml-auto">等待中</span>
+                <span className="text-label-12 text-neutral-6 ml-auto">等待中</span>
               )}
             </button>
 
@@ -248,7 +248,7 @@ function ToolCallDetail({
   return (
     <div className="px-2.5 pb-2">
       {tool.result && (
-        <pre className="text-xs text-neutral-7 whitespace-pre-wrap font-mono bg-neutral-1 p-2 rounded border border-neutral-4 max-h-48 overflow-y-auto">
+        <pre className="text-label-12 text-neutral-7 whitespace-pre-wrap font-mono bg-neutral-1 p-2 rounded border border-neutral-4 max-h-48 overflow-y-auto">
           {tool.result}
         </pre>
       )}
@@ -259,7 +259,7 @@ function ToolCallDetail({
             <button
               key={fp}
               onClick={() => onFileClick(fp)}
-              className="text-xs px-1.5 py-0.5 rounded bg-neutral-3 text-neutral-7 hover:bg-accent hover:text-white transition-colors font-mono"
+              className="text-label-12 px-1.5 py-0.5 rounded bg-neutral-3 text-neutral-7 hover:bg-accent hover:text-white transition-colors font-mono"
             >
               {fp.split('/').pop() || fp}
             </button>
@@ -293,10 +293,10 @@ function FilePatchActions({
   const patch = filePatches.find((p) => p.filePath === filePath);
   if (!patch || patch.accepted !== null) {
     if (patch?.accepted === true) {
-      return <div className="mt-1.5 text-xs text-green-600">已接受</div>;
+      return <div className="mt-1.5 text-label-12 text-green-600">已接受</div>;
     }
     if (patch?.accepted === false) {
-      return <div className="mt-1.5 text-xs text-neutral-6">已拒绝</div>;
+      return <div className="mt-1.5 text-label-12 text-neutral-6">已拒绝</div>;
     }
     return null;
   }
@@ -305,14 +305,14 @@ function FilePatchActions({
     <div className="mt-1.5 flex gap-1.5">
       <button
         onClick={() => onAccept(filePath)}
-        className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700 transition-colors"
+        className="flex items-center gap-1 px-2 py-1 text-label-12 rounded bg-green-600 text-white hover:bg-green-700 transition-colors"
       >
         <Check className="h-3 w-3" />
         接受
       </button>
       <button
         onClick={() => onReject(filePath)}
-        className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-neutral-4 text-neutral-8 hover:bg-neutral-5 transition-colors"
+        className="flex items-center gap-1 px-2 py-1 text-label-12 rounded bg-neutral-4 text-neutral-8 hover:bg-neutral-5 transition-colors"
       >
         <X className="h-3 w-3" />
         拒绝

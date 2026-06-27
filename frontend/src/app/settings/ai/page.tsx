@@ -118,7 +118,7 @@ export default function AISettingsPage() {
               <CardContent className="py-12 text-center">
                 <Settings className="h-8 w-8 mx-auto mb-3 text-neutral-6" />
                 <p className="text-neutral-8 font-medium">需要先创建或加入团队</p>
-                <p className="text-sm text-neutral-6 mt-1">AI 设置与团队关联，请先设置团队</p>
+                <p className="text-copy-13 text-neutral-6 mt-1">AI 设置与团队关联，请先设置团队</p>
               </CardContent>
             </Card>
           </main>
@@ -138,8 +138,8 @@ export default function AISettingsPage() {
               <ArrowLeft className="h-4 w-4" />
             </a>
             <div>
-              <h1 className="text-xl font-semibold text-neutral-10">AI 设置</h1>
-              <p className="text-sm text-neutral-6 mt-0.5">管理团队 AI 模型供应商和配置</p>
+              <h1 className="text-title-20 font-semibold text-neutral-10">AI 设置</h1>
+              <p className="text-copy-13 text-neutral-6 mt-0.5">管理团队 AI 模型供应商和配置</p>
             </div>
           </div>
 
@@ -158,11 +158,11 @@ export default function AISettingsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium text-neutral-8 mb-1.5 block">供应商</label>
+                    <label className="text-copy-13 font-medium text-neutral-8 mb-1.5 block">供应商</label>
                     <select
                       value={provider}
                       onChange={(e) => setProvider(e.target.value)}
-                      className="w-full bg-neutral-2 border border-neutral-3 rounded-lg px-3 py-2 text-sm text-neutral-9 focus:outline-none focus:border-accent/50"
+                      className="w-full bg-neutral-2 border border-neutral-3 rounded-lg px-3 py-2 text-copy-13 text-neutral-9 focus:outline-none focus:border-accent/50"
                     >
                       <option value="OPENAI">OpenAI 兼容</option>
                       <option value="ANTHROPIC">Anthropic</option>
@@ -171,7 +171,7 @@ export default function AISettingsPage() {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-neutral-8 mb-1.5 block">API 端点 (可选)</label>
+                    <label className="text-copy-13 font-medium text-neutral-8 mb-1.5 block">API 端点 (可选)</label>
                     <Input
                       value={endpoint}
                       onChange={(e) => setEndpoint(e.target.value)}
@@ -180,18 +180,18 @@ export default function AISettingsPage() {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-neutral-8 mb-1.5 block">API Key</label>
+                    <label className="text-copy-13 font-medium text-neutral-8 mb-1.5 block">API Key</label>
                     <Input
                       type="password"
                       value={apiKey}
                       onChange={(e) => setApiKey(e.target.value)}
                       placeholder="输入新的 API Key (留空则不修改)"
                     />
-                    <p className="text-xs text-neutral-6 mt-1">密钥将加密存储，保存后无法查看原文</p>
+                    <p className="text-label-12 text-neutral-6 mt-1">密钥将加密存储，保存后无法查看原文</p>
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-neutral-8 mb-1.5 block">默认模型</label>
+                    <label className="text-copy-13 font-medium text-neutral-8 mb-1.5 block">默认模型</label>
                     <Input
                       value={defaultModel}
                       onChange={(e) => setDefaultModel(e.target.value)}
@@ -200,7 +200,7 @@ export default function AISettingsPage() {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-neutral-8 mb-1.5 block">启用模型列表</label>
+                    <label className="text-copy-13 font-medium text-neutral-8 mb-1.5 block">启用模型列表</label>
                     <Input
                       value={enabledModels}
                       onChange={(e) => setEnabledModels(e.target.value)}
@@ -209,7 +209,7 @@ export default function AISettingsPage() {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <label className="text-sm font-medium text-neutral-8">启用 AI 功能</label>
+                    <label className="text-copy-13 font-medium text-neutral-8">启用 AI 功能</label>
                     <button
                       onClick={() => setIsEnabled(!isEnabled)}
                       className={`w-10 h-5 rounded-full transition-colors relative ${
@@ -225,21 +225,21 @@ export default function AISettingsPage() {
               </Card>
 
               {error && (
-                <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-copy-13 text-red-600">
                   <AlertCircle className="h-4 w-4 inline mr-1.5" />
                   {error}
                 </div>
               )}
 
               {saved && (
-                <div className="px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-600">
+                <div className="px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-lg text-copy-13 text-emerald-600">
                   <Check className="h-4 w-4 inline mr-1.5" />
                   设置已保存
                 </div>
               )}
 
               {testResult !== 'idle' && (
-                <div className={`px-4 py-3 rounded-lg text-sm ${
+                <div className={`px-4 py-3 rounded-lg text-copy-13 ${
                   testResult === 'success'
                     ? 'bg-emerald-50 border border-emerald-200 text-emerald-600'
                     : 'bg-red-50 border border-red-200 text-red-600'

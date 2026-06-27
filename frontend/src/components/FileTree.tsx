@@ -70,7 +70,7 @@ function FileTreeItem({
       <div>
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1.5 w-full px-2 py-1 text-left text-sm text-neutral-7 hover:bg-neutral-2 rounded transition-colors"
+          className="flex items-center gap-1.5 w-full px-2 py-1 text-left text-copy-13 text-neutral-7 hover:bg-neutral-2 rounded transition-colors"
           style={{ paddingLeft: `${8 + depth * 16}px` }}
         >
           <ChevronRight className={`h-3 w-3 transition-transform ${expanded ? 'rotate-90' : ''}`} />
@@ -93,7 +93,7 @@ function FileTreeItem({
   return (
     <button
       onClick={() => onSelect(node)}
-      className={`flex items-center gap-1.5 w-full px-2 py-1 text-left text-sm rounded transition-colors ${
+      className={`flex items-center gap-1.5 w-full px-2 py-1 text-left text-copy-13 rounded transition-colors ${
         activeFilePath === node.path
           ? 'bg-accent/10 text-accent font-medium'
           : 'text-neutral-8 hover:bg-neutral-2'
@@ -134,7 +134,7 @@ export function FileTree({ projectId, onFileSelect, activeFilePath }: FileTreePr
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-3">
-        <span className="text-xs font-medium text-neutral-7 uppercase tracking-wider">文件</span>
+        <span className="text-label-12 font-medium text-neutral-7 uppercase tracking-wider">文件</span>
         <div className="flex items-center gap-1">
           <button onClick={fetchFiles} className="p-1 rounded hover:bg-neutral-2 text-neutral-6 transition-colors" title="刷新">
             <RefreshCw className="h-3.5 w-3.5" />
@@ -148,10 +148,10 @@ export function FileTree({ projectId, onFileSelect, activeFilePath }: FileTreePr
       <div className="flex-1 overflow-y-auto py-1 min-h-0">
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-neutral-5" />
+            <Loader2 className="h-5 w-5 animate-spin text-neutral-7" />
           </div>
         ) : error ? (
-          <div className="px-3 py-4 text-xs text-neutral-6 text-center">{error}</div>
+          <div className="px-3 py-4 text-label-12 text-neutral-6 text-center">{error}</div>
         ) : (
           files.map((node) => (
             <FileTreeItem

@@ -156,7 +156,7 @@ export function InlineAIMenu({ selectedText, language, position, onClose, onAppl
               key={act.key}
               onClick={() => callStreamAI(act.key, act.prompt)}
               disabled={loading}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg hover:bg-neutral-2 text-neutral-7 hover:text-neutral-9 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-label-12 rounded-lg hover:bg-neutral-2 text-neutral-7 hover:text-neutral-9 transition-colors disabled:opacity-50"
             >
               {act.icon}
               {act.label}
@@ -169,7 +169,7 @@ export function InlineAIMenu({ selectedText, language, position, onClose, onAppl
       ) : loading ? (
         <div className="p-3" style={{ maxWidth: MENU_WIDTH, maxHeight: MENU_MAX_HEIGHT }}>
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-medium text-neutral-8">
+            <span className="text-label-12 font-medium text-neutral-8">
               {actions.find(a => a.key === activeAction)?.label} 生成中...
             </span>
             <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />
@@ -177,14 +177,14 @@ export function InlineAIMenu({ selectedText, language, position, onClose, onAppl
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
-          <pre className="text-xs text-neutral-8 whitespace-pre-wrap font-mono bg-neutral-1 border border-neutral-4 p-2 rounded-lg max-h-60 overflow-y-auto">
+          <pre className="text-label-12 text-neutral-8 whitespace-pre-wrap font-mono bg-neutral-1 border border-neutral-4 p-2 rounded-lg max-h-60 overflow-y-auto">
             {streamContent || '...'}
           </pre>
         </div>
       ) : (
         <div className="p-3" style={{ maxWidth: MENU_WIDTH, maxHeight: MENU_MAX_HEIGHT }}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-neutral-8">
+            <span className="text-label-12 font-medium text-neutral-8">
               {actions.find(a => a.key === activeAction)?.label} 结果
             </span>
             <div className="flex items-center gap-1">
@@ -195,7 +195,7 @@ export function InlineAIMenu({ selectedText, language, position, onClose, onAppl
                     onApplyEdit(cleaned || streamContent);
                     handleClose();
                   }}
-                  className="px-2 py-0.5 text-xs rounded-md bg-accent text-white hover:bg-accent/90"
+                  className="px-2 py-0.5 text-label-12 rounded-md bg-accent text-white hover:bg-accent/90"
                 >
                   应用
                 </button>
@@ -205,7 +205,7 @@ export function InlineAIMenu({ selectedText, language, position, onClose, onAppl
               </button>
             </div>
           </div>
-          <pre className="text-xs text-neutral-8 whitespace-pre-wrap font-mono bg-neutral-1 border border-neutral-4 p-2 rounded-lg max-h-60 overflow-y-auto">
+          <pre className="text-label-12 text-neutral-8 whitespace-pre-wrap font-mono bg-neutral-1 border border-neutral-4 p-2 rounded-lg max-h-60 overflow-y-auto">
             {streamContent}
           </pre>
         </div>

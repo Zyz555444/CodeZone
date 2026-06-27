@@ -112,7 +112,7 @@ export default function DashboardPage() {
               <div className="container mx-auto max-w-6xl px-6 py-8">
                 <div className="flex items-center justify-between mb-8">
                   <div>
-                    <h1 className="font-serif text-3xl font-medium text-neutral-10">
+                    <h1 className="font-serif text-title-28 font-medium text-neutral-10">
                       欢迎回来
                     </h1>
                     <p className="text-neutral-7 mt-1">
@@ -153,8 +153,8 @@ export default function DashboardPage() {
                                   <Icon className="h-6 w-6 text-neutral-6 group-hover:text-accent transition-colors" />
                                 </div>
                                 <div>
-                                  <p className="text-2xl font-medium text-neutral-10">{stat.value}</p>
-                                  <p className="text-sm text-neutral-7">{stat.name}</p>
+                                  <p className="text-title-24 font-medium text-neutral-10">{stat.value}</p>
+                                  <p className="text-copy-13 text-neutral-7">{stat.name}</p>
                                 </div>
                               </CardContent>
                             </Card>
@@ -168,7 +168,7 @@ export default function DashboardPage() {
                       {/* Task Status Distribution */}
                       <Card className="lg:col-span-2">
                         <CardHeader className="pb-3">
-                          <CardTitle className="font-serif text-lg">任务分布</CardTitle>
+                          <CardTitle className="font-serif text-copy-16">任务分布</CardTitle>
                           <CardDescription className="text-neutral-7">按状态与优先级查看任务进展</CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -179,14 +179,14 @@ export default function DashboardPage() {
                               const width = totalStatusTasks > 0 ? (count / totalStatusTasks) * 100 : 0;
                               return (
                                 <div key={status} className="flex items-center gap-3">
-                                  <span className="text-sm text-neutral-7 w-14 shrink-0">{label}</span>
+                                  <span className="text-copy-13 text-neutral-7 w-14 shrink-0">{label}</span>
                                   <div className="flex-1 h-6 bg-neutral-2 rounded-full overflow-hidden">
                                     <div
                                       className={`h-full rounded-full transition-all duration-500 ${statusColors[status]}`}
                                       style={{ width: `${width}%`, minWidth: count > 0 ? '24px' : '0' }}
                                     />
                                   </div>
-                                  <span className="text-sm font-medium text-neutral-9 w-6 text-right shrink-0">{count}</span>
+                                  <span className="text-copy-13 font-medium text-neutral-9 w-6 text-right shrink-0">{count}</span>
                                 </div>
                               );
                             })}
@@ -194,21 +194,21 @@ export default function DashboardPage() {
 
                           {/* Priority bars */}
                           <div className="pt-4 border-t border-neutral-3">
-                            <p className="text-sm text-neutral-7 mb-3">优先级分布</p>
+                            <p className="text-copy-13 text-neutral-7 mb-3">优先级分布</p>
                             <div className="space-y-2">
                               {Object.entries(priorityLabels).map(([priority, label]) => {
                                 const count = stats?.tasksByPriority[priority] || 0;
                                 const width = maxPriorityCount > 0 ? (count / maxPriorityCount) * 100 : 0;
                                 return (
                                   <div key={priority} className="flex items-center gap-3">
-                                    <span className="text-sm text-neutral-7 w-10 shrink-0">{label}</span>
+                                    <span className="text-copy-13 text-neutral-7 w-10 shrink-0">{label}</span>
                                     <div className="flex-1 h-5 bg-neutral-2 rounded-full overflow-hidden">
                                       <div
                                         className={`h-full rounded-full transition-all duration-500 ${priority === 'URGENT' ? 'bg-error' : priority === 'HIGH' ? 'bg-warning' : priority === 'MEDIUM' ? 'bg-info' : 'bg-neutral-5'}`}
                                         style={{ width: `${width}%`, minWidth: count > 0 ? '20px' : '0' }}
                                       />
                                     </div>
-                                    <span className="text-sm font-medium text-neutral-9 w-6 text-right shrink-0">{count}</span>
+                                    <span className="text-copy-13 font-medium text-neutral-9 w-6 text-right shrink-0">{count}</span>
                                   </div>
                                 );
                               })}
@@ -221,7 +221,7 @@ export default function DashboardPage() {
                       <div className="space-y-6">
                         <Card>
                           <CardHeader>
-                            <CardTitle className="font-serif text-lg">快捷操作</CardTitle>
+                            <CardTitle className="font-serif text-copy-16">快捷操作</CardTitle>
                             <CardDescription className="text-neutral-7">常用功能快速入口</CardDescription>
                           </CardHeader>
                           <CardContent className="space-y-2">
@@ -254,10 +254,10 @@ export default function DashboardPage() {
 
                         <Card>
                           <CardHeader>
-                            <CardTitle className="font-serif text-lg">需要帮助？</CardTitle>
+                            <CardTitle className="font-serif text-copy-16">需要帮助？</CardTitle>
                           </CardHeader>
                           <CardContent className="space-y-3">
-                            <p className="text-sm text-neutral-7">
+                            <p className="text-copy-13 text-neutral-7">
                               查看项目文档了解如何使用 CodeZone 的各项功能。
                             </p>
                             <Link href="/about">
@@ -275,7 +275,7 @@ export default function DashboardPage() {
                     <Card>
                       <CardHeader className="flex flex-row items-center justify-between pb-3">
                         <div>
-                          <CardTitle className="font-serif text-lg">近期活动</CardTitle>
+                          <CardTitle className="font-serif text-copy-16">近期活动</CardTitle>
                           <CardDescription className="text-neutral-7">您参与项目的最新动态</CardDescription>
                         </div>
                         <Link href="/activity">
@@ -302,11 +302,11 @@ export default function DashboardPage() {
                                   )}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm text-neutral-9">
+                                  <p className="text-copy-13 text-neutral-9">
                                     <span className="font-medium">{activity.user?.username || '未知用户'}</span>
                                     {' '}{activity.content}
                                   </p>
-                                  <p className="text-xs text-neutral-7 mt-0.5">
+                                  <p className="text-label-12 text-neutral-7 mt-0.5">
                                     {new Date(activity.createdAt).toLocaleString('zh-CN', {
                                       month: 'numeric',
                                       day: 'numeric',
@@ -320,9 +320,9 @@ export default function DashboardPage() {
                           </div>
                         ) : (
                           <div className="text-center py-8 text-neutral-7">
-                            <Calendar className="h-10 w-10 mx-auto mb-3 text-neutral-5" />
-                            <p className="text-sm">暂无活动记录</p>
-                            <p className="text-xs text-neutral-6 mt-1">创建项目或任务后，活动记录将显示在这里</p>
+                            <Calendar className="h-10 w-10 mx-auto mb-3 text-neutral-7" />
+                            <p className="text-copy-13">暂无活动记录</p>
+                            <p className="text-label-12 text-neutral-6 mt-1">创建项目或任务后，活动记录将显示在这里</p>
                           </div>
                         )}
                       </CardContent>

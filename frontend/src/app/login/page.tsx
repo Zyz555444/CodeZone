@@ -54,14 +54,14 @@ export default function LoginPage() {
       <div className="relative w-full max-w-md animate-scale-in">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-block font-serif text-2xl font-medium text-neutral-10">
+          <Link href="/" className="inline-block font-serif text-title-24 font-medium text-neutral-10">
             CodeZone
           </Link>
         </div>
 
         <Card className="border-neutral-5 shadow-whisper">
           <CardHeader className="text-center pb-2">
-            <CardTitle className="font-serif text-2xl">欢迎回来</CardTitle>
+            <CardTitle className="font-serif text-title-24">欢迎回来</CardTitle>
             <CardDescription className="text-neutral-7">
               输入账号以继续
             </CardDescription>
@@ -69,13 +69,13 @@ export default function LoginPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <div className="p-3 text-sm text-error bg-error/10 rounded-lg">
+                <div className="p-3 text-copy-13 text-error bg-error/10 rounded-lg">
                   {error}
                 </div>
               )}
               
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium text-neutral-8">
+                <label htmlFor="email" className="text-copy-13 font-medium text-neutral-8">
                   邮箱
                 </label>
                 <Input
@@ -90,7 +90,7 @@ export default function LoginPage() {
               </div>
               
               <div className="space-y-2">
-                <label htmlFor="password" className="text-sm font-medium text-neutral-8">
+                <label htmlFor="password" className="text-copy-13 font-medium text-neutral-8">
                   密码
                 </label>
                 <Input
@@ -112,7 +112,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-neutral-7">
+            <div className="mt-6 text-center text-copy-13 text-neutral-7">
               还没有账号？{' '}
               <Link href="/register" className="text-accent hover:underline font-medium">
                 立即注册
@@ -122,7 +122,7 @@ export default function LoginPage() {
         </Card>
 
         {/* Footer */}
-        <p className="text-center text-xs text-neutral-6 mt-6">
+        <p className="text-center text-label-12 text-neutral-6 mt-6">
           登录即表示同意我们的服务条款和隐私政策
         </p>
       </div>

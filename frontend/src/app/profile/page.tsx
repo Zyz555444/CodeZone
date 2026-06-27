@@ -124,7 +124,7 @@ export default function ProfilePage() {
                 </div>
               ) : profileData ? (
                 <>
-                  <h1 className="font-serif text-3xl font-medium text-neutral-10 mb-8">
+                  <h1 className="font-serif text-title-28 font-medium text-neutral-10 mb-8">
                     个人资料
                   </h1>
 
@@ -140,7 +140,7 @@ export default function ProfilePage() {
                               className="h-full w-full object-cover"
                             />
                           ) : (
-                            <span className="font-serif text-3xl text-neutral-6">
+                            <span className="font-serif text-title-28 text-neutral-6">
                               {getInitials(profileData.username)}
                             </span>
                           )}
@@ -148,22 +148,22 @@ export default function ProfilePage() {
 
                         <div className="flex-1 space-y-2 text-center sm:text-left">
                           <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-center">
-                            <h2 className="font-serif text-2xl font-medium text-neutral-10">
+                            <h2 className="font-serif text-title-24 font-medium text-neutral-10">
                               {profileData.username}
                             </h2>
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${role.className}`}>
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-label-12 font-medium ${role.className}`}>
                               <Shield className="h-3 w-3" />
                               {role.label}
                             </span>
                           </div>
 
                           <div className="flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap">
-                            <span className="inline-flex items-center gap-1.5 text-sm text-neutral-7">
+                            <span className="inline-flex items-center gap-1.5 text-copy-13 text-neutral-7">
                               <Mail className="h-3.5 w-3.5" />
                               {profileData.email}
                             </span>
                             {profileData.createdAt && (
-                              <span className="inline-flex items-center gap-1.5 text-sm text-neutral-7">
+                              <span className="inline-flex items-center gap-1.5 text-copy-13 text-neutral-7">
                                 <Calendar className="h-3.5 w-3.5" />
                                 加入于 {formatDate(profileData.createdAt)}
                               </span>
@@ -171,7 +171,7 @@ export default function ProfilePage() {
                           </div>
 
                           {profileData.bio && (
-                            <p className="text-sm text-neutral-7 leading-relaxed max-w-lg">
+                            <p className="text-copy-13 text-neutral-7 leading-relaxed max-w-lg">
                               {profileData.bio}
                             </p>
                           )}
@@ -193,8 +193,8 @@ export default function ProfilePage() {
                         <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-accent-subtle">
                           <FolderGit2 className="h-5 w-5 text-accent" />
                         </div>
-                        <div className="font-serif text-2xl font-medium text-neutral-10">{stats.projects}</div>
-                        <p className="text-xs text-neutral-7">项目</p>
+                        <div className="font-serif text-title-24 font-medium text-neutral-10">{stats.projects}</div>
+                        <p className="text-label-12 text-neutral-7">项目</p>
                       </CardContent>
                     </Card>
                     <Card className="text-center">
@@ -202,8 +202,8 @@ export default function ProfilePage() {
                         <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-success/10">
                           <CheckSquare className="h-5 w-5 text-success" />
                         </div>
-                        <div className="font-serif text-2xl font-medium text-neutral-10">{stats.tasks}</div>
-                        <p className="text-xs text-neutral-7">已分配任务</p>
+                        <div className="font-serif text-title-24 font-medium text-neutral-10">{stats.tasks}</div>
+                        <p className="text-label-12 text-neutral-7">已分配任务</p>
                       </CardContent>
                     </Card>
                     <Card className="text-center">
@@ -211,8 +211,8 @@ export default function ProfilePage() {
                         <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-info/10">
                           <MessageSquare className="h-5 w-5 text-info" />
                         </div>
-                        <div className="font-serif text-2xl font-medium text-neutral-10">{stats.reviews}</div>
-                        <p className="text-xs text-neutral-7">代码审查</p>
+                        <div className="font-serif text-title-24 font-medium text-neutral-10">{stats.reviews}</div>
+                        <p className="text-label-12 text-neutral-7">代码审查</p>
                       </CardContent>
                     </Card>
                   </div>
@@ -221,7 +221,7 @@ export default function ProfilePage() {
                   {teamName && (
                     <Card>
                       <CardHeader>
-                        <CardTitle className="font-serif text-lg">团队信息</CardTitle>
+                        <CardTitle className="font-serif text-copy-16">团队信息</CardTitle>
                         <CardDescription className="text-neutral-7">您当前所属的团队</CardDescription>
                       </CardHeader>
                       <CardContent>
@@ -231,7 +231,7 @@ export default function ProfilePage() {
                           </div>
                           <div>
                             <p className="font-medium text-neutral-10">{teamName}</p>
-                            <p className="text-sm text-neutral-7">{memberCount} 位成员</p>
+                            <p className="text-copy-13 text-neutral-7">{memberCount} 位成员</p>
                           </div>
                         </div>
                       </CardContent>

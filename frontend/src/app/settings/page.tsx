@@ -93,7 +93,7 @@ export default function SettingsPage() {
           <Sidebar />
           <main className="flex-1 overflow-y-auto bg-neutral-1">
             <div className="container mx-auto max-w-4xl px-6 py-8">
-              <h1 className="font-serif text-3xl font-medium text-neutral-10 mb-8">
+              <h1 className="font-serif text-title-28 font-medium text-neutral-10 mb-8">
                 设置
               </h1>
 
@@ -102,7 +102,7 @@ export default function SettingsPage() {
                   <nav className="space-y-1">
                     {tabs.map((tab) => {
                       const Icon = tab.icon;
-                      const className = `w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg transition-colors ${
+                      const className = `w-full flex items-center gap-3 px-3 py-2.5 text-copy-13 rounded-lg transition-colors ${
                         activeTab === tab.id
                           ? 'bg-neutral-2 text-neutral-10 font-medium'
                           : 'text-neutral-7 hover:text-neutral-9 hover:bg-neutral-2'
@@ -131,12 +131,12 @@ export default function SettingsPage() {
 
                 <div className="flex-1">
                   {error && (
-                    <div className="mb-4 p-3 bg-error/10 border border-error/30 rounded-lg text-sm text-error">
+                    <div className="mb-4 p-3 bg-error/10 border border-error/30 rounded-lg text-copy-13 text-error">
                       {error}
                     </div>
                   )}
                   {saved && (
-                    <div className="mb-4 p-3 bg-success/10 border border-success/30 rounded-lg text-sm text-success flex items-center gap-2">
+                    <div className="mb-4 p-3 bg-success/10 border border-success/30 rounded-lg text-copy-13 text-success flex items-center gap-2">
                       <Check className="h-4 w-4" />
                       保存成功
                     </div>
@@ -145,7 +145,7 @@ export default function SettingsPage() {
                   {activeTab === 'profile' && (
                     <Card>
                       <CardHeader>
-                        <CardTitle className="font-serif text-xl">个人资料</CardTitle>
+                        <CardTitle className="font-serif text-title-20">个人资料</CardTitle>
                         <CardDescription className="text-neutral-7">
                           管理您的个人信息和公开资料
                         </CardDescription>
@@ -157,23 +157,23 @@ export default function SettingsPage() {
                           </div>
                           <div>
                             <Button variant="outline" size="sm">更换头像</Button>
-                            <p className="text-xs text-neutral-6 mt-2">支持 JPG、PNG 格式，最大 2MB</p>
+                            <p className="text-label-12 text-neutral-6 mt-2">支持 JPG、PNG 格式，最大 2MB</p>
                           </div>
                         </div>
 
                         <div className="space-y-4">
                           <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-9">用户名</label>
+                            <label className="text-copy-13 font-medium text-neutral-9">用户名</label>
                             <Input value={profileData.username} onChange={(e) => setProfileData({ ...profileData, username: e.target.value })} className="max-w-md" />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-9">邮箱</label>
+                            <label className="text-copy-13 font-medium text-neutral-9">邮箱</label>
                             <Input value={profileData.email} type="email" className="max-w-md" disabled />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-9">个人简介</label>
+                            <label className="text-copy-13 font-medium text-neutral-9">个人简介</label>
                             <textarea
-                              className="flex min-h-[100px] w-full max-w-md rounded-lg border border-neutral-5 bg-neutral-1 px-3 py-2 text-sm text-neutral-9 placeholder:text-neutral-6 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all"
+                              className="flex min-h-[100px] w-full max-w-md rounded-lg border border-neutral-5 bg-neutral-1 px-3 py-2 text-copy-13 text-neutral-9 placeholder:text-neutral-6 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all"
                               value={profileData.bio}
                               onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
                               placeholder="介绍一下自己..."
@@ -192,7 +192,7 @@ export default function SettingsPage() {
                   {activeTab === 'security' && (
                     <Card>
                       <CardHeader>
-                        <CardTitle className="font-serif text-xl">安全设置</CardTitle>
+                        <CardTitle className="font-serif text-title-20">安全设置</CardTitle>
                         <CardDescription className="text-neutral-7">
                           管理您的账户安全和登录方式
                         </CardDescription>
@@ -200,15 +200,15 @@ export default function SettingsPage() {
                       <CardContent className="space-y-6">
                         <div className="space-y-4">
                           <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-9">当前密码</label>
+                            <label className="text-copy-13 font-medium text-neutral-9">当前密码</label>
                             <Input type="password" className="max-w-md" value={passwordData.current} onChange={(e) => setPasswordData({ ...passwordData, current: e.target.value })} />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-9">新密码</label>
+                            <label className="text-copy-13 font-medium text-neutral-9">新密码</label>
                             <Input type="password" className="max-w-md" value={passwordData.newPw} onChange={(e) => setPasswordData({ ...passwordData, newPw: e.target.value })} />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-9">确认新密码</label>
+                            <label className="text-copy-13 font-medium text-neutral-9">确认新密码</label>
                             <Input type="password" className="max-w-md" value={passwordData.confirm} onChange={(e) => setPasswordData({ ...passwordData, confirm: e.target.value })} />
                           </div>
                         </div>
@@ -223,7 +223,7 @@ export default function SettingsPage() {
                   {activeTab === 'notifications' && (
                     <Card>
                       <CardHeader>
-                        <CardTitle className="font-serif text-xl">通知设置</CardTitle>
+                        <CardTitle className="font-serif text-title-20">通知设置</CardTitle>
                         <CardDescription className="text-neutral-7">
                           控制您接收的通知类型和方式
                         </CardDescription>
@@ -238,9 +238,9 @@ export default function SettingsPage() {
                           <div key={item.label} className="flex items-center justify-between py-3 border-b border-neutral-5 last:border-0">
                             <div>
                               <p className="font-medium text-neutral-10">{item.label}</p>
-                              <p className="text-sm text-neutral-7">{item.description}</p>
+                              <p className="text-copy-13 text-neutral-7">{item.description}</p>
                             </div>
-                            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-2 text-sm text-neutral-7">
+                            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-2 text-copy-13 text-neutral-7">
                               <Check className="h-3 w-3" />
                               已开启
                             </span>
@@ -253,14 +253,14 @@ export default function SettingsPage() {
                   {activeTab === 'appearance' && (
                     <Card>
                       <CardHeader>
-                        <CardTitle className="font-serif text-xl">外观设置</CardTitle>
+                        <CardTitle className="font-serif text-title-20">外观设置</CardTitle>
                         <CardDescription className="text-neutral-7">
                           自定义界面的外观和显示效果
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-6">
                         <div>
-                          <label className="text-sm font-medium text-neutral-9 mb-3 block">主题</label>
+                          <label className="text-copy-13 font-medium text-neutral-9 mb-3 block">主题</label>
                           <div className="flex gap-3">
                             {(['light', 'dark', 'system'] as const).map((themeOption) => (
                               <button
@@ -278,7 +278,7 @@ export default function SettingsPage() {
                           </div>
                         </div>
                         <div>
-                          <label className="text-sm font-medium text-neutral-9 mb-3 block">编辑器字体大小</label>
+                          <label className="text-copy-13 font-medium text-neutral-9 mb-3 block">编辑器字体大小</label>
                           <Input type="range" min="12" max="20" defaultValue="14" className="max-w-md" />
                         </div>
                       </CardContent>

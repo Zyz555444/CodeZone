@@ -120,7 +120,7 @@ export default function TeamSetupPage() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Code className="w-8 h-8 text-accent" />
-            <span className="text-2xl font-serif font-medium text-neutral-10">CodeZone</span>
+            <span className="text-title-24 font-serif font-medium text-neutral-10">CodeZone</span>
           </div>
           <p className="text-neutral-7">欢迎，{user?.username}</p>
         </div>
@@ -138,8 +138,8 @@ export default function TeamSetupPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="bg-neutral-3 rounded-lg p-4 text-center">
-                <p className="text-sm text-neutral-7 mb-2">团队邀请码（分享给成员加入）</p>
-                <p className="text-3xl font-mono font-bold tracking-widest text-accent select-all">
+                <p className="text-copy-13 text-neutral-7 mb-2">团队邀请码（分享给成员加入）</p>
+                <p className="text-title-28 font-mono font-medium tracking-widest text-accent select-all">
                   {createdTeam.inviteCode}
                 </p>
               </div>
@@ -153,7 +153,7 @@ export default function TeamSetupPage() {
         {joinResult && !joinResult.success && (
           <div className="mb-4 p-3 bg-error/10 border border-error/30 rounded-lg flex items-center gap-2 text-error">
             <XCircle className="w-5 h-5 flex-shrink-0" />
-            <span className="text-sm">{joinResult.message}</span>
+            <span className="text-copy-13">{joinResult.message}</span>
           </div>
         )}
 
@@ -169,7 +169,7 @@ export default function TeamSetupPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-neutral-7 mb-4">
+              <p className="text-copy-13 text-neutral-7 mb-4">
                 审核通过后你将可以访问团队的所有功能。你也可以返回创建自己的团队。
               </p>
               <div className="flex gap-2">
@@ -190,7 +190,7 @@ export default function TeamSetupPage() {
                     <Users className="w-5 h-5 text-accent" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">创建新团队</CardTitle>
+                    <CardTitle className="text-copy-16">创建新团队</CardTitle>
                     <CardDescription>创建一个全新的团队，你将自动成为管理员</CardDescription>
                   </div>
                 </div>
@@ -204,7 +204,7 @@ export default function TeamSetupPage() {
                     <UserPlus className="w-5 h-5 text-accent" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">加入已有团队</CardTitle>
+                    <CardTitle className="text-copy-16">加入已有团队</CardTitle>
                     <CardDescription>输入团队邀请码申请加入，等待管理员审核</CardDescription>
                   </div>
                 </div>
@@ -222,12 +222,12 @@ export default function TeamSetupPage() {
             <CardContent>
               <form onSubmit={handleCreateTeam} className="space-y-4">
                 {error && (
-                  <div className="p-3 bg-error/10 border border-error/30 rounded-lg text-sm text-error">
+                  <div className="p-3 bg-error/10 border border-error/30 rounded-lg text-copy-13 text-error">
                     {error}
                   </div>
                 )}
                 <div>
-                  <label className="block text-sm font-medium text-neutral-9 mb-1">团队名称</label>
+                  <label className="block text-copy-13 font-medium text-neutral-9 mb-1">团队名称</label>
                   <Input
                     value={teamName}
                     onChange={(e) => setTeamName(e.target.value)}
@@ -258,13 +258,13 @@ export default function TeamSetupPage() {
             <CardContent>
               <form onSubmit={handleJoinTeam} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-9 mb-1">邀请码</label>
+                  <label className="block text-copy-13 font-medium text-neutral-9 mb-1">邀请码</label>
                   <Input
                     value={inviteCode}
                     onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                     placeholder="输入 8 位邀请码"
                     maxLength={8}
-                    className="font-mono text-lg tracking-widest text-center"
+                    className="font-mono text-copy-16 tracking-widest text-center"
                     required
                   />
                 </div>

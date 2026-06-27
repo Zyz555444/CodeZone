@@ -155,13 +155,13 @@ function TasksContent() {
         <div className="flex items-start justify-between">
           <h3 className="font-medium line-clamp-2 text-neutral-10">{task.title}</h3>
           <div className="flex items-center gap-1">
-            <span className={`text-xs ${priorityConfig[task.priority].color}`}>
+            <span className={`text-label-12 ${priorityConfig[task.priority].color}`}>
               ●
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-neutral-7">
+        <div className="flex items-center gap-3 text-label-12 text-neutral-7">
           {task.assignee && (
             <div className="flex items-center gap-1">
               <User className="h-3 w-3" />
@@ -177,21 +177,21 @@ function TasksContent() {
         </div>
 
         {task._count && task._count.comments > 0 && (
-          <div className="flex items-center gap-3 text-xs text-neutral-6">
+          <div className="flex items-center gap-3 text-label-12 text-neutral-6">
             <span>{task._count.comments} 评论</span>
             <span>{task._count.subtasks} 子任务</span>
           </div>
         )}
 
         <div className="flex items-center justify-between pt-2 border-t border-neutral-4">
-          <span className={`text-xs px-2 py-1 rounded-full ${statusConfig[task.status].color}`}>
+          <span className={`text-label-12 px-2 py-1 rounded-full ${statusConfig[task.status].color}`}>
             {statusConfig[task.status].label}
           </span>
           <select
             value={task.status}
             onChange={(e) => handleStatusChange(task.id, e.target.value as Task['status'])}
             onClick={(e) => e.stopPropagation()}
-            className="text-xs border border-neutral-5 rounded px-2 py-1 bg-neutral-2 text-neutral-9"
+            className="text-label-12 border border-neutral-5 rounded px-2 py-1 bg-neutral-2 text-neutral-9"
           >
             {Object.entries(statusConfig).map(([value, config]) => (
               <option key={value} value={value}>
@@ -209,7 +209,7 @@ function TasksContent() {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-neutral-10">{title}</h3>
-          <span className="text-xs text-neutral-7 bg-neutral-3 px-2 py-0.5 rounded-full">
+          <span className="text-label-12 text-neutral-7 bg-neutral-3 px-2 py-0.5 rounded-full">
             {taskList.length}
           </span>
         </div>
@@ -225,7 +225,7 @@ function TasksContent() {
       >
         {taskList.map(renderTaskCard)}
         {taskList.length === 0 && (
-          <div className="text-center py-8 text-sm text-neutral-7 border-2 border-dashed border-neutral-5 rounded-lg">
+          <div className="text-center py-8 text-copy-13 text-neutral-7 border-2 border-dashed border-neutral-5 rounded-lg">
             暂无任务
           </div>
         )}
@@ -244,7 +244,7 @@ function TasksContent() {
             <div className="container py-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h1 className="font-serif text-3xl font-medium text-neutral-10">任务</h1>
+                  <h1 className="font-serif text-title-28 font-medium text-neutral-10">任务</h1>
                   <p className="text-neutral-7">管理和跟踪项目任务</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -255,7 +255,7 @@ function TasksContent() {
                       placeholder="搜索任务..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 pr-4 py-2 border border-neutral-5 rounded-lg bg-neutral-2 text-neutral-9 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                      className="pl-9 pr-4 py-2 border border-neutral-5 rounded-lg bg-neutral-2 text-neutral-9 text-copy-13 focus:outline-none focus:ring-2 focus:ring-accent"
                     />
                   </div>
                   <Button variant="outline" className="gap-2">

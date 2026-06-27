@@ -138,8 +138,8 @@ export default function RepoDetailPage() {
                   <div className="w-16 h-16 rounded-2xl bg-neutral-2 flex items-center justify-center mb-4">
                     <FolderGit2 className="h-8 w-8 text-neutral-6" />
                   </div>
-                  <h3 className="font-serif text-lg text-neutral-10 mb-2">仓库不存在</h3>
-                  <p className="text-sm text-neutral-7 mb-6">未找到该仓库，可能已被删除</p>
+                  <h3 className="font-serif text-copy-16 text-neutral-10 mb-2">仓库不存在</h3>
+                  <p className="text-copy-13 text-neutral-7 mb-6">未找到该仓库，可能已被删除</p>
                   <Button variant="secondary" onClick={() => router.back()}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     返回
@@ -168,7 +168,7 @@ export default function RepoDetailPage() {
                   className="flex items-center gap-2 text-neutral-7 hover:text-neutral-9 mb-6 transition-colors"
                 >
                   <ArrowLeft className="h-4 w-4" />
-                  <span className="text-sm">返回仓库列表</span>
+                  <span className="text-copy-13">返回仓库列表</span>
                 </button>
 
                 {/* Repo Header */}
@@ -178,19 +178,19 @@ export default function RepoDetailPage() {
                       <FolderGit2 className="h-6 w-6 text-accent" />
                     </div>
                     <div>
-                      <h1 className="font-serif text-2xl font-medium text-neutral-10">
+                      <h1 className="font-serif text-title-24 font-medium text-neutral-10">
                         {repo.name}
                       </h1>
                       <div className="flex items-center gap-3 mt-1">
                         <span
-                          className={`text-xs px-2 py-0.5 rounded-md font-medium ${
+                          className={`text-label-12 px-2 py-0.5 rounded-md font-medium ${
                             providerColors[repo.provider] || providerColors.INTERNAL
                           }`}
                         >
                           {providerLabels[repo.provider] || repo.provider}
                         </span>
                         {repo.url && (
-                          <span className="flex items-center gap-1 text-sm text-neutral-7">
+                          <span className="flex items-center gap-1 text-copy-13 text-neutral-7">
                             <Globe className="h-3.5 w-3.5" />
                             {repo.url}
                           </span>
@@ -205,7 +205,7 @@ export default function RepoDetailPage() {
                   <div className="mb-6 p-4 bg-error/10 border border-error/30 rounded-xl flex items-center justify-between">
                     <div className="flex items-center gap-2 text-error">
                       <AlertCircle className="h-4 w-4" />
-                      <span className="text-sm">{error}</span>
+                      <span className="text-copy-13">{error}</span>
                     </div>
                     <Button variant="ghost" size="sm" onClick={fetchData} className="gap-1.5">
                       <RefreshCw className="h-3.5 w-3.5" />
@@ -218,7 +218,7 @@ export default function RepoDetailPage() {
                 <div className="flex gap-1 border-b border-neutral-5 mb-6">
                   <button
                     onClick={() => setActiveTab('commits')}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
+                    className={`flex items-center gap-2 px-4 py-3 text-copy-13 font-medium border-b-2 transition-colors -mb-px ${
                       activeTab === 'commits'
                         ? 'border-accent text-accent'
                         : 'border-transparent text-neutral-7 hover:text-neutral-9'
@@ -229,7 +229,7 @@ export default function RepoDetailPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab('branches')}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
+                    className={`flex items-center gap-2 px-4 py-3 text-copy-13 font-medium border-b-2 transition-colors -mb-px ${
                       activeTab === 'branches'
                         ? 'border-accent text-accent'
                         : 'border-transparent text-neutral-7 hover:text-neutral-9'
@@ -244,7 +244,7 @@ export default function RepoDetailPage() {
                 {activeTab === 'commits' && (
                   <div>
                     <div className="flex items-center justify-between mb-4">
-                      <h2 className="font-serif text-lg text-neutral-10">提交记录</h2>
+                      <h2 className="font-serif text-copy-16 text-neutral-10">提交记录</h2>
                       <Button size="sm" onClick={() => setShowAddCommit(true)}>
                         <Plus className="mr-1.5 h-3.5 w-3.5" />
                         添加提交
@@ -256,8 +256,8 @@ export default function RepoDetailPage() {
                         <div className="w-14 h-14 rounded-2xl bg-neutral-2 flex items-center justify-center mb-4">
                           <GitCommit className="h-7 w-7 text-neutral-6" />
                         </div>
-                        <h3 className="font-serif text-base text-neutral-10 mb-2">暂无提交</h3>
-                        <p className="text-sm text-neutral-7 mb-6">该仓库还没有任何提交记录</p>
+                        <h3 className="font-serif text-copy-14 text-neutral-10 mb-2">暂无提交</h3>
+                        <p className="text-copy-13 text-neutral-7 mb-6">该仓库还没有任何提交记录</p>
                         <Button size="sm" onClick={() => setShowAddCommit(true)}>
                           <Plus className="mr-1.5 h-3.5 w-3.5" />
                           添加提交
@@ -270,19 +270,19 @@ export default function RepoDetailPage() {
                             key={commit.id}
                             className="flex items-center gap-4 px-5 py-3.5 rounded-xl border border-neutral-5 bg-neutral-2"
                           >
-                            <span className="font-mono text-sm text-accent shrink-0">
+                            <span className="font-mono text-copy-13 text-accent shrink-0">
                               {commit.hash ? commit.hash.slice(0, 7) : commit.id?.slice(0, 7)}
                             </span>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm text-neutral-9 truncate">{commit.message}</p>
+                              <p className="text-copy-13 text-neutral-9 truncate">{commit.message}</p>
                               <div className="flex items-center gap-3 mt-1">
                                 {commit.branch && (
-                                  <span className="flex items-center gap-1 text-xs text-neutral-7">
+                                  <span className="flex items-center gap-1 text-label-12 text-neutral-7">
                                     <GitBranch className="h-3 w-3" />
                                     {commit.branch}
                                   </span>
                                 )}
-                                <span className="text-xs text-neutral-6">
+                                <span className="text-label-12 text-neutral-6">
                                   {formatDate(commit.createdAt || commit.date)}
                                 </span>
                               </div>
@@ -295,10 +295,10 @@ export default function RepoDetailPage() {
                     {/* Add commit inline form */}
                     {showAddCommit && (
                       <div className="mt-4 rounded-xl border border-accent/30 bg-accent-subtle p-5">
-                        <h3 className="font-serif text-base text-neutral-10 mb-4">新提交</h3>
+                        <h3 className="font-serif text-copy-14 text-neutral-10 mb-4">新提交</h3>
                         <div className="space-y-4">
                           <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-9">提交信息</label>
+                            <label className="text-copy-13 font-medium text-neutral-9">提交信息</label>
                             <Input
                               value={commitForm.message}
                               onChange={(e) => setCommitForm({ ...commitForm, message: e.target.value })}
@@ -307,12 +307,12 @@ export default function RepoDetailPage() {
                             />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-sm font-medium text-neutral-9">分支</label>
+                            <label className="text-copy-13 font-medium text-neutral-9">分支</label>
                             {branches.length > 0 ? (
                               <select
                                 value={commitForm.branch}
                                 onChange={(e) => setCommitForm({ ...commitForm, branch: e.target.value })}
-                                className="flex h-10 w-full rounded-lg border border-neutral-5 bg-neutral-1 px-3 py-2 text-sm text-neutral-9 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all"
+                                className="flex h-10 w-full rounded-lg border border-neutral-5 bg-neutral-1 px-3 py-2 text-copy-13 text-neutral-9 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all"
                               >
                                 {branches.map((b: any) => (
                                   <option key={b.name} value={b.name}>
@@ -349,15 +349,15 @@ export default function RepoDetailPage() {
                 {/* Branches Tab */}
                 {activeTab === 'branches' && (
                   <div>
-                    <h2 className="font-serif text-lg text-neutral-10 mb-4">分支列表</h2>
+                    <h2 className="font-serif text-copy-16 text-neutral-10 mb-4">分支列表</h2>
 
                     {branches.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-16">
                         <div className="w-14 h-14 rounded-2xl bg-neutral-2 flex items-center justify-center mb-4">
                           <GitBranch className="h-7 w-7 text-neutral-6" />
                         </div>
-                        <h3 className="font-serif text-base text-neutral-10 mb-2">暂无分支</h3>
-                        <p className="text-sm text-neutral-7">该仓库还没有任何分支</p>
+                        <h3 className="font-serif text-copy-14 text-neutral-10 mb-2">暂无分支</h3>
+                        <p className="text-copy-13 text-neutral-7">该仓库还没有任何分支</p>
                       </div>
                     ) : (
                       <div className="space-y-2">
@@ -373,13 +373,13 @@ export default function RepoDetailPage() {
                                 </div>
                                 <div>
                                   <p className="font-medium text-neutral-10">{branch.name}</p>
-                                  <p className="text-xs text-neutral-7">
+                                  <p className="text-label-12 text-neutral-7">
                                     {branchCommitCount(branch.name, commits)} 次提交
                                   </p>
                                 </div>
                               </div>
                               {branch.name === repo.defaultBranch && (
-                                <span className="text-xs px-2 py-0.5 rounded-md bg-neutral-3 text-neutral-6">
+                                <span className="text-label-12 px-2 py-0.5 rounded-md bg-neutral-3 text-neutral-6">
                                   默认
                                 </span>
                               )}

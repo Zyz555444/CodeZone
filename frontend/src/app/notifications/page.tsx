@@ -98,10 +98,10 @@ export default function NotificationsPage() {
                     <Bell className="h-5 w-5 text-neutral-7" />
                   </div>
                   <div>
-                    <h1 className="font-serif text-2xl font-medium text-neutral-10">
+                    <h1 className="font-serif text-title-24 font-medium text-neutral-10">
                       通知中心
                     </h1>
-                    <p className="text-sm text-neutral-7">
+                    <p className="text-copy-13 text-neutral-7">
                       {unreadCount > 0 ? `${unreadCount} 条未读通知` : '暂无未读通知'}
                     </p>
                   </div>
@@ -146,7 +146,7 @@ export default function NotificationsPage() {
                               )}>
                                 {notification.title}
                               </p>
-                              <p className="text-sm text-neutral-7 mt-0.5">
+                              <p className="text-copy-13 text-neutral-7 mt-0.5">
                                 {notification.content}
                               </p>
                             </div>
@@ -154,7 +154,7 @@ export default function NotificationsPage() {
                               <span className="w-2 h-2 rounded-full bg-accent shrink-0 mt-2" />
                             )}
                           </div>
-                          <p className="text-xs text-neutral-6 mt-2">
+                          <p className="text-label-12 text-neutral-6 mt-2">
                             {formatDate(notification.createdAt)}
                           </p>
                         </div>
@@ -166,7 +166,7 @@ export default function NotificationsPage() {
 
               {notifications.length === 0 && (
                 <div className="text-center py-16">
-                  <Bell className="h-12 w-12 mx-auto mb-4 text-neutral-5" />
+                  <Bell className="h-12 w-12 mx-auto mb-4 text-neutral-7" />
                   <p className="text-neutral-7">暂无通知</p>
                 </div>
               )}

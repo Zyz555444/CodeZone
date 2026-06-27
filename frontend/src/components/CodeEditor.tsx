@@ -338,18 +338,18 @@ export function CodeEditor({
       {agentRunning && (
         <div className="absolute top-2 right-2 z-50 flex items-center gap-1.5 px-2 py-1 bg-accent/10 backdrop-blur-sm rounded-lg border border-accent/20">
           <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />
-          <span className="text-xs text-accent">Agent 执行中...</span>
-          <button onClick={handleAgentClose} className="ml-1 text-xs text-neutral-6 hover:text-neutral-9">
+          <span className="text-label-12 text-accent">Agent 执行中...</span>
+          <button onClick={handleAgentClose} className="ml-1 text-label-12 text-neutral-6 hover:text-neutral-9">
             Esc 取消
           </button>
         </div>
       )}
 
-      <div className="absolute top-2 left-2 z-40 hidden lg:flex items-center gap-1 px-2 py-0.5 bg-neutral-1/80 backdrop-blur-sm rounded-lg border border-neutral-4 text-xs text-neutral-6">
+      <div className="absolute top-2 left-2 z-40 hidden lg:flex items-center gap-1 px-2 py-0.5 bg-neutral-1/80 backdrop-blur-sm rounded-lg border border-neutral-4 text-label-12 text-neutral-6">
         {onlineCount > 0 && (
           <span>{onlineCount} 在线</span>
         )}
-        <span className="text-neutral-5">Ctrl+K</span>
+        <span className="text-neutral-7">Ctrl+K</span>
         <span>AI 指令</span>
       </div>
 
@@ -513,25 +513,25 @@ function InlinePrompt({
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="用自然语言描述你要做什么..."
-        className="w-full min-h-[60px] text-sm bg-neutral-1 border border-neutral-4 rounded-lg p-2 resize-none outline-none focus:border-accent/50"
+        className="w-full min-h-[60px] text-copy-13 bg-neutral-1 border border-neutral-4 rounded-lg p-2 resize-none outline-none focus:border-accent/50"
         rows={3}
         disabled={loading}
       />
       {result && (
-        <pre className="mt-2 text-xs text-neutral-7 whitespace-pre-wrap font-mono bg-neutral-1 border border-neutral-4 p-2 rounded-lg max-h-32 overflow-auto">
+        <pre className="mt-2 text-label-12 text-neutral-7 whitespace-pre-wrap font-mono bg-neutral-1 border border-neutral-4 p-2 rounded-lg max-h-32 overflow-auto">
           {result}
         </pre>
       )}
       <div className="flex items-center justify-between mt-2">
-        <span className="text-xs text-neutral-6">{loading ? 'Agent 正在执行任务...' : 'Enter 发送 · Esc 取消'}</span>
+        <span className="text-label-12 text-neutral-6">{loading ? 'Agent 正在执行任务...' : 'Enter 发送 · Esc 取消'}</span>
         <div className="flex gap-1.5">
-          <button onClick={onClose} className="px-2.5 py-1 text-xs rounded-lg bg-neutral-3 text-neutral-7 hover:bg-neutral-4 transition-colors">
+          <button onClick={onClose} className="px-2.5 py-1 text-label-12 rounded-lg bg-neutral-3 text-neutral-7 hover:bg-neutral-4 transition-colors">
             取消
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading || !input.trim()}
-            className="px-2.5 py-1 text-xs rounded-lg bg-accent text-white hover:bg-accent/90 disabled:opacity-50 transition-colors"
+            className="px-2.5 py-1 text-label-12 rounded-lg bg-accent text-white hover:bg-accent/90 disabled:opacity-50 transition-colors"
           >
             {loading ? '执行中...' : '执行'}
           </button>

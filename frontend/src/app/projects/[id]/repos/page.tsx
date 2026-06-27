@@ -141,19 +141,19 @@ export default function ProjectReposPage() {
                     className="flex items-center gap-2 text-neutral-7 hover:text-neutral-9 transition-colors"
                   >
                     <ArrowLeft className="h-4 w-4" />
-                    <span className="text-sm">返回项目</span>
+                    <span className="text-copy-13">返回项目</span>
                   </button>
                   {project && (
                     <>
-                      <span className="text-neutral-5">/</span>
+                      <span className="text-neutral-7">/</span>
                       <Link
                         href={`/projects/${params.id}`}
-                        className="text-sm text-neutral-7 hover:text-neutral-9 transition-colors"
+                        className="text-copy-13 text-neutral-7 hover:text-neutral-9 transition-colors"
                       >
                         {project.name}
                       </Link>
-                      <span className="text-neutral-5">/</span>
-                      <span className="text-sm text-neutral-9">仓库管理</span>
+                      <span className="text-neutral-7">/</span>
+                      <span className="text-copy-13 text-neutral-9">仓库管理</span>
                     </>
                   )}
                 </div>
@@ -161,10 +161,10 @@ export default function ProjectReposPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8">
                   <div>
-                    <h1 className="font-serif text-3xl font-medium text-neutral-10">
+                    <h1 className="font-serif text-title-28 font-medium text-neutral-10">
                       仓库管理
                     </h1>
-                    <p className="text-sm text-neutral-7 mt-1">
+                    <p className="text-copy-13 text-neutral-7 mt-1">
                       管理项目关联的 Git 仓库
                     </p>
                   </div>
@@ -179,7 +179,7 @@ export default function ProjectReposPage() {
                   <div className="mb-6 p-4 bg-error/10 border border-error/30 rounded-xl flex items-center justify-between">
                     <div className="flex items-center gap-2 text-error">
                       <AlertCircle className="h-4 w-4" />
-                      <span className="text-sm">{error}</span>
+                      <span className="text-copy-13">{error}</span>
                     </div>
                     <Button variant="ghost" size="sm" onClick={fetchData} className="gap-1.5">
                       <RefreshCw className="h-3.5 w-3.5" />
@@ -194,8 +194,8 @@ export default function ProjectReposPage() {
                     <div className="w-16 h-16 rounded-2xl bg-neutral-2 flex items-center justify-center mb-4">
                       <FolderGit2 className="h-8 w-8 text-neutral-6" />
                     </div>
-                    <h3 className="font-serif text-lg text-neutral-10 mb-2">暂无仓库</h3>
-                    <p className="text-sm text-neutral-7 mb-6">还没有添加任何 Git 仓库</p>
+                    <h3 className="font-serif text-copy-16 text-neutral-10 mb-2">暂无仓库</h3>
+                    <p className="text-copy-13 text-neutral-7 mb-6">还没有添加任何 Git 仓库</p>
                     <Button onClick={() => setShowCreate(true)}>
                       <Plus className="mr-2 h-4 w-4" />
                       添加仓库
@@ -215,9 +215,9 @@ export default function ProjectReposPage() {
                         <Card className="h-full transition-shadow hover:shadow-float cursor-pointer">
                           <CardHeader className="pb-3">
                             <div className="flex items-start justify-between gap-2">
-                              <CardTitle className="text-base truncate">{repo.name}</CardTitle>
+                              <CardTitle className="text-copy-14 truncate">{repo.name}</CardTitle>
                               <span
-                                className={`shrink-0 text-xs px-2 py-0.5 rounded-md font-medium ${
+                                className={`shrink-0 text-label-12 px-2 py-0.5 rounded-md font-medium ${
                                   providerColors[repo.provider] || providerColors.INTERNAL
                                 }`}
                               >
@@ -227,18 +227,18 @@ export default function ProjectReposPage() {
                           </CardHeader>
                           <CardContent className="space-y-2">
                             {repo.url && (
-                              <div className="flex items-center gap-1.5 text-sm text-neutral-7 truncate">
+                              <div className="flex items-center gap-1.5 text-copy-13 text-neutral-7 truncate">
                                 <Globe className="h-3.5 w-3.5 shrink-0" />
                                 <span className="truncate">{repo.url}</span>
                               </div>
                             )}
                             {repo.defaultBranch && (
-                              <div className="flex items-center gap-1.5 text-sm text-neutral-7">
+                              <div className="flex items-center gap-1.5 text-copy-13 text-neutral-7">
                                 <GitBranch className="h-3.5 w-3.5 shrink-0" />
                                 <span>{repo.defaultBranch}</span>
                               </div>
                             )}
-                            <p className="text-xs text-neutral-6">
+                            <p className="text-label-12 text-neutral-6">
                               创建于 {formatDate(repo.createdAt)}
                             </p>
                           </CardContent>
@@ -259,7 +259,7 @@ export default function ProjectReposPage() {
           <div className="absolute inset-0 bg-neutral-10/20 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
           <div className="relative w-full max-w-md mx-4 rounded-xl border border-neutral-5 bg-neutral-2 shadow-float">
             <div className="flex items-center justify-between p-6 border-b border-neutral-5">
-              <h2 className="font-serif text-lg font-medium text-neutral-10">添加仓库</h2>
+              <h2 className="font-serif text-copy-16 font-medium text-neutral-10">添加仓库</h2>
               <button
                 onClick={() => setShowCreate(false)}
                 className="p-1 rounded-lg hover:bg-neutral-3 text-neutral-7 transition-colors"
@@ -269,7 +269,7 @@ export default function ProjectReposPage() {
             </div>
             <div className="p-6 space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-9">仓库名称</label>
+                <label className="text-copy-13 font-medium text-neutral-9">仓库名称</label>
                 <Input
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -278,7 +278,7 @@ export default function ProjectReposPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-9">仓库 URL（可选）</label>
+                <label className="text-copy-13 font-medium text-neutral-9">仓库 URL（可选）</label>
                 <Input
                   value={formData.url}
                   onChange={(e) => setFormData({ ...formData, url: e.target.value })}
@@ -287,11 +287,11 @@ export default function ProjectReposPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-neutral-9">仓库来源</label>
+                <label className="text-copy-13 font-medium text-neutral-9">仓库来源</label>
                 <select
                   value={formData.provider}
                   onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
-                  className="flex h-10 w-full rounded-lg border border-neutral-5 bg-neutral-1 px-3 py-2 text-sm text-neutral-9 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all"
+                  className="flex h-10 w-full rounded-lg border border-neutral-5 bg-neutral-1 px-3 py-2 text-copy-13 text-neutral-9 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all"
                 >
                   <option value="INTERNAL">内置仓库</option>
                   <option value="GITHUB">GitHub</option>

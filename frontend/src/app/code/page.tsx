@@ -62,8 +62,8 @@ function CodePageContent() {
               ) : error ? (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
-                    <p className="text-base font-medium text-red-600 mb-1">{error}</p>
-                    <p className="text-sm text-neutral-6">请返回项目列表重试</p>
+                    <p className="text-copy-14 font-medium text-red-600 mb-1">{error}</p>
+                    <p className="text-copy-13 text-neutral-6">请返回项目列表重试</p>
                   </div>
                 </div>
               ) : projectId ? (
@@ -71,8 +71,8 @@ function CodePageContent() {
               ) : (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
-                    <p className="text-base font-medium text-neutral-7 mb-1">请先选择一个项目</p>
-                    <p className="text-sm text-neutral-6">从项目列表中选择一个项目开始编码</p>
+                    <p className="text-copy-14 font-medium text-neutral-7 mb-1">请先选择一个项目</p>
+                    <p className="text-copy-13 text-neutral-6">从项目列表中选择一个项目开始编码</p>
                   </div>
                 </div>
               )}

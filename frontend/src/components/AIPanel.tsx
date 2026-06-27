@@ -347,7 +347,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
           >
             <MessageSquare className="h-4 w-4" />
           </button>
-          <span className="text-sm font-medium text-neutral-9">AI Agent</span>
+          <span className="text-copy-13 font-medium text-neutral-9">AI Agent</span>
           <button
             onClick={() => setIsAgentMode(!isAgentMode)}
             className={`p-1 rounded-lg transition-colors ${isAgentMode ? 'bg-accent/10 text-accent' : 'text-neutral-6 hover:bg-neutral-2'}`}
@@ -356,7 +356,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
             {isAgentMode ? <Cpu className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
           </button>
           {isAgentMode && (
-            <span className="text-xs text-accent font-medium">工具模式</span>
+            <span className="text-label-12 text-accent font-medium">工具模式</span>
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -377,14 +377,14 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
       {showHistory && (
         <div className="border-b border-neutral-3 max-h-48 overflow-y-auto shrink-0">
           <div className="p-2">
-            <p className="text-xs text-neutral-6 px-2 py-1">对话历史</p>
+            <p className="text-label-12 text-neutral-6 px-2 py-1">对话历史</p>
             {conversations.length === 0 && (
-              <p className="text-xs text-neutral-6 px-2 py-2">暂无对话</p>
+              <p className="text-label-12 text-neutral-6 px-2 py-2">暂无对话</p>
             )}
             {conversations.map((conv) => (
               <div
                 key={conv.id}
-                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-sm group ${
+                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-copy-13 group ${
                   activeConversationId === conv.id
                     ? 'bg-accent/10 text-accent'
                     : 'text-neutral-8 hover:bg-neutral-2'
@@ -407,7 +407,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
 
       {/* Error banner */}
       {error && (
-        <div className="mx-3 mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 shrink-0">
+        <div className="mx-3 mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-label-12 text-red-600 shrink-0">
           {error}
           <button onClick={clearError} className="ml-2 underline">关闭</button>
         </div>
@@ -416,10 +416,10 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
       {/* Messages area */}
       <div ref={chatRef} className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
         {messages.length === 0 && !isStreaming && (
-          <div className="text-center text-neutral-6 text-sm py-8">
+          <div className="text-center text-neutral-6 text-copy-13 py-8">
             <Sparkles className="h-6 w-6 mx-auto mb-2 text-accent/60" />
             <p className="font-medium">AI Coding Agent</p>
-            <p className="text-xs mt-1">
+            <p className="text-label-12 mt-1">
               {isAgentMode
                 ? '工具型 Agent 模式：AI 可读取文件、搜索代码、修改代码'
                 : '对话模式：与 AI 对话辅助编程'}
@@ -427,7 +427,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
             <div className="mt-3 flex justify-center">
               <button
                 onClick={() => setIsAgentMode(!isAgentMode)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-label-12 rounded-lg transition-colors ${
                   isAgentMode ? 'bg-accent/10 text-accent' : 'bg-neutral-2 text-neutral-7 hover:bg-neutral-3'
                 }`}
               >
@@ -440,7 +440,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
 
         {messages.map((msg, i) => (
           <div key={msg.id || i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
+            <div className={`max-w-[85%] rounded-xl px-3 py-2 text-copy-13 ${
               msg.role === 'user'
                 ? 'bg-accent text-white'
                 : 'bg-neutral-2 text-neutral-9'
@@ -456,7 +456,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
                 <div className="flex gap-1 mt-1.5 pt-1 border-t border-neutral-3/50">
                   <button
                     onClick={() => handleCopy(msg.id, msg.content)}
-                    className="p-1 rounded hover:bg-neutral-3 text-neutral-6 text-xs flex items-center gap-1"
+                    className="p-1 rounded hover:bg-neutral-3 text-neutral-6 text-label-12 flex items-center gap-1"
                   >
                     {copiedMap[msg.id] ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
                   </button>
@@ -488,7 +488,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
         {/* Streaming text content */}
         {isStreaming && streamContent && (
           <div className="flex justify-start">
-            <div className="max-w-[85%] rounded-xl px-3 py-2 text-sm bg-neutral-2 text-neutral-9">
+            <div className="max-w-[85%] rounded-xl px-3 py-2 text-copy-13 bg-neutral-2 text-neutral-9">
               <div className="prose prose-sm max-w-none prose-neutral whitespace-pre-wrap break-words leading-relaxed">
                 {streamContent}
                 <span className="inline-block w-2 h-4 bg-accent animate-pulse ml-0.5 align-middle" />
@@ -512,11 +512,11 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
         <div className="px-3 py-1.5 border-t border-neutral-3 flex items-center gap-1.5 flex-wrap shrink-0">
           <FileText className="h-3 w-3 text-neutral-6" />
           {contextFiles.map((fid) => (
-            <span key={fid} className="text-xs bg-accent/10 text-accent px-1.5 py-0.5 rounded">
+            <span key={fid} className="text-label-12 bg-accent/10 text-accent px-1.5 py-0.5 rounded">
               {fid.slice(0, 12)}...
             </span>
           ))}
-          <span className="text-xs text-neutral-6 ml-auto">
+          <span className="text-label-12 text-neutral-6 ml-auto">
             {contextFiles.length} 个上下文文件
           </span>
         </div>
@@ -538,7 +538,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
             }}
             placeholder={isStreaming ? 'AI 正在生成...' : isAgentMode ? '描述编程任务，AI 将自动调用工具完成...' : '描述你的需求...'}
             disabled={isStreaming}
-            className="flex-1 bg-neutral-2 border border-neutral-3 rounded-lg px-3 py-2 text-sm text-neutral-9 placeholder-neutral-6 focus:outline-none focus:border-accent/50 disabled:opacity-50"
+            className="flex-1 bg-neutral-2 border border-neutral-3 rounded-lg px-3 py-2 text-copy-13 text-neutral-9 placeholder-neutral-6 focus:outline-none focus:border-accent/50 disabled:opacity-50"
           />
           {isStreaming ? (
             <Button onClick={handleStop} size="sm" className="px-3 bg-red-500 hover:bg-red-600">

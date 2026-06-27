@@ -55,7 +55,7 @@ export default function NewProjectPage() {
               </Button>
 
               <div className="mb-6">
-                <h1 className="font-serif text-3xl font-medium text-neutral-10 mb-2">新建项目</h1>
+                <h1 className="font-serif text-title-28 font-medium text-neutral-10 mb-2">新建项目</h1>
                 <p className="text-neutral-7">
                   创建您的新项目，开始团队协作
                 </p>
@@ -71,13 +71,13 @@ export default function NewProjectPage() {
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-4">
                     {error && (
-                      <div className="p-3 text-sm text-error bg-error/10 rounded-lg border border-error/30">
+                      <div className="p-3 text-copy-13 text-error bg-error/10 rounded-lg border border-error/30">
                         {error}
                       </div>
                     )}
 
                     <div className="space-y-2">
-                      <label htmlFor="name" className="text-sm font-medium text-neutral-9">
+                      <label htmlFor="name" className="text-copy-13 font-medium text-neutral-9">
                         项目名称 <span className="text-error">*</span>
                       </label>
                       <Input
@@ -92,7 +92,7 @@ export default function NewProjectPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label htmlFor="description" className="text-sm font-medium text-neutral-9">
+                      <label htmlFor="description" className="text-copy-13 font-medium text-neutral-9">
                         项目描述
                       </label>
                       <textarea
@@ -102,12 +102,12 @@ export default function NewProjectPage() {
                           setFormData({ ...formData, description: e.target.value })
                         }
                         placeholder="描述项目的目标和功能..."
-                        className="flex min-h-[120px] w-full rounded-lg border border-neutral-5 bg-neutral-1 px-3 py-2 text-sm text-neutral-9 placeholder:text-neutral-6 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all duration-200"
+                        className="flex min-h-[120px] w-full rounded-lg border border-neutral-5 bg-neutral-1 px-3 py-2 text-copy-13 text-neutral-9 placeholder:text-neutral-6 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all duration-200"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-neutral-9">可见性</label>
+                      <label className="text-copy-13 font-medium text-neutral-9">可见性</label>
                       <div className="flex gap-4">
                         <label className="flex items-center space-x-2 cursor-pointer">
                           <input
@@ -123,7 +123,7 @@ export default function NewProjectPage() {
                             }
                             className="h-4 w-4 accent-accent"
                           />
-                          <span className="text-sm text-neutral-8">私有 (仅成员可见)</span>
+                          <span className="text-copy-13 text-neutral-8">私有 (仅成员可见)</span>
                         </label>
                         <label className="flex items-center space-x-2 cursor-pointer">
                           <input
@@ -139,7 +139,7 @@ export default function NewProjectPage() {
                             }
                             className="h-4 w-4 accent-accent"
                           />
-                          <span className="text-sm text-neutral-8">公开 (所有人可见)</span>
+                          <span className="text-copy-13 text-neutral-8">公开 (所有人可见)</span>
                         </label>
                       </div>
                     </div>

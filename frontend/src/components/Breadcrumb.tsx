@@ -16,7 +16,7 @@ interface BreadcrumbProps {
 
 export function Breadcrumb({ items, className = '' }: BreadcrumbProps) {
   return (
-    <nav className={`flex items-center gap-1.5 text-sm ${className}`} aria-label="面包屑导航">
+    <nav className={`flex items-center gap-1.5 text-copy-13 ${className}`} aria-label="面包屑导航">
       <Link
         href="/dashboard"
         className="text-neutral-6 hover:text-accent transition-colors"
@@ -28,7 +28,7 @@ export function Breadcrumb({ items, className = '' }: BreadcrumbProps) {
         const isLast = index === items.length - 1;
         return (
           <div key={index} className="flex items-center gap-1.5">
-            <ChevronRight className="h-3.5 w-3.5 text-neutral-5" />
+            <ChevronRight className="h-3.5 w-3.5 text-neutral-7" />
             {isLast || !item.href ? (
               <span className="text-neutral-9 font-medium">{item.label}</span>
             ) : (

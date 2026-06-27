@@ -58,7 +58,7 @@ export default function ProjectsPage() {
               {/* Header */}
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h1 className="font-serif text-3xl font-medium text-neutral-10">
+                  <h1 className="font-serif text-title-28 font-medium text-neutral-10">
                     项目
                   </h1>
                   <p className="text-neutral-7 mt-1">
@@ -82,9 +82,9 @@ export default function ProjectsPage() {
                 <Card className="max-w-md mx-auto">
                   <CardContent className="py-16 text-center">
                     <div className="w-16 h-16 rounded-2xl bg-neutral-2 flex items-center justify-center mx-auto mb-4">
-                      <FolderGit2 className="h-8 w-8 text-neutral-5" />
+                      <FolderGit2 className="h-8 w-8 text-neutral-7" />
                     </div>
-                    <h3 className="font-serif text-lg font-medium text-neutral-10 mb-2">
+                    <h3 className="font-serif text-copy-16 font-medium text-neutral-10 mb-2">
                       暂无项目
                     </h3>
                     <p className="text-neutral-7 mb-6">
@@ -119,11 +119,11 @@ export default function ProjectsPage() {
                         <h3 className="font-medium text-neutral-10 mb-1 group-hover:text-accent transition-colors">
                           {project.name}
                         </h3>
-                        <p className="text-sm text-neutral-7 line-clamp-2 mb-4">
+                        <p className="text-copy-13 text-neutral-7 line-clamp-2 mb-4">
                           {project.description || '暂无描述'}
                         </p>
 
-                        <div className="flex items-center justify-between text-xs text-neutral-6">
+                        <div className="flex items-center justify-between text-label-12 text-neutral-6">
                           <div className="flex items-center gap-4">
                             <span className="flex items-center gap-1">
                               <Users className="h-3 w-3" />
@@ -149,7 +149,7 @@ export default function ProjectsPage() {
                     <Card className="border-dashed hover:border-accent/50 hover:bg-neutral-2 transition-all cursor-pointer h-full min-h-[180px]">
                       <CardContent className="h-full flex flex-col items-center justify-center py-8">
                         <div className="w-12 h-12 rounded-xl bg-neutral-2 flex items-center justify-center mb-3">
-                          <Plus className="h-6 w-6 text-neutral-5" />
+                          <Plus className="h-6 w-6 text-neutral-7" />
                         </div>
                         <p className="text-neutral-7 font-medium">创建新项目</p>
                       </CardContent>

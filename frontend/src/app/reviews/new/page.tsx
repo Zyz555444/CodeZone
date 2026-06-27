@@ -80,7 +80,7 @@ export default function NewReviewPage() {
               </Button>
 
               <div className="mb-6">
-                <h1 className="font-serif text-3xl font-medium text-neutral-10 mb-2">
+                <h1 className="font-serif text-title-28 font-medium text-neutral-10 mb-2">
                   创建审查
                 </h1>
                 <p className="text-neutral-7">
@@ -98,13 +98,13 @@ export default function NewReviewPage() {
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-4">
                     {error && (
-                      <div className="p-3 text-sm text-error bg-error/10 rounded-lg border border-error/30">
+                      <div className="p-3 text-copy-13 text-error bg-error/10 rounded-lg border border-error/30">
                         {error}
                       </div>
                     )}
 
                     <div className="space-y-2">
-                      <label htmlFor="projectId" className="text-sm font-medium text-neutral-9">
+                      <label htmlFor="projectId" className="text-copy-13 font-medium text-neutral-9">
                         项目 <span className="text-error">*</span>
                       </label>
                       <select
@@ -114,7 +114,7 @@ export default function NewReviewPage() {
                           setFormData({ ...formData, projectId: e.target.value })
                         }
                         required
-                        className="flex h-10 w-full rounded-lg border border-neutral-5 bg-neutral-1 px-3 py-2 text-sm text-neutral-9 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-neutral-2"
+                        className="flex h-10 w-full rounded-lg border border-neutral-5 bg-neutral-1 px-3 py-2 text-copy-13 text-neutral-9 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-neutral-2"
                         disabled={fetchingProjects}
                       >
                         <option value="">
@@ -129,7 +129,7 @@ export default function NewReviewPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label htmlFor="title" className="text-sm font-medium text-neutral-9">
+                      <label htmlFor="title" className="text-copy-13 font-medium text-neutral-9">
                         标题 <span className="text-error">*</span>
                       </label>
                       <Input
@@ -144,7 +144,7 @@ export default function NewReviewPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label htmlFor="description" className="text-sm font-medium text-neutral-9">
+                      <label htmlFor="description" className="text-copy-13 font-medium text-neutral-9">
                         描述
                       </label>
                       <textarea
@@ -154,7 +154,7 @@ export default function NewReviewPage() {
                           setFormData({ ...formData, description: e.target.value })
                         }
                         placeholder="描述审查的目标和关注点..."
-                        className="flex min-h-[120px] w-full rounded-lg border border-neutral-5 bg-neutral-1 px-3 py-2 text-sm text-neutral-9 placeholder:text-neutral-6 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all duration-200"
+                        className="flex min-h-[120px] w-full rounded-lg border border-neutral-5 bg-neutral-1 px-3 py-2 text-copy-13 text-neutral-9 placeholder:text-neutral-6 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all duration-200"
                       />
                     </div>
 

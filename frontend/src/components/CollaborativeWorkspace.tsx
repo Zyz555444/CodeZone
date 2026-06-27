@@ -162,7 +162,7 @@ export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorksp
             {openFiles.map(file => (
               <div
                 key={file.fileId}
-                className={`group flex items-center gap-1.5 px-3 py-2 text-sm border-r border-neutral-3 cursor-pointer transition-colors shrink-0 ${
+                className={`group flex items-center gap-1.5 px-3 py-2 text-copy-13 border-r border-neutral-3 cursor-pointer transition-colors shrink-0 ${
                   activeFileId === file.fileId
                     ? 'bg-white text-neutral-9 border-b-white -mb-[1px]'
                     : 'bg-neutral-1 text-neutral-6 hover:bg-neutral-2'
@@ -183,7 +183,7 @@ export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorksp
           <div className="flex items-center px-2 gap-1">
             <button
               onClick={() => setShowAIPanel(!showAIPanel)}
-              className={`flex items-center gap-1 px-2 py-1.5 text-xs rounded-lg transition-colors ${
+              className={`flex items-center gap-1 px-2 py-1.5 text-label-12 rounded-lg transition-colors ${
                 showAIPanel
                   ? 'bg-accent/10 text-accent'
                   : 'text-neutral-6 hover:bg-neutral-2'
@@ -194,7 +194,7 @@ export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorksp
             </button>
             <button
               onClick={() => setShowTerminal(!showTerminal)}
-              className={`flex items-center gap-1 px-2 py-1.5 text-xs rounded-lg transition-colors ${
+              className={`flex items-center gap-1 px-2 py-1.5 text-label-12 rounded-lg transition-colors ${
                 showTerminal
                   ? 'bg-accent/10 text-accent'
                   : 'text-neutral-6 hover:bg-neutral-2'
@@ -204,7 +204,7 @@ export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorksp
               终端
             </button>
             <button
-              className="flex items-center gap-1 px-2 py-1.5 text-xs rounded-lg text-neutral-6 hover:bg-neutral-2 transition-colors"
+              className="flex items-center gap-1 px-2 py-1.5 text-label-12 rounded-lg text-neutral-6 hover:bg-neutral-2 transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
               新文件
@@ -229,9 +229,9 @@ export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorksp
               <div className="flex items-center justify-center h-full text-neutral-6">
                 <div className="text-center">
                   <PanelRight className="h-12 w-12 mx-auto mb-3 text-neutral-4" />
-                  <p className="text-sm font-medium text-neutral-7 mb-1">选择文件开始编辑</p>
-                  <p className="text-xs text-neutral-5">从左侧文件树选择文件，或创建新文件</p>
-                  <p className="text-xs text-neutral-5 mt-2">
+                  <p className="text-copy-13 font-medium text-neutral-7 mb-1">选择文件开始编辑</p>
+                  <p className="text-label-12 text-neutral-7">从左侧文件树选择文件，或创建新文件</p>
+                  <p className="text-label-12 text-neutral-7 mt-2">
                     选中代码后按 <kbd className="px-1 py-0.5 bg-neutral-2 rounded text-accent">Ctrl+K</kbd> 打开 AI 菜单
                   </p>
                 </div>

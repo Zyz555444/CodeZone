@@ -106,7 +106,7 @@ export default function ActivityPage() {
             <div className="container mx-auto max-w-4xl px-6 py-8">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h1 className="font-serif text-3xl font-medium text-neutral-10">
+                  <h1 className="font-serif text-title-28 font-medium text-neutral-10">
                     活动日志
                   </h1>
                   <p className="text-neutral-7 mt-1">
@@ -152,16 +152,16 @@ export default function ActivityPage() {
               {!loading && !error && !activities.length && (
                 <Card>
                   <CardContent className="p-12 text-center">
-                    <Inbox className="h-12 w-12 text-neutral-5 mx-auto mb-4" />
-                    <p className="text-neutral-7 text-lg mb-1">暂无活动记录</p>
-                    <p className="text-neutral-6 text-sm">当团队成员开始协作时，活动记录将在这里显示</p>
+                    <Inbox className="h-12 w-12 text-neutral-7 mx-auto mb-4" />
+                    <p className="text-neutral-7 text-copy-16 mb-1">暂无活动记录</p>
+                    <p className="text-neutral-6 text-copy-13">当团队成员开始协作时，活动记录将在这里显示</p>
                   </CardContent>
                 </Card>
               )}
 
               {!loading && !error && activities.length > 0 && Object.entries(grouped).map(([dateLabel, items]) => (
                 <div key={dateLabel} className="mb-8">
-                  <h2 className="text-sm font-medium text-neutral-6 mb-3 px-1">{dateLabel}</h2>
+                  <h2 className="text-copy-13 font-medium text-neutral-6 mb-3 px-1">{dateLabel}</h2>
                   <div className="space-y-3">
                     {items.map((activity) => {
                       const config = TYPE_CONFIG[activity.type] || {
@@ -183,14 +183,14 @@ export default function ActivityPage() {
                                   <span className="font-medium text-neutral-10">
                                     {activity.user?.username || '未知用户'}
                                   </span>
-                                  <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-3 text-neutral-7">
+                                  <span className="text-label-12 px-2 py-0.5 rounded-full bg-neutral-3 text-neutral-7">
                                     {config.label}
                                   </span>
                                 </div>
-                                <p className="text-sm text-neutral-8 mb-1">
+                                <p className="text-copy-13 text-neutral-8 mb-1">
                                   {activity.content}
                                 </p>
-                                <p className="text-xs text-neutral-6">
+                                <p className="text-label-12 text-neutral-6">
                                   {getRelativeTime(activity.createdAt)}
                                 </p>
                               </div>
@@ -205,7 +205,7 @@ export default function ActivityPage() {
 
               {activities.length >= 50 && (
                 <div className="text-center mt-8">
-                  <p className="text-sm text-neutral-6">仅显示最近 50 条活动记录</p>
+                  <p className="text-copy-13 text-neutral-6">仅显示最近 50 条活动记录</p>
                 </div>
               )}
             </div>

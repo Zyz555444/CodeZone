@@ -31,9 +31,9 @@ export function EmptyState({
           {icon}
         </div>
       )}
-      <p className="text-base font-medium text-neutral-9 mb-1">{title}</p>
+      <p className="text-copy-14 font-medium text-neutral-9 mb-1">{title}</p>
       {description && (
-        <p className="text-sm text-neutral-7 mb-6 max-w-xs">{description}</p>
+        <p className="text-copy-13 text-neutral-7 mb-6 max-w-xs">{description}</p>
       )}
       {actionLabel && (
         actionHref ? (

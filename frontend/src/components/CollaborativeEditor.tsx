@@ -119,7 +119,7 @@ export function CollaborativeEditor({
     <div className="relative border border-neutral-4 rounded-xl overflow-hidden" style={{ height }}>
       {connecting && (
         <div className="absolute top-0 left-0 right-0 z-20 bg-warning/10 border-b border-warning/20 px-3 py-1.5">
-          <p className="text-xs text-warning">正在连接协作服务器...</p>
+          <p className="text-label-12 text-warning">正在连接协作服务器...</p>
         </div>
       )}
 
@@ -148,7 +148,7 @@ export function CollaborativeEditor({
       <div className="absolute bottom-3 right-3 z-10 flex items-center gap-2 bg-neutral-1/90 backdrop-blur px-3 py-1.5 rounded-lg border border-neutral-4">
         <div className="flex items-center gap-1.5" title={`${onlinePeers} 人在线协作`}>
           <div className={`w-2 h-2 rounded-full ${onlinePeers > 1 ? 'bg-success' : 'bg-neutral-4'}`} />
-          <span className="text-xs text-neutral-7">
+          <span className="text-label-12 text-neutral-7">
             {onlinePeers > 1 ? `${onlinePeers} 人协作中` : '仅自己'}
           </span>
         </div>

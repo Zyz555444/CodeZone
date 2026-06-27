@@ -185,7 +185,7 @@ export default function TaskDetailPage() {
                 className="flex items-center gap-2 text-neutral-7 hover:text-neutral-9 mb-6 transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" />
-                <span className="text-sm">返回</span>
+                <span className="text-copy-13">返回</span>
               </button>
 
               <div className="grid gap-6 lg:grid-cols-3">
@@ -194,8 +194,8 @@ export default function TaskDetailPage() {
                   {/* Task Title */}
                   <Card>
                     <CardHeader>
-                      <CardTitle className="font-serif text-2xl text-neutral-10">{task.title}</CardTitle>
-                      <div className="flex items-center gap-4 text-sm text-neutral-7 mt-2">
+                      <CardTitle className="font-serif text-title-24 text-neutral-10">{task.title}</CardTitle>
+                      <div className="flex items-center gap-4 text-copy-13 text-neutral-7 mt-2">
                         <span className="flex items-center gap-1">
                           <User className="h-4 w-4" />
                           {task.creator.username} 创建
@@ -215,8 +215,8 @@ export default function TaskDetailPage() {
                   <Card>
                     <CardHeader>
                       <div className="flex items-center justify-between">
-                        <CardTitle className="font-serif text-lg">子任务</CardTitle>
-                        <span className="text-sm text-neutral-7">
+                        <CardTitle className="font-serif text-copy-16">子任务</CardTitle>
+                        <span className="text-copy-13 text-neutral-7">
                           {completedSubtasks}/{task.subtasks.length} 完成 ({progress}%)
                         </span>
                       </div>
@@ -271,7 +271,7 @@ export default function TaskDetailPage() {
                   {/* Comments */}
                   <Card>
                     <CardHeader>
-                      <CardTitle className="font-serif text-lg flex items-center gap-2">
+                      <CardTitle className="font-serif text-copy-16 flex items-center gap-2">
                         <MessageSquare className="h-5 w-5 text-neutral-6" />
                         评论 ({task.comments.length})
                       </CardTitle>
@@ -279,23 +279,23 @@ export default function TaskDetailPage() {
                     <CardContent>
                       <div className="space-y-4 mb-6">
                         {task.comments.length === 0 ? (
-                          <p className="text-neutral-7 text-sm py-4 text-center">暂无评论</p>
+                          <p className="text-neutral-7 text-copy-13 py-4 text-center">暂无评论</p>
                         ) : (
                           task.comments.map((comment) => (
                             <div key={comment.id} className="flex gap-3">
                               <div className="w-9 h-9 rounded-lg bg-neutral-2 flex items-center justify-center flex-shrink-0">
-                                <span className="text-sm font-medium text-neutral-7">
+                                <span className="text-copy-13 font-medium text-neutral-7">
                                   {comment.user.username[0].toUpperCase()}
                                 </span>
                               </div>
                               <div className="flex-1 space-y-1">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-medium text-sm text-neutral-10">{comment.user.username}</span>
-                                  <span className="text-xs text-neutral-6">
+                                  <span className="font-medium text-copy-13 text-neutral-10">{comment.user.username}</span>
+                                  <span className="text-label-12 text-neutral-6">
                                     {formatDate(comment.createdAt)}
                                   </span>
                                 </div>
-                                <p className="text-sm text-neutral-8">{comment.content}</p>
+                                <p className="text-copy-13 text-neutral-8">{comment.content}</p>
                               </div>
                             </div>
                           ))
@@ -304,7 +304,7 @@ export default function TaskDetailPage() {
 
                       <div className="flex gap-3">
                         <div className="w-9 h-9 rounded-lg bg-accent-subtle flex items-center justify-center flex-shrink-0">
-                          <span className="text-sm font-medium text-accent">你</span>
+                          <span className="text-copy-13 font-medium text-accent">你</span>
                         </div>
                         <div className="flex-1 flex gap-2">
                           <Input
@@ -325,46 +325,46 @@ export default function TaskDetailPage() {
                 <div className="space-y-6">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="font-serif text-lg">任务信息</CardTitle>
+                      <CardTitle className="font-serif text-copy-16">任务信息</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div>
-                        <h4 className="text-sm font-medium text-neutral-7 mb-2">状态</h4>
-                        <span className={`inline-flex text-sm px-3 py-1 rounded-full ${statusConfig[task.status]?.bgColor || 'bg-neutral-3'} ${statusConfig[task.status]?.color || 'text-neutral-7'}`}>
+                        <h4 className="text-copy-13 font-medium text-neutral-7 mb-2">状态</h4>
+                        <span className={`inline-flex text-copy-13 px-3 py-1 rounded-full ${statusConfig[task.status]?.bgColor || 'bg-neutral-3'} ${statusConfig[task.status]?.color || 'text-neutral-7'}`}>
                           {statusConfig[task.status]?.label || task.status}
                         </span>
                       </div>
                       <div>
-                        <h4 className="text-sm font-medium text-neutral-7 mb-2">优先级</h4>
-                        <span className={`text-sm font-medium ${priorityConfig[task.priority]?.color || 'text-neutral-7'}`}>
+                        <h4 className="text-copy-13 font-medium text-neutral-7 mb-2">优先级</h4>
+                        <span className={`text-copy-13 font-medium ${priorityConfig[task.priority]?.color || 'text-neutral-7'}`}>
                           {priorityConfig[task.priority]?.label || task.priority}
                         </span>
                       </div>
                       {task.assignee && (
                         <div>
-                          <h4 className="text-sm font-medium text-neutral-7 mb-2">负责人</h4>
+                          <h4 className="text-copy-13 font-medium text-neutral-7 mb-2">负责人</h4>
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 rounded-lg bg-neutral-2 flex items-center justify-center">
-                              <span className="text-xs font-medium text-neutral-7">
+                              <span className="text-label-12 font-medium text-neutral-7">
                                 {task.assignee.username[0].toUpperCase()}
                               </span>
                             </div>
-                            <span className="text-sm text-neutral-10">{task.assignee.username}</span>
+                            <span className="text-copy-13 text-neutral-10">{task.assignee.username}</span>
                           </div>
                         </div>
                       )}
                       {task.dueDate && (
                         <div>
-                          <h4 className="text-sm font-medium text-neutral-7 mb-2">截止日期</h4>
-                          <div className="flex items-center gap-2 text-sm text-neutral-10">
+                          <h4 className="text-copy-13 font-medium text-neutral-7 mb-2">截止日期</h4>
+                          <div className="flex items-center gap-2 text-copy-13 text-neutral-10">
                             <Calendar className="h-4 w-4 text-neutral-6" />
                             <span>{formatDate(task.dueDate)}</span>
                           </div>
                         </div>
                       )}
                       <div>
-                        <h4 className="text-sm font-medium text-neutral-7 mb-2">创建时间</h4>
-                        <div className="flex items-center gap-2 text-sm text-neutral-10">
+                        <h4 className="text-copy-13 font-medium text-neutral-7 mb-2">创建时间</h4>
+                        <div className="flex items-center gap-2 text-copy-13 text-neutral-10">
                           <Clock className="h-4 w-4 text-neutral-6" />
                           <span>{formatDate(task.createdAt)}</span>
                         </div>

@@ -44,10 +44,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             <div className="w-14 h-14 rounded-2xl bg-error/10 flex items-center justify-center mx-auto mb-4">
               <AlertTriangle className="h-7 w-7 text-error" />
             </div>
-            <h2 className="font-serif text-lg font-medium text-neutral-10 mb-2">
+            <h2 className="font-serif text-copy-16 font-medium text-neutral-10 mb-2">
               页面遇到问题
             </h2>
-            <p className="text-sm text-neutral-7 mb-4">
+            <p className="text-copy-13 text-neutral-7 mb-4">
               {this.state.error?.message || '发生了一个意外错误，请尝试刷新页面'}
             </p>
             <Button onClick={this.handleRetry} variant="secondary" className="gap-2">

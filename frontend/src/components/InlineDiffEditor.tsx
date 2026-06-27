@@ -74,43 +74,43 @@ export function InlineDiffEditor({
     <div className="border-t border-neutral-4 bg-neutral-1" style={{ height: '40%' }}>
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-neutral-4 bg-neutral-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-neutral-7 font-mono">{currentFile.filePath}</span>
-          <span className="text-xs text-neutral-6">
+          <span className="text-label-12 text-neutral-7 font-mono">{currentFile.filePath}</span>
+          <span className="text-label-12 text-neutral-6">
             ({pendingFiles.length}/{files.length} 待处理)
           </span>
         </div>
-        <div className="flex items-center gap-1 text-xs text-neutral-6">
-          <kbd className="px-1 py-0.5 bg-neutral-3 rounded text-neutral-7 font-mono text-[10px]">Cmd+Y</kbd>
+        <div className="flex items-center gap-1 text-label-12 text-neutral-6">
+          <kbd className="px-1 py-0.5 bg-neutral-3 rounded text-neutral-7 font-mono text-caption-10">Cmd+Y</kbd>
           <span>接受</span>
-          <kbd className="px-1 py-0.5 bg-neutral-3 rounded text-neutral-7 font-mono text-[10px]">Cmd+N</kbd>
+          <kbd className="px-1 py-0.5 bg-neutral-3 rounded text-neutral-7 font-mono text-caption-10">Cmd+N</kbd>
           <span>拒绝</span>
-          <kbd className="px-1 py-0.5 bg-neutral-3 rounded text-neutral-7 font-mono text-[10px]">&rarr;</kbd>
+          <kbd className="px-1 py-0.5 bg-neutral-3 rounded text-neutral-7 font-mono text-caption-10">&rarr;</kbd>
           <span>跳过</span>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={() => onAccept(currentFile.filePath)}
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 text-label-12 rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
           >
             <Check className="h-3 w-3" />
             <span>接受</span>
           </button>
           <button
             onClick={() => onReject(currentFile.filePath)}
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-neutral-4 text-neutral-8 hover:bg-neutral-5 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 text-label-12 rounded-md bg-neutral-4 text-neutral-8 hover:bg-neutral-5 transition-colors"
           >
             <X className="h-3 w-3" />
             <span>拒绝</span>
           </button>
           <button
             onClick={onSkip}
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-neutral-3 text-neutral-7 hover:bg-neutral-4 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 text-label-12 rounded-md bg-neutral-3 text-neutral-7 hover:bg-neutral-4 transition-colors"
           >
             <ChevronRight className="h-3 w-3" />
           </button>
           <button
             onClick={onAcceptAll}
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-neutral-3 text-neutral-7 hover:bg-neutral-4 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 text-label-12 rounded-md bg-neutral-3 text-neutral-7 hover:bg-neutral-4 transition-colors"
           >
             <CheckCheck className="h-3 w-3" />
             <span>全部接受</span>

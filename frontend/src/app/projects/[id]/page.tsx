@@ -76,7 +76,7 @@ export default function ProjectDetailPage() {
                 className="flex items-center gap-2 text-neutral-7 hover:text-neutral-9 mb-6 transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" />
-                <span className="text-sm">返回</span>
+                <span className="text-copy-13">返回</span>
               </button>
 
               {/* Project Header */}
@@ -86,7 +86,7 @@ export default function ProjectDetailPage() {
                     <FolderGit2 className="h-7 w-7 text-accent" />
                   </div>
                   <div>
-                    <h1 className="font-serif text-3xl font-medium text-neutral-10">
+                    <h1 className="font-serif text-title-28 font-medium text-neutral-10">
                       {project.name}
                     </h1>
                     <p className="text-neutral-7">
@@ -126,7 +126,7 @@ export default function ProjectDetailPage() {
                       <FolderGit2 className="h-6 w-6 text-neutral-6" />
                     </div>
                     <div>
-                      <p className="text-xs text-neutral-7">项目 ID</p>
+                      <p className="text-label-12 text-neutral-7">项目 ID</p>
                       <p className="font-mono text-neutral-10">{project.id?.slice(0, 8)}...</p>
                     </div>
                   </CardContent>
@@ -138,7 +138,7 @@ export default function ProjectDetailPage() {
                       <Users className="h-6 w-6 text-neutral-6" />
                     </div>
                     <div>
-                      <p className="text-xs text-neutral-7">可见性</p>
+                      <p className="text-label-12 text-neutral-7">可见性</p>
                       <p className="font-medium text-neutral-10">
                         {project.visibility === 'PUBLIC' ? '公开' : '私有'}
                       </p>
@@ -152,7 +152,7 @@ export default function ProjectDetailPage() {
                       <Calendar className="h-6 w-6 text-neutral-6" />
                     </div>
                     <div>
-                      <p className="text-xs text-neutral-7">创建时间</p>
+                      <p className="text-label-12 text-neutral-7">创建时间</p>
                       <p className="font-medium text-neutral-10">{formatDate(project.createdAt)}</p>
                     </div>
                   </CardContent>
@@ -164,7 +164,7 @@ export default function ProjectDetailPage() {
                 {/* Stats */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg font-serif">统计信息</CardTitle>
+                    <CardTitle className="text-copy-16 font-serif">统计信息</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex justify-between items-center py-2 border-b border-neutral-4">
@@ -185,7 +185,7 @@ export default function ProjectDetailPage() {
                 {/* Team Members */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg font-serif">团队成员</CardTitle>
+                    <CardTitle className="text-copy-16 font-serif">团队成员</CardTitle>
                   </CardHeader>
                   <CardContent>
                     {project.members && project.members.length > 0 ? (
@@ -197,20 +197,20 @@ export default function ProjectDetailPage() {
                           >
                             <div className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-lg bg-neutral-2 flex items-center justify-center">
-                                <span className="text-sm font-medium text-neutral-7">
+                                <span className="text-copy-13 font-medium text-neutral-7">
                                   {member.user.username[0].toUpperCase()}
                                 </span>
                               </div>
                               <span className="text-neutral-10">{member.user.username}</span>
                             </div>
-                            <span className="text-xs px-3 py-1 rounded-full bg-neutral-3 text-neutral-7">
+                            <span className="text-label-12 px-3 py-1 rounded-full bg-neutral-3 text-neutral-7">
                               {member.role}
                             </span>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-neutral-7 text-sm py-4 text-center">暂无成员</p>
+                      <p className="text-neutral-7 text-copy-13 py-4 text-center">暂无成员</p>
                     )}
                   </CardContent>
                 </Card>

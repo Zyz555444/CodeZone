@@ -11,10 +11,10 @@ export default function AboutPage() {
     <div className="min-h-screen bg-neutral-1">
       <div className="container mx-auto max-w-5xl px-6 py-16">
         <div className="text-center mb-16">
-          <h1 className="font-serif text-5xl font-medium text-neutral-10 mb-6">
+          <h1 className="font-serif text-display-48 font-medium text-neutral-10 mb-6">
             CodeZone
           </h1>
-          <p className="text-xl text-neutral-7 max-w-3xl mx-auto">
+          <p className="text-title-20 text-neutral-7 max-w-3xl mx-auto">
             新一代编程团队协作平台，致力于让软件开发更高效、更愉悦
           </p>
         </div>
@@ -23,7 +23,7 @@ export default function AboutPage() {
           <Card className="text-center">
             <CardContent>
               <Code2 className="h-12 w-12 text-accent mx-auto mb-4" />
-              <h3 className="font-serif text-xl font-medium text-neutral-10 mb-2">实时协作</h3>
+              <h3 className="font-serif text-title-20 font-medium text-neutral-10 mb-2">实时协作</h3>
               <p className="text-neutral-7">
                 基于 CRDT 算法的零冲突实时协作编辑，让团队成员无缝配合
               </p>
@@ -33,7 +33,7 @@ export default function AboutPage() {
           <Card className="text-center">
             <CardContent>
               <Users className="h-12 w-12 text-accent mx-auto mb-4" />
-              <h3 className="font-serif text-xl font-medium text-neutral-10 mb-2">团队管理</h3>
+              <h3 className="font-serif text-title-20 font-medium text-neutral-10 mb-2">团队管理</h3>
               <p className="text-neutral-7">
                 完整的项目管理、任务分配和进度跟踪体系
               </p>
@@ -43,7 +43,7 @@ export default function AboutPage() {
           <Card className="text-center">
             <CardContent>
               <Zap className="h-12 w-12 text-accent mx-auto mb-4" />
-              <h3 className="font-serif text-xl font-medium text-neutral-10 mb-2">高效开发</h3>
+              <h3 className="font-serif text-title-20 font-medium text-neutral-10 mb-2">高效开发</h3>
               <p className="text-neutral-7">
                 集成化开发环境，减少上下文切换，提升开发效率
               </p>
@@ -52,7 +52,7 @@ export default function AboutPage() {
         </div>
 
         <div className="bg-neutral-2 rounded-xl border border-neutral-5 p-8 mb-16 shadow-whisper">
-          <h2 className="font-serif text-3xl font-medium text-neutral-10 mb-6 text-center">核心优势</h2>
+          <h2 className="font-serif text-title-28 font-medium text-neutral-10 mb-6 text-center">核心优势</h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="flex gap-4">
               <CheckCircle className="h-6 w-6 text-success flex-shrink-0 mt-1" />
@@ -86,7 +86,7 @@ export default function AboutPage() {
         </div>
 
         <div className="text-center">
-          <h2 className="font-serif text-3xl font-medium text-neutral-10 mb-4">开始使用</h2>
+          <h2 className="font-serif text-title-28 font-medium text-neutral-10 mb-4">开始使用</h2>
           <p className="text-neutral-7 mb-8">
             立即注册，体验全新的团队协作开发方式
           </p>

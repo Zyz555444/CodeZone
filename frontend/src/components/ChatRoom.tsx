@@ -59,7 +59,7 @@ const ChatMessageItem = React.memo(function ChatMessageItem({
   if (message.type === 'SYSTEM') {
     return (
       <div className="flex justify-center py-1.5">
-        <span className="text-xs text-neutral-6 bg-neutral-2 px-3 py-0.5 rounded-full">
+        <span className="text-label-12 text-neutral-6 bg-neutral-2 px-3 py-0.5 rounded-full">
           {message.content}
         </span>
       </div>
@@ -77,7 +77,7 @@ const ChatMessageItem = React.memo(function ChatMessageItem({
       {showHeader ? (
         <div
           className={cn(
-            'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-medium',
+            'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-label-12 font-medium',
             getAvatarColor(message.userName),
           )}
           title={message.userName}
@@ -91,13 +91,13 @@ const ChatMessageItem = React.memo(function ChatMessageItem({
       <div className={cn('flex flex-col max-w-[70%]', isMine ? 'items-end' : '')}>
         {showHeader && (
           <div className={cn('flex items-center gap-2 mb-0.5', isMine ? 'flex-row-reverse' : '')}>
-            <span className="text-xs font-medium text-neutral-7">{message.userName}</span>
-            <span className="text-[10px] text-neutral-5">{formatTime(message.timestamp)}</span>
+            <span className="text-label-12 font-medium text-neutral-7">{message.userName}</span>
+            <span className="text-caption-10 text-neutral-7">{formatTime(message.timestamp)}</span>
           </div>
         )}
         <div
           className={cn(
-            'px-3 py-1.5 text-sm leading-relaxed break-words',
+            'px-3 py-1.5 text-copy-13 leading-relaxed break-words',
             isMine
               ? 'bg-accent-subtle text-accent rounded-2xl rounded-tr-md'
               : 'bg-neutral-2 text-neutral-9 rounded-2xl rounded-tl-md',
@@ -308,15 +308,15 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-4 bg-neutral-2/50">
         <div className="flex items-center gap-3">
           <div>
-            <h3 className="text-sm font-medium text-neutral-9">{roomName}</h3>
-            <p className="text-xs text-neutral-7">
+            <h3 className="text-copy-13 font-medium text-neutral-9">{roomName}</h3>
+            <p className="text-label-12 text-neutral-7">
               {onlineCount > 0 ? `${onlineCount} 人在线` : '暂无在线用户'}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {!connected && (
-            <span className="flex items-center gap-1.5 text-xs text-amber-6">
+            <span className="flex items-center gap-1.5 text-label-12 text-amber-6">
               <Loader2 className="h-3 w-3 animate-spin" />
               连接中...
             </span>
@@ -325,7 +325,7 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
             {onlineUsers.slice(0, 5).map((uid) => (
               <div
                 key={uid}
-                className="w-7 h-7 rounded-full border-2 border-neutral-1 flex items-center justify-center text-[10px] font-medium"
+                className="w-7 h-7 rounded-full border-2 border-neutral-1 flex items-center justify-center text-caption-10 font-medium"
                 title={uid}
               >
                 <span className={cn('w-full h-full rounded-full flex items-center justify-center', getAvatarColor(uid))}>
@@ -335,7 +335,7 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
             ))}
             {onlineUsers.length > 5 && (
               <div className="w-7 h-7 rounded-full bg-neutral-3 border-2 border-neutral-1 flex items-center justify-center">
-                <span className="text-[10px] font-medium text-neutral-7">
+                <span className="text-caption-10 font-medium text-neutral-7">
                   +{onlineUsers.length - 5}
                 </span>
               </div>
@@ -347,12 +347,12 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
         {loadingHistory ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-5 w-5 animate-spin text-neutral-5" />
+            <Loader2 className="h-5 w-5 animate-spin text-neutral-7" />
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-2 text-neutral-5">
-            <div className="text-4xl opacity-20">&#x1F4AC;</div>
-            <p className="text-sm">暂无消息，发送第一条消息开始交流</p>
+          <div className="flex flex-col items-center justify-center h-full gap-2 text-neutral-7">
+            <div className="text-display-36 opacity-20">&#x1F4AC;</div>
+            <p className="text-copy-13">暂无消息，发送第一条消息开始交流</p>
           </div>
         ) : (
           messages.map((message, index) => (
@@ -369,7 +369,7 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
 
       {typingIndicatorText && (
         <div className="px-4 py-1">
-          <p className="text-xs text-neutral-6 animate-pulse">{typingIndicatorText}</p>
+          <p className="text-label-12 text-neutral-6 animate-pulse">{typingIndicatorText}</p>
         </div>
       )}
 
@@ -381,7 +381,7 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="输入消息... (Enter 发送)"
-            className="flex-1 h-9 px-3 rounded-lg bg-neutral-1 border border-neutral-4 text-sm text-neutral-9 placeholder:text-neutral-5 focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-colors"
+            className="flex-1 h-9 px-3 rounded-lg bg-neutral-1 border border-neutral-4 text-copy-13 text-neutral-9 placeholder:text-neutral-7 focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-colors"
           />
           <Button
             onClick={handleSendMessage}

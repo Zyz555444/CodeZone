@@ -147,10 +147,10 @@ export function TerminalPanel({ projectId, visible, onClose }: TerminalPanelProp
   return (
     <div className="flex flex-col border-t border-neutral-3 bg-[#1e1e2e]">
       <div className="flex items-center justify-between px-3 py-1.5 bg-neutral-2 border-b border-neutral-3">
-        <span className="text-xs font-medium text-neutral-8">终端</span>
+        <span className="text-label-12 font-medium text-neutral-8">终端</span>
         <button
           onClick={onClose}
-          className="p-0.5 rounded hover:bg-neutral-3 text-neutral-6 text-xs"
+          className="p-0.5 rounded hover:bg-neutral-3 text-neutral-6 text-label-12"
         >
           ✕
         </button>

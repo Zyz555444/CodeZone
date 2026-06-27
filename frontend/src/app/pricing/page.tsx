@@ -38,8 +38,8 @@ export default function PricingPage() {
     <div className="min-h-screen bg-neutral-1">
       <div className="container mx-auto max-w-6xl px-6 py-16">
         <div className="text-center mb-12">
-          <h1 className="font-serif text-5xl font-medium text-neutral-10 mb-4">定价方案</h1>
-          <p className="text-xl text-neutral-7">选择适合您团队的方案</p>
+          <h1 className="font-serif text-display-48 font-medium text-neutral-10 mb-4">定价方案</h1>
+          <p className="text-title-20 text-neutral-7">选择适合您团队的方案</p>
         </div>
 
         <div className="grid gap-8 md:grid-cols-3 max-w-6xl mx-auto">
@@ -49,24 +49,24 @@ export default function PricingPage() {
               className={plan.popular ? 'relative border-accent shadow-float' : ''}
             >
               {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-white px-3 py-1 rounded-full text-sm font-medium">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-white px-3 py-1 rounded-full text-copy-13 font-medium">
                   最受欢迎
                 </div>
               )}
               <CardHeader className="text-center">
-                <CardTitle className="font-serif text-2xl">{plan.name}</CardTitle>
+                <CardTitle className="font-serif text-title-24">{plan.name}</CardTitle>
                 <CardDescription>{plan.description}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="text-center">
-                  <span className="text-5xl font-bold text-neutral-10">{plan.price}</span>
-                  <span className="text-lg text-neutral-7">/月</span>
+                  <span className="text-display-48 font-medium text-neutral-10">{plan.price}</span>
+                  <span className="text-copy-16 text-neutral-7">/月</span>
                 </div>
                 <ul className="space-y-3">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-center gap-2">
                       <Check className="h-5 w-5 text-success" />
-                      <span className="text-sm text-neutral-8">{feature}</span>
+                      <span className="text-copy-13 text-neutral-8">{feature}</span>
                     </li>
                   ))}
                 </ul>

@@ -146,11 +146,11 @@ export function GlobalSearch() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-7 bg-neutral-2 hover:bg-neutral-3 rounded-lg border border-neutral-4 transition-colors"
+        className="flex items-center gap-2 px-3 py-1.5 text-copy-13 text-neutral-7 bg-neutral-2 hover:bg-neutral-3 rounded-lg border border-neutral-4 transition-colors"
       >
         <Search className="h-4 w-4" />
         <span className="hidden lg:inline">搜索...</span>
-        <kbd className="hidden lg:inline-flex items-center px-1.5 py-0.5 text-xs bg-neutral-1 rounded border border-neutral-4 text-neutral-6">
+        <kbd className="hidden lg:inline-flex items-center px-1.5 py-0.5 text-label-12 bg-neutral-1 rounded border border-neutral-4 text-neutral-6">
           CmdK
         </kbd>
       </button>
@@ -173,25 +173,25 @@ export function GlobalSearch() {
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="搜索项目、任务、文件、成员..."
-                className="flex-1 bg-transparent text-neutral-10 placeholder:text-neutral-6 outline-none text-sm"
+                className="flex-1 bg-transparent text-neutral-10 placeholder:text-neutral-6 outline-none text-copy-13"
               />
-              <kbd className="text-xs text-neutral-6 bg-neutral-3 px-2 py-0.5 rounded">ESC</kbd>
+              <kbd className="text-label-12 text-neutral-6 bg-neutral-3 px-2 py-0.5 rounded">ESC</kbd>
             </div>
 
             <div className="max-h-80 overflow-y-auto">
               {loading && (
-                <div className="flex items-center justify-center gap-2 px-4 py-6 text-sm text-neutral-6">
+                <div className="flex items-center justify-center gap-2 px-4 py-6 text-copy-13 text-neutral-6">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   搜索中...
                 </div>
               )}
               {!loading && hasSearched && query && !results && (
-                <div className="px-4 py-6 text-sm text-neutral-6 text-center">
+                <div className="px-4 py-6 text-copy-13 text-neutral-6 text-center">
                   未找到结果
                 </div>
               )}
               {!loading && !query && !hasSearched && (
-                <div className="px-4 py-6 text-sm text-neutral-6 text-center">
+                <div className="px-4 py-6 text-copy-13 text-neutral-6 text-center">
                   输入关键词开始搜索
                 </div>
               )}
@@ -200,7 +200,7 @@ export function GlobalSearch() {
                 const GroupIcon = GROUP_ICONS[group];
                 return (
                   <div key={group}>
-                    <div className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-neutral-6 uppercase bg-neutral-1">
+                    <div className="flex items-center gap-2 px-4 py-2 text-label-12 font-medium text-neutral-6 uppercase bg-neutral-1">
                       <GroupIcon className="h-3.5 w-3.5" />
                       {GROUP_LABELS[group]}
                     </div>
@@ -213,14 +213,14 @@ export function GlobalSearch() {
                         <button
                           key={item.id}
                           onClick={() => handleSelect(item.link)}
-                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-neutral-3 transition-colors flex items-center gap-3 ${
+                          className={`w-full text-left px-4 py-2.5 text-copy-13 hover:bg-neutral-3 transition-colors flex items-center gap-3 ${
                             isActive ? 'bg-neutral-3' : ''
                           }`}
                         >
                           <span className="text-neutral-9 truncate flex-1">
                             {item.name || item.title || item.username}
                           </span>
-                          <span className="text-xs text-neutral-6 shrink-0">{item.type}</span>
+                          <span className="text-label-12 text-neutral-6 shrink-0">{item.type}</span>
                         </button>
                       );
                     })}

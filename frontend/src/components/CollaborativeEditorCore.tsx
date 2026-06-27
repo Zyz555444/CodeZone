@@ -215,7 +215,7 @@ export function CollaborativeEditorCore({
   return (
     <div className="relative h-full w-full flex flex-col">
       {status !== 'connected' && (
-        <div className={`flex items-center gap-2 px-3 py-1 text-xs border-b ${
+        <div className={`flex items-center gap-2 px-3 py-1 text-label-12 border-b ${
           status === 'connecting' ? 'bg-warning/10 border-warning/20 text-warning' : 'bg-red-50 border-red-200 text-red-600'
         }`}>
           {status === 'connecting' ? (
@@ -234,10 +234,10 @@ export function CollaborativeEditorCore({
 
       <div ref={containerRef} className="flex-1 w-full" />
 
-      <div className="flex items-center justify-between px-3 py-1 bg-neutral-1 border-t border-neutral-3 text-[11px] text-neutral-6 shrink-0">
+      <div className="flex items-center justify-between px-3 py-1 bg-neutral-1 border-t border-neutral-3 text-label-12 text-neutral-6 shrink-0">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1">
-            {status === 'connected' ? <Wifi className="h-3 w-3 text-emerald-500" /> : <WifiOff className="h-3 w-3 text-neutral-5" />}
+            {status === 'connected' ? <Wifi className="h-3 w-3 text-emerald-500" /> : <WifiOff className="h-3 w-3 text-neutral-7" />}
             {status === 'connected' ? `${onlinePeers} 人在线` : '离线'}
           </span>
           <span>{language}</span>

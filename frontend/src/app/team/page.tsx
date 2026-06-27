@@ -184,7 +184,7 @@ export default function TeamPage() {
               {/* Header */}
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h1 className="font-serif text-3xl font-medium text-neutral-10">
+                  <h1 className="font-serif text-title-28 font-medium text-neutral-10">
                     {team?.name || '团队'}
                   </h1>
                   <p className="text-neutral-7 mt-1">
@@ -195,7 +195,7 @@ export default function TeamPage() {
 
               {/* Error */}
               {error && (
-                <div className="mb-4 p-3 bg-error/10 border border-error/30 rounded-lg text-sm text-error">
+                <div className="mb-4 p-3 bg-error/10 border border-error/30 rounded-lg text-copy-13 text-error">
                   {error}
                 </div>
               )}
@@ -208,10 +208,10 @@ export default function TeamPage() {
                       <Users className="h-6 w-6 text-neutral-6" />
                     </div>
                     <div>
-                      <p className="text-2xl font-medium text-neutral-10">
+                      <p className="text-title-24 font-medium text-neutral-10">
                         {team?.members?.filter(m => m.status === 'ACTIVE').length || 0}
                       </p>
-                      <p className="text-sm text-neutral-7">团队成员</p>
+                      <p className="text-copy-13 text-neutral-7">团队成员</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -221,10 +221,10 @@ export default function TeamPage() {
                       <Crown className="h-6 w-6 text-accent" />
                     </div>
                     <div>
-                      <p className="text-2xl font-medium text-neutral-10">
+                      <p className="text-title-24 font-medium text-neutral-10">
                         {team?.members?.filter(m => m.role === 'OWNER' || m.role === 'ADMIN').length || 0}
                       </p>
-                      <p className="text-sm text-neutral-7">管理员</p>
+                      <p className="text-copy-13 text-neutral-7">管理员</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -234,10 +234,10 @@ export default function TeamPage() {
                       <Code className="h-6 w-6 text-neutral-6" />
                     </div>
                     <div>
-                      <p className="text-2xl font-medium text-neutral-10">
+                      <p className="text-title-24 font-medium text-neutral-10">
                         {team?._count?.projects || 0}
                       </p>
-                      <p className="text-sm text-neutral-7">项目</p>
+                      <p className="text-copy-13 text-neutral-7">项目</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -247,7 +247,7 @@ export default function TeamPage() {
               {isAdmin && (
                 <Card className="mb-6 border-accent/30">
                   <CardHeader>
-                    <CardTitle className="font-serif text-lg flex items-center gap-2">
+                    <CardTitle className="font-serif text-copy-16 flex items-center gap-2">
                       团队邀请码
                     </CardTitle>
                     <CardDescription>
@@ -257,7 +257,7 @@ export default function TeamPage() {
                   <CardContent>
                     <div className="flex items-center gap-4">
                       <div className="flex-1 bg-neutral-2 rounded-lg p-3 text-center">
-                        <p className="text-2xl font-mono font-bold tracking-[0.3em] text-accent select-all">
+                        <p className="text-title-24 font-mono font-medium tracking-[0.3em] text-accent select-all">
                           {team?.inviteCode}
                         </p>
                       </div>
@@ -287,7 +287,7 @@ export default function TeamPage() {
               {isAdmin && pendingMembers.length > 0 && (
                 <Card className="mb-6 border-warning/30">
                   <CardHeader>
-                    <CardTitle className="font-serif text-lg flex items-center gap-2">
+                    <CardTitle className="font-serif text-copy-16 flex items-center gap-2">
                       <Clock className="h-5 w-5 text-warning" />
                       待审核成员 ({pendingMembers.length})
                     </CardTitle>
@@ -301,13 +301,13 @@ export default function TeamPage() {
                         <div key={member.id} className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-xl bg-neutral-2 flex items-center justify-center">
-                              <span className="text-sm font-medium text-neutral-7">
+                              <span className="text-copy-13 font-medium text-neutral-7">
                                 {member.user.username[0].toUpperCase()}
                               </span>
                             </div>
                             <div>
                               <p className="font-medium text-neutral-10">{member.user.username}</p>
-                              <div className="flex items-center gap-2 text-sm text-neutral-7">
+                              <div className="flex items-center gap-2 text-copy-13 text-neutral-7">
                                 <Mail className="h-3 w-3" />
                                 {member.user.email}
                               </div>
@@ -345,7 +345,7 @@ export default function TeamPage() {
               {/* 成员列表 */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="font-serif text-lg">所有成员</CardTitle>
+                  <CardTitle className="font-serif text-copy-16">所有成员</CardTitle>
                   <CardDescription>
                     团队中的活跃成员列表
                   </CardDescription>
@@ -370,16 +370,16 @@ export default function TeamPage() {
                           <div key={member.id} className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
                             <div className="flex items-center gap-4">
                               <div className="w-12 h-12 rounded-xl bg-neutral-2 flex items-center justify-center">
-                                <span className="text-lg font-medium text-neutral-7">
+                                <span className="text-copy-16 font-medium text-neutral-7">
                                   {member.user.username[0].toUpperCase()}
                                 </span>
                               </div>
                               <div>
                                 <p className="font-medium text-neutral-10">
                                   {member.user.username}
-                                  {isMe && <span className="text-xs text-neutral-6 ml-2">(你)</span>}
+                                  {isMe && <span className="text-label-12 text-neutral-6 ml-2">(你)</span>}
                                 </p>
-                                <div className="flex items-center gap-2 text-sm text-neutral-7">
+                                <div className="flex items-center gap-2 text-copy-13 text-neutral-7">
                                   <Mail className="h-3 w-3" />
                                   {member.user.email}
                                 </div>
@@ -389,12 +389,12 @@ export default function TeamPage() {
                             <div className="flex items-center gap-2">
                               <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-2 ${role.color}`}>
                                 <RoleIcon className="h-4 w-4" />
-                                <span className="text-sm font-medium">{role.label}</span>
+                                <span className="text-copy-13 font-medium">{role.label}</span>
                               </div>
 
                               {canChangeRole && (
                                 <select
-                                  className="text-sm border border-neutral-5 rounded-lg bg-neutral-1 px-2 py-1.5 text-neutral-10 cursor-pointer focus:outline-none focus:border-accent/50 disabled:opacity-50"
+                                  className="text-copy-13 border border-neutral-5 rounded-lg bg-neutral-1 px-2 py-1.5 text-neutral-10 cursor-pointer focus:outline-none focus:border-accent/50 disabled:opacity-50"
                                   value=""
                                   disabled={actionLoading === member.user.id}
                                   onChange={(e) => {

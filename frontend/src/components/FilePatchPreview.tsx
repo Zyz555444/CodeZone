@@ -42,7 +42,7 @@ export function FilePatchPreview({ patches, onAccept, onReject }: FilePatchPrevi
           <div key={patch.filePath} className="border border-neutral-4 rounded-lg overflow-hidden">
             <button
               onClick={() => toggle(patch.filePath)}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-neutral-2 transition-colors"
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-label-12 hover:bg-neutral-2 transition-colors"
             >
               {isOpen
                 ? <ChevronDown className="h-3 w-3 text-neutral-6 shrink-0" />
@@ -66,13 +66,13 @@ export function FilePatchPreview({ patches, onAccept, onReject }: FilePatchPrevi
                 <div className="ml-auto flex gap-1" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={() => onAccept(patch.filePath)}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs rounded bg-green-600 text-white hover:bg-green-700"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-label-12 rounded bg-green-600 text-white hover:bg-green-700"
                   >
                     <Check className="h-3 w-3" /> 接受
                   </button>
                   <button
                     onClick={() => onReject(patch.filePath)}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs rounded bg-neutral-4 text-neutral-8 hover:bg-neutral-5"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-label-12 rounded bg-neutral-4 text-neutral-8 hover:bg-neutral-5"
                   >
                     <X className="h-3 w-3" /> 拒绝
                   </button>

@@ -83,7 +83,7 @@ export default function ReviewsPage() {
             <div className="container mx-auto max-w-6xl px-6 py-8">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h1 className="font-serif text-3xl font-medium text-neutral-10">
+                  <h1 className="font-serif text-title-28 font-medium text-neutral-10">
                     代码审查
                   </h1>
                   <p className="text-neutral-7 mt-1">
@@ -118,7 +118,7 @@ export default function ReviewsPage() {
                   <div className="w-16 h-16 rounded-2xl bg-error/10 flex items-center justify-center mb-4">
                     <RefreshCw className="h-8 w-8 text-error" />
                   </div>
-                  <h3 className="font-serif text-lg font-medium text-neutral-10 mb-2">
+                  <h3 className="font-serif text-copy-16 font-medium text-neutral-10 mb-2">
                     加载失败
                   </h3>
                   <p className="text-neutral-7 mb-6">
@@ -133,9 +133,9 @@ export default function ReviewsPage() {
                 <Card className="max-w-md mx-auto">
                   <CardContent className="py-16 text-center">
                     <div className="w-16 h-16 rounded-2xl bg-neutral-2 flex items-center justify-center mx-auto mb-4">
-                      <MessageSquare className="h-8 w-8 text-neutral-5" />
+                      <MessageSquare className="h-8 w-8 text-neutral-7" />
                     </div>
-                    <h3 className="font-serif text-lg font-medium text-neutral-10 mb-2">
+                    <h3 className="font-serif text-copy-16 font-medium text-neutral-10 mb-2">
                       暂无代码审查
                     </h3>
                     <p className="text-neutral-7 mb-6">
@@ -162,7 +162,7 @@ export default function ReviewsPage() {
                           <div className="w-12 h-12 rounded-xl bg-neutral-2 flex items-center justify-center group-hover:bg-accent-subtle transition-colors">
                             <MessageSquare className="h-6 w-6 text-neutral-6 group-hover:text-accent transition-colors" />
                           </div>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig[review.status]?.bgClass} ${statusConfig[review.status]?.textClass}`}>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-label-12 font-medium ${statusConfig[review.status]?.bgClass} ${statusConfig[review.status]?.textClass}`}>
                             {statusConfig[review.status]?.label}
                           </span>
                         </div>
@@ -171,7 +171,7 @@ export default function ReviewsPage() {
                           {review.title}
                         </h3>
 
-                        <div className="flex items-center gap-4 text-xs text-neutral-6 mt-3">
+                        <div className="flex items-center gap-4 text-label-12 text-neutral-6 mt-3">
                           <span className="flex items-center gap-1">
                             <User className="h-3 w-3" />
                             {review.author.username}
@@ -183,10 +183,10 @@ export default function ReviewsPage() {
                         </div>
 
                         <div className="flex items-center justify-between mt-4 pt-3 border-t border-neutral-4">
-                          <span className="text-xs text-neutral-6">
+                          <span className="text-label-12 text-neutral-6">
                             {review._count?.comments ?? 0} 条评论
                           </span>
-                          <span className="text-xs text-neutral-5">
+                          <span className="text-label-12 text-neutral-7">
                             {formatDate(review.createdAt)}
                           </span>
                         </div>
