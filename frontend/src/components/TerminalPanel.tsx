@@ -65,9 +65,17 @@ export function TerminalPanel({ projectId, visible, onClose }: TerminalPanelProp
 
     const token = getToken();
     const baseWsUrl = wsUrl();
-    const wsProtocol = baseWsUrl.startsWith('https') ? 'wss' : 'ws';
-    const wsHost = baseWsUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
-    const wsEndpoint = `${wsProtocol}://${wsHost}/terminal?token=${token}&projectId=${projectId}`;
+    let wsEndpoint: string;
+
+    if (baseWsUrl.startsWith('http://') || baseWsUrl.startsWith('https://')) {
+      // 绝对 URL: 将 http/https 转换为 ws/wss
+      const wsProtocol = baseWsUrl.startsWith('https') ? 'wss' : 'ws';
+      const wsHost = baseWsUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      wsEndpoint = `${wsProtocol}://${wsHost}/terminal?token=${encodeURIComponent(token)}&projectId=${encodeURIComponent(projectId)}`;
+    } else {
+      // 相对路径: 直接使用 /terminal, 浏览器会根据当前页面 origin 自动选用 wss://
+      wsEndpoint = `/terminal?token=${encodeURIComponent(token)}&projectId=${encodeURIComponent(projectId)}`;
+    }
 
     const ws = new WebSocket(wsEndpoint);
     wsRef.current = ws;

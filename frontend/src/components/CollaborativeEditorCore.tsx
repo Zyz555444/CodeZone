@@ -56,7 +56,7 @@ export function CollaborativeEditorCore({
   const [onlinePeers, setOnlinePeers] = useState(0);
   const initializedRef = useRef(false);
 
-  const backendUrl = wsUrl || process.env.NEXT_PUBLIC_WS_URL || '/socket.io';
+  const backendUrl = wsUrl || '/ws';
 
   const getUserId = useCallback(() => {
     if (typeof window !== 'undefined') {

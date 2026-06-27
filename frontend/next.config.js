@@ -17,6 +17,14 @@ const nextConfig = {
         source: '/socket.io/:path*',
         destination: 'http://backend:10101/socket.io/:path*',
       },
+      {
+        source: '/terminal',
+        destination: 'http://backend:10101/terminal',
+      },
+      {
+        source: '/ws/:path*',
+        destination: 'http://backend:10101/ws/:path*',
+      },
     ];
   },
   reactStrictMode: true,

@@ -44,7 +44,7 @@ export function CollaborativeEditor({
   const [connecting, setConnecting] = useState(true);
   const [onlinePeers, setOnlinePeers] = useState(0);
 
-  const backendUrl = wsUrl || process.env.NEXT_PUBLIC_WS_URL || '/socket.io';
+  const backendUrl = wsUrl || '/ws';
 
   useEffect(() => {
     if (!editorRef.current || !monacoRef.current) return;
