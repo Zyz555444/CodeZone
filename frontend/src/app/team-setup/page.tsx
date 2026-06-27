@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/Button';
@@ -11,8 +11,10 @@ import { Users, UserPlus, Code, ArrowRight, CheckCircle, XCircle } from 'lucide-
 
 export default function TeamSetupPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const hasTeam = useAuthStore((s) => s.hasTeam);
   const setTeamStatus = useAuthStore((s) => s.setTeamStatus);
   const [mode, setMode] = useState<'choose' | 'create' | 'join'>('choose');
   const [teamName, setTeamName] = useState('');
@@ -88,6 +90,14 @@ export default function TeamSetupPage() {
   };
 
   const goToDashboard = () => router.push('/dashboard');
+
+  // 团队创建成功后自动跳转仪表盘
+  useEffect(() => {
+    if (hasTeam && pathname === '/team-setup') {
+      const timer = setTimeout(() => router.replace('/dashboard'), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [hasTeam, router, pathname]);
 
   if (!isAuthenticated || checkingTeam) {
     return (

@@ -26,6 +26,19 @@ export function TeamGuard({ children }: TeamGuardProps) {
       return;
     }
 
+    // Zustand 中已有团队信息：直接放行，后台静默验证
+    if (hasTeam) {
+      setChecking(false);
+      api.get('/auth/me').then(({ data }) => {
+        setTeamStatus(data.hasTeam, data.teams || []);
+        if (!data.hasTeam && pathname !== '/team-setup') {
+          router.replace('/team-setup');
+        }
+      }).catch(() => {});
+      return;
+    }
+
+    // 无团队信息，阻塞等待 API 验证
     let cancelled = false;
     setError(false);
     setChecking(true);
@@ -44,7 +57,7 @@ export function TeamGuard({ children }: TeamGuardProps) {
     });
 
     return () => { cancelled = true; };
-  }, [isAuthenticated, pathname, router, setTeamStatus, retryCount]);
+  }, [isAuthenticated, pathname, router, setTeamStatus, retryCount, hasTeam]);
 
   if (error) {
     return (
@@ -62,7 +75,7 @@ export function TeamGuard({ children }: TeamGuardProps) {
     );
   }
 
-  if (checking || !hasTeam) {
+  if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-1">
         <div className="animate-pulse text-neutral-7">检查团队状态...</div>

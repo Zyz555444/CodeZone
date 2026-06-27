@@ -23,6 +23,22 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
 
     const accessibleProjectIds = await getAccessibleProjectIds(userId);
 
+    // 新用户无项目时直接返回空统计
+    if (accessibleProjectIds.length === 0) {
+      res.json({
+        stats: {
+          totalProjects: 0,
+          totalTasks: 0,
+          myTasks: 0,
+          teamMembers: 0,
+          tasksByStatus: { TODO: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 0, BLOCKED: 0 },
+          tasksByPriority: { LOW: 0, MEDIUM: 0, HIGH: 0, URGENT: 0 },
+        },
+        recentActivities: [],
+      });
+      return;
+    }
+
     const [
       totalProjects,
       totalTasks,
