@@ -48,6 +48,20 @@ COPY frontend/src ./src
 RUN --mount=type=cache,target=/app/frontend/.next/cache \
     npx next build --webpack
 
+# 标准化 standalone 输出：消除 workspace 检测差异
+# 无论 Next.js 输出 flat 还是 frontend/ 子目录，统一整理到 /standalone
+RUN rm -rf /standalone && mkdir -p /standalone && \
+    cd /app/frontend/.next/standalone && \
+    if [ -f frontend/server.js ]; then \
+        echo "[standalone] workspace mode, extracting frontend/"; \
+        cp -a frontend/. /standalone/ && \
+        cp -a .next /standalone/ && \
+        cp -a node_modules /standalone/; \
+    else \
+        echo "[standalone] flat mode"; \
+        cp -a . /standalone/; \
+    fi
+
 # ============================================
 # 阶段3: 前端生产镜像
 # ============================================
@@ -63,12 +77,7 @@ WORKDIR /app
 RUN --mount=type=cache,target=/var/cache/apk \
     apk add --no-cache curl
 
-COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone/frontend/* ./
-COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone/.next ./.next
-COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone/node_modules ./node_modules
-COPY --from=frontend-builder --chown=node:node /app/frontend/.next/static ./.next/static
-COPY --from=frontend-builder --chown=node:node /app/frontend/next.config.js ./
-COPY --from=frontend-builder --chown=node:node /app/frontend/package.json ./
+COPY --from=frontend-builder --chown=node:node /app/frontend/standalone/ ./
 
 EXPOSE 12321
 USER node
