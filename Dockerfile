@@ -33,6 +33,8 @@ WORKDIR /app/frontend
 COPY --from=deps /app/node_modules ./node_modules
 # 再叠加 frontend 专属 node_modules（覆盖 hoist 的版本）
 COPY --from=deps /app/frontend/node_modules ./node_modules
+# workspace 根 package.json 确保 Next.js 正确检测 monorepo 结构
+COPY package.json /app/package.json
 COPY frontend/package.json ./package.json
 COPY frontend/tsconfig.json ./tsconfig.json
 COPY frontend/next.config.js ./next.config.js
@@ -62,7 +64,7 @@ RUN --mount=type=cache,target=/var/cache/apk \
     apk add --no-cache curl
 
 COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone/frontend/* ./
-COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone/.next ./.next
+COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone/frontend/.next ./.next
 COPY --from=frontend-builder --chown=node:node /app/frontend/.next/standalone/node_modules ./node_modules
 COPY --from=frontend-builder --chown=node:node /app/frontend/.next/static ./.next/static
 COPY --from=frontend-builder --chown=node:node /app/frontend/next.config.js ./
