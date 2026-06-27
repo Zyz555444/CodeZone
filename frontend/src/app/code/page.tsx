@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import { Header } from '@/components/Header';
@@ -14,7 +14,7 @@ const CollaborativeWorkspace = dynamic(
   { ssr: false }
 );
 
-export default function CodePage() {
+function CodePageContent() {
   const searchParams = useSearchParams();
   const projectIdFromUrl = searchParams.get('projectId');
   const { currentProject, setCurrentProject } = useProjectStore();
@@ -81,5 +81,13 @@ export default function CodePage() {
         </div>
       </div>
     </TeamGuard>
+  );
+}
+
+export default function CodePage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-neutral-1"><div className="text-neutral-7">加载中...</div></div>}>
+      <CodePageContent />
+    </Suspense>
   );
 }
