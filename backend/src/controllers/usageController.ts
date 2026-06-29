@@ -44,14 +44,14 @@ export async function getUsage(req: AuthRequest, res: Response): Promise<void> {
       }),
     ]);
 
-    const userIds = perUser.map(u => u.userId);
+    const userIds = perUser.map((u: { userId: string }) => u.userId);
     const users = userIds.length > 0
       ? await prisma.user.findMany({
         where: { id: { in: userIds } },
         select: { id: true, username: true },
       })
       : [];
-    const userMap = new Map(users.map(u => [u.id, u.username]));
+    const userMap = new Map(users.map((u: { id: string; username: string }) => [u.id, u.username]));
 
     res.json({
       period: { days, since: since.toISOString() },
@@ -60,13 +60,13 @@ export async function getUsage(req: AuthRequest, res: Response): Promise<void> {
         completionTokens: totalUsage._sum.completionTokens || 0,
         totalTokens: (totalUsage._sum.promptTokens || 0) + (totalUsage._sum.completionTokens || 0),
       },
-      perUser: perUser.map(u => ({
+      perUser: perUser.map((u: { userId: string; _sum: { promptTokens: number | null; completionTokens: number | null } }) => ({
         userId: u.userId,
         username: userMap.get(u.userId) || 'Unknown',
         promptTokens: u._sum.promptTokens || 0,
         completionTokens: u._sum.completionTokens || 0,
       })),
-      perModel: perModel.map(m => ({
+      perModel: perModel.map((m: { modelId: string | null; _sum: { promptTokens: number | null; completionTokens: number | null } }) => ({
         modelId: m.modelId || 'unknown',
         promptTokens: m._sum.promptTokens || 0,
         completionTokens: m._sum.completionTokens || 0,

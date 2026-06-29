@@ -1,7 +1,6 @@
 'use client';
 
 import React, { createContext, useContext, useCallback, useReducer } from 'react';
-import type { useAIStore } from '@/stores/aiStore';
 
 interface EditorCommand {
   type: 'goto' | 'diff' | 'replace' | 'focus' | 'agent_start' | 'agent_done';

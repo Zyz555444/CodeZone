@@ -52,7 +52,10 @@ api.interceptors.response.use(
       if (typeof document !== 'undefined') {
         document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         clearCachedToken();
-        window.location.href = '/login';
+        const { pathname } = window.location;
+        if (pathname !== '/login' && pathname !== '/register') {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);

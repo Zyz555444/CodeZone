@@ -6,7 +6,7 @@ function buildUrl(endpoint: string): string {
 }
 
 export class OpenAIProvider implements AIProvider {
-  id = 'OPENAI' as const;
+  id: AIProvider['id'] = 'OPENAI';
   label = 'OpenAI Compatible';
   private endpoint: string;
   private apiKey: string;

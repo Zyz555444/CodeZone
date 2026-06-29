@@ -2,7 +2,6 @@ import { Message, AgentContext, AgentLoopOptions, AgentStreamEvent, ToolCallRequ
 import { aiStreamChat } from './service';
 import { collectProjectContext, buildContextSystemPrompt } from './context';
 import { getToolDefinitions, executeTool } from './tools';
-import { prisma } from '../prisma';
 import { logger } from '../../utils/logger';
 import { getTeamConfig } from './teamConfigHelper';
 import type { AIConfig } from './types';

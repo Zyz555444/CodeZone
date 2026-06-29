@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
@@ -50,7 +51,7 @@ export const addDependency = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     // Prevent circular dependencies within a transaction to avoid TOCTOU
-    const dependency = await prisma.$transaction(async (tx) => {
+    const dependency = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const existingInTx = await tx.taskDependency.findUnique({
         where: { taskId_dependsOnId: { taskId, dependsOnId } },
       });

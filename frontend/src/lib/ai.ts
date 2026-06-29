@@ -46,38 +46,6 @@ export function formatAIError(err: AIError): string {
   return err.message;
 }
 
-async function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  aiError: AIError,
-): Promise<T> {
-  if (!aiError.retryable) throw new Error(aiError.message);
-
-  if (aiError.type === 'rate_limit') {
-    const maxRetries = 3;
-    for (let i = 0; i < maxRetries; i++) {
-      const wait = Math.min(1000 * Math.pow(2, i), 8000);
-      await delay(wait);
-      try {
-        return await fn();
-      } catch (e) {
-        if (e instanceof Error && e.message === aiError.message) continue;
-        throw e;
-      }
-    }
-  }
-
-  if (aiError.type === 'server' || aiError.type === 'timeout') {
-    await delay(1000);
-    return fn();
-  }
-
-  throw new Error(aiError.message);
-}
-
 interface StreamCallbacks {
   onToken: (token: string) => void;
   onDone: (conversationId?: string) => void;

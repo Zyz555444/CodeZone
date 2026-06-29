@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Loader2, Check, AlertCircle, Settings, ArrowLeft } from 'lucide-react';
-import { TeamGuard } from '@/components/TeamGuard';
 import { useAuthStore } from '@/stores/authStore';
 import { getAISettings, updateAISettings, validateAISettings } from '@/lib/ai';
 

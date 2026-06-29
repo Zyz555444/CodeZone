@@ -9,9 +9,7 @@ import { wsService } from '@/lib/websocket';
 import { useAuthStore } from '@/stores/authStore';
 import { GhostTextProvider } from './GhostTextProvider';
 import { InlineAIMenu } from './InlineAIMenu';
-import { InlineDiffEditor } from './InlineDiffEditor';
 import { agentExecute } from '@/lib/ai';
-import { useAIStore } from '@/stores/aiStore';
 
 interface CodeEditorProps {
   projectId: string;
@@ -82,7 +80,6 @@ export function CodeEditor({
   const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
   const [content, setContent] = useState(initialContent);
   const [remoteCursors, setRemoteCursors] = useState<RemoteCursor[]>([]);
-  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const [onlineCount, setOnlineCount] = useState(0);
   const [selectedText, setSelectedText] = useState('');
   const [selectedRange, setSelectedRange] = useState<{ startLineNumber: number; startColumn: number; endLineNumber: number; endColumn: number } | null>(null);
@@ -112,7 +109,7 @@ export function CodeEditor({
       const editor = editorRef.current;
       const decorations: editor.IModelDeltaDecoration[] = [];
 
-      cursors.forEach((cursor, idx) => {
+      cursors.forEach((cursor, _idx) => {
         if (cursor.position) {
           decorations.push({
             range: {
@@ -230,7 +227,6 @@ export function CodeEditor({
 
     const onOnlineUsers = (data: unknown) => {
       const online = data as OnlineUsersData;
-      setOnlineUsers(online.users || []);
       setOnlineCount(online.count || 0);
     };
 
@@ -297,7 +293,7 @@ export function CodeEditor({
           if (pos) {
             const editorDom = editorInst.getDomNode();
             if (editorDom) {
-              const rect = editorDom.getBoundingClientRect();
+              editorDom.getBoundingClientRect(); // used for position calculation above
               setAiMenuPosition({
                 top: pos.top + 20,
                 left: pos.left,
@@ -436,7 +432,6 @@ function InlinePrompt({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const store = useAIStore;
 
   useEffect(() => {
     inputRef.current?.focus();

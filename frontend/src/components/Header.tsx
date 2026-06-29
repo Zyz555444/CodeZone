@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { useWebSocketStore } from '@/stores/websocketStore';
 import { Button } from '@/components/ui/Button';
@@ -11,6 +12,7 @@ import { useTheme } from 'next-themes';
 import { wsService } from '@/lib/websocket';
 
 export const Header = React.memo(function Header() {
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
   const logout = useAuthStore((s) => s.logout);
@@ -77,7 +79,9 @@ export const Header = React.memo(function Header() {
     setConnected(false);
     setOnlineCount(0);
     wsService.disconnect();
+    document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     logout();
+    router.push('/login');
   };
 
   return (

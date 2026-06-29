@@ -6,7 +6,6 @@ import {
   AlertTriangle, ChevronDown, ChevronRight, Loader2, Check, X, Clock,
 } from 'lucide-react';
 import { useEditorCommandBus } from '@/components/EditorCommandBus';
-import type { useAIStore } from '@/stores/aiStore';
 
 interface ToolCall {
   toolId: string;

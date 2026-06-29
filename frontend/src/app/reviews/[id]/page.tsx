@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -68,13 +68,7 @@ export default function ReviewDetailPage() {
 
   const id = params.id as string;
 
-  useEffect(() => {
-    if (!id) return;
-    fetchReview();
-    fetchComments();
-  }, [id]);
-
-  const fetchReview = async () => {
+  const fetchReview = useCallback(async () => {
     try {
       const response = await api.get(`/reviews/${id}`);
       setReview(response.data.review);
@@ -84,16 +78,22 @@ export default function ReviewDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     try {
       const response = await api.get(`/reviews/${id}/comments`);
       setComments(response.data.comments || []);
     } catch (err) {
       console.error('获取评论失败:', err);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    fetchReview();
+    fetchComments();
+  }, [id, fetchReview, fetchComments]);
 
   const handleStatusChange = async (newStatus: Review['status']) => {
     try {

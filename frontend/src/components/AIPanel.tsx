@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/Button';
 import {
   Loader2, Send, Sparkles, X, Square, Plus, MessageSquare,
@@ -9,11 +9,10 @@ import {
 import { useAIStore } from '@/stores/aiStore';
 import {
   streamChat, agentExecute, abortAgentExecute, listConversations,
-  createConversation, getConversation, deleteConversation,
+  getConversation, deleteConversation,
 } from '@/lib/ai';
 import { AgentThinking } from './AgentThinking';
 import { FilePatchPreview } from './FilePatchPreview';
-import { useEditorCommandBus } from './EditorCommandBus';
 
 interface AIAgentPanelProps {
   projectId: string;
@@ -30,8 +29,6 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
   const chatRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { emitCommand } = useEditorCommandBus();
-
   const {
     conversations,
     activeConversationId,
@@ -43,10 +40,8 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
     thinkingContent,
     toolCalls,
     filePatches,
-    isExecuting,
     setConversations,
     setActiveConversation,
-    addConversation,
     removeConversation,
     setMessages,
     addMessage,

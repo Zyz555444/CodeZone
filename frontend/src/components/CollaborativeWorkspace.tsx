@@ -66,7 +66,7 @@ export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorksp
     setTimeout(() => setInlineMenu(null), 500);
   }, []);
 
-  const handleEditorMount = useCallback((editor: any, monaco: any) => {
+  const handleEditorMount = useCallback((editor: any, _monaco: any) => {
     editorRef.current = {
       getSelection: () => {
         const selection = editor.getSelection();
