@@ -20,38 +20,35 @@ export const addDependency = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
-    const [sourceTask, targetTask] = await Promise.all([
-      prisma.task.findUnique({ where: { id: taskId }, select: { id: true, projectId: true } }),
-      prisma.task.findUnique({ where: { id: dependsOnId }, select: { id: true, projectId: true } }),
-    ]);
-
-    if (!sourceTask || !targetTask) {
+    // 授权检查：用户必须有项目访问权限
+    const sourceTaskBasic = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { projectId: true },
+    });
+    if (!sourceTaskBasic) {
       res.status(404).json({ error: '任务不存在' });
       return;
     }
-
-    // 授权检查：用户必须有项目访问权限
-    if (!(await hasProjectAccess(req.userId!, sourceTask.projectId))) {
+    if (!(await hasProjectAccess(req.userId!, sourceTaskBasic.projectId))) {
       res.status(403).json({ error: '无权操作此任务' });
-      return;
-    }
-
-    if (sourceTask.projectId !== targetTask.projectId) {
-      res.status(400).json({ error: '只能在同一项目中创建任务依赖' });
-      return;
-    }
-
-    const existing = await prisma.taskDependency.findUnique({
-      where: { taskId_dependsOnId: { taskId, dependsOnId } },
-    });
-
-    if (existing) {
-      res.status(409).json({ error: '该依赖关系已存在' });
       return;
     }
 
     // Prevent circular dependencies within a transaction to avoid TOCTOU
     const dependency = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const [sourceTask, targetTask] = await Promise.all([
+        tx.task.findUnique({ where: { id: taskId }, select: { id: true, projectId: true } }),
+        tx.task.findUnique({ where: { id: dependsOnId }, select: { id: true, projectId: true } }),
+      ]);
+
+      if (!sourceTask || !targetTask) {
+        throw new Error('TASK_NOT_FOUND');
+      }
+
+      if (sourceTask.projectId !== targetTask.projectId) {
+        throw new Error('DIFFERENT_PROJECT');
+      }
+
       const existingInTx = await tx.taskDependency.findUnique({
         where: { taskId_dependsOnId: { taskId, dependsOnId } },
       });
@@ -79,13 +76,22 @@ export const addDependency = async (req: AuthRequest, res: Response): Promise<vo
     }, { isolationLevel: 'Serializable' });
 
     res.status(201).json({ dependency });
-  } catch (error: any) {
-    if (error?.message === 'DUPLICATE_DEPENDENCY') {
+  } catch (error) {
+    const err = error as Error;
+    if (err?.message === 'DUPLICATE_DEPENDENCY') {
       res.status(409).json({ error: '该依赖关系已存在' });
       return;
     }
-    if (error?.message === 'CIRCULAR_DEPENDENCY') {
+    if (err?.message === 'CIRCULAR_DEPENDENCY') {
       res.status(400).json({ error: '无法创建循环依赖' });
+      return;
+    }
+    if (err?.message === 'TASK_NOT_FOUND') {
+      res.status(404).json({ error: '任务不存在' });
+      return;
+    }
+    if (err?.message === 'DIFFERENT_PROJECT') {
+      res.status(400).json({ error: '只能在同一项目中创建任务依赖' });
       return;
     }
     logger.error('添加任务依赖失败', { error, taskId: req.params.taskId });
@@ -194,7 +200,7 @@ export const getDependencies = async (req: AuthRequest, res: Response): Promise<
   }
 };
 
-async function checkCircularDependencyInTx(tx: any, taskId: string, dependsOnId: string): Promise<boolean> {
+async function checkCircularDependencyInTx(tx: Prisma.TransactionClient, taskId: string, dependsOnId: string): Promise<boolean> {
   const visited = new Set<string>();
   const queue = [dependsOnId];
 

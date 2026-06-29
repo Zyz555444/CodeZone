@@ -5,6 +5,7 @@ import { logger } from '../utils/logger';
 import { getRedisClient, isRedisConnected } from '../lib/redis';
 
 const SEARCH_CACHE_TTL = 120; // 120 秒
+const MAX_QUERY_LENGTH = 200;
 
 export const search = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -12,6 +13,11 @@ export const search = async (req: AuthRequest, res: Response): Promise<void> => 
 
     if (!q) {
       res.json({ projects: [], tasks: [], users: [], files: [] });
+      return;
+    }
+
+    if (q.length > MAX_QUERY_LENGTH) {
+      res.status(400).json({ error: '搜索词过长' });
       return;
     }
 
@@ -74,6 +80,7 @@ export const search = async (req: AuthRequest, res: Response): Promise<void> => 
         where: {
           id: { in: memberIds },
           username: queryFilter,
+          NOT: { id: userId },
         },
         select: { id: true, username: true, avatar: true },
         take: 5,

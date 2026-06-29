@@ -36,8 +36,6 @@ function unregisterAgentAbort(conversationId: string, controller: AbortControlle
    }
 }
 
-export { getTeamConfig } from '../lib/ai/teamConfigHelper';
-
 function classifyError(error: unknown): {
   type: 'auth' | 'rate_limit' | 'server' | 'timeout' | 'network' | 'unknown';
   retryable: boolean;
@@ -242,10 +240,13 @@ export async function streamChat(req: AuthRequest, res: Response): Promise<void>
 
     if (!abortController.signal.aborted && fullContent) {
       if (convId) {
-        const lastUserMessage = [...(messages as Message[])].reverse().find((m) => m.role === 'user');
-        await prisma.aIMessage.create({
-          data: { conversationId: convId, role: 'user', content: lastUserMessage?.content || '' },
-        });
+        for (const msg of messages as Message[]) {
+          if (msg.role === 'user') {
+            await prisma.aIMessage.create({
+              data: { conversationId: convId, role: 'user', content: msg.content },
+            });
+          }
+        }
         await prisma.aIMessage.create({
           data: { conversationId: convId, role: 'assistant', content: fullContent },
         });

@@ -220,15 +220,15 @@ setupTerminalServer(httpServer);
 app.use('/api/auth/login', strictLimiter);
 app.use('/api/auth/register', strictLimiter);
 app.use('/api/auth', sanitizeBody, authRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/users', sanitizeBody, userRoutes);
 // 密码更新端点专用限流
 app.use('/api/users/password', passwordUpdateLimiter);
 // 用户资料更新端点专用限流
 app.use('/api/users/profile', profileUpdateLimiter);
 // 对所有写操作路由应用输入清理（代码/文件路由除外，因为sanitize会破坏代码内容）
 app.use('/api/projects', sanitizeBody, projectRoutes);
-app.use('/api/tasks', sanitizeBody, dependencyRoutes);
 app.use('/api/tasks', sanitizeBody, taskRoutes);
+app.use('/api/tasks', dependencyRoutes);
 app.use('/api/code', codeRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/reviews', sanitizeBody, reviewRoutes);
@@ -240,10 +240,10 @@ app.use('/api/search', searchRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/ai', sanitizeBody, aiRoutes);
-app.use('/api/ai', aiSettingsRoutes);
-app.use('/api/ai/conversations', aiConversationsRoutes);
+app.use('/api/ai', sanitizeBody, aiSettingsRoutes);
+app.use('/api/ai/conversations', sanitizeBody, aiConversationsRoutes);
 app.use('/api/ai/usage', usageRoutes);
-app.use('/api/ai/permissions', aiPermissionsRoutes);
+app.use('/api/ai/permissions', sanitizeBody, aiPermissionsRoutes);
 
 // 404 处理
 app.use((req, res) => {
@@ -258,9 +258,15 @@ process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection', { reason, promise });
 });
 
-// 未捕获的异常
-process.on('uncaughtException', (error) => {
+// 未捕获的异常 - 优雅关闭
+process.on('uncaughtException', async (error) => {
   logger.error('Uncaught Exception', { error });
+  try {
+    await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+    logger.info('Server closed after uncaught exception');
+  } catch {
+    // force exit if server close fails
+  }
   process.exit(1);
 });
 
@@ -304,6 +310,15 @@ async function migrateTeamCreatorRoles() {
 async function startServer() {
   try {
     await connectRedis();
+
+    // 验证数据库连接
+    try {
+      await prisma.$connect();
+      logger.info('Prisma 数据库连接成功');
+    } catch (dbError) {
+      logger.error('Prisma 数据库连接失败', { error: dbError });
+      process.exit(1);
+    }
 
     // 数据迁移
     await migrateTeamCreatorRoles();

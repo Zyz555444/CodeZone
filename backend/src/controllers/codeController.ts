@@ -4,12 +4,20 @@ import { AuthRequest } from '../middleware/auth';
 import { hasProjectAccess } from '../lib/projectAccess';
 import { logger } from '../utils/logger';
 
-function buildFileTree(files: any[]): any[] {
-  const map = new Map<string, any>();
-  const roots: any[] = [];
+const MAX_FILES_PER_PROJECT = 5000;
+
+interface FileNode {
+  id: string;
+  children: FileNode[];
+  [key: string]: unknown;
+}
+
+function buildFileTree(files: { id: string; parentId: string | null; [key: string]: unknown }[]): FileNode[] {
+  const map = new Map<string, FileNode>();
+  const roots: FileNode[] = [];
 
   for (const file of files) {
-    map.set(file.id, { ...file, children: [] });
+    map.set(file.id, { ...file, children: [] } as FileNode);
   }
 
   for (const file of files) {
@@ -38,9 +46,24 @@ export const getFilesTree = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
+    const fileCount = await prisma.codeFile.count({
+      where: { projectId: projectId as string },
+    });
+    if (fileCount > MAX_FILES_PER_PROJECT) {
+      res.status(400).json({ error: `项目文件数超过限制 (${MAX_FILES_PER_PROJECT})` });
+      return;
+    }
+
     const allFiles = await prisma.codeFile.findMany({
       where: { projectId: projectId as string },
       orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        path: true,
+        type: true,
+        parentId: true,
+      },
     });
 
     const tree = buildFileTree(allFiles);

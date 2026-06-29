@@ -5,7 +5,10 @@ const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
 
 function getKey(): Buffer {
-  const raw = process.env.MCAI_ENCRYPTION_KEY || process.env.JWT_SECRET || 'codezone-default-encryption-key-2026';
+  const raw = process.env.MCAI_ENCRYPTION_KEY;
+  if (!raw) {
+    throw new Error('MCAI_ENCRYPTION_KEY environment variable is required for AI API key encryption');
+  }
   return crypto.createHash('sha256').update(raw).digest();
 }
 

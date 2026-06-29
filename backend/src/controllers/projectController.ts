@@ -374,14 +374,17 @@ export const addMember = async (req: AuthRequest, res: Response): Promise<void> 
     }
 
     const validRoles = ['ADMIN', 'MEMBER'];
-    const safeRole = validRoles.includes(role) ? role : 'MEMBER';
+    if (!validRoles.includes(role)) {
+      res.status(400).json({ error: `无效的角色，可选值: ${validRoles.join(', ')}` });
+      return;
+    }
 
     // 添加成员
     const member = await prisma.projectMember.create({
       data: {
         projectId: id,
         userId,
-        role: safeRole,
+        role,
       },
       include: {
         user: {

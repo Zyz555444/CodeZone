@@ -20,7 +20,7 @@ const settingsSchema = z.object({
   isEnabled: z.boolean().optional(),
 });
 
-function ensureTeamManager(req: AuthRequest, teamMember: { role: string } | null): boolean {
+function ensureTeamManager(teamMember: { role: string } | null): boolean {
   if (!teamMember) return false;
   return teamMember.role === 'OWNER' || teamMember.role === 'ADMIN';
 }
@@ -81,7 +81,7 @@ export async function updateSettings(req: AuthRequest, res: Response): Promise<v
       select: { role: true, status: true },
     });
 
-    if (!ensureTeamManager(req, member)) {
+    if (!ensureTeamManager(member)) {
       res.status(403).json({ error: '仅团队 OWNER 或 ADMIN 可以修改 AI 设置' });
       return;
     }
@@ -137,6 +137,23 @@ export async function updateSettings(req: AuthRequest, res: Response): Promise<v
 
 export async function validateSettings(req: AuthRequest, res: Response): Promise<void> {
   try {
+    const { teamId } = req.params;
+    if (!teamId) {
+      res.status(400).json({ error: 'teamId is required' });
+      return;
+    }
+
+    const userId = req.userId!;
+    const member = await prisma.teamMember.findUnique({
+      where: { teamId_userId: { teamId, userId } },
+      select: { role: true, status: true },
+    });
+
+    if (!member || member.status !== 'ACTIVE') {
+      res.status(403).json({ error: '您不是该团队的成员' });
+      return;
+    }
+
     const body = z.object({
       provider: z.enum(['OPENAI', 'ANTHROPIC', 'CUSTOM']),
       endpoint: z.string().optional(),
@@ -178,6 +195,17 @@ export async function validateSettings(req: AuthRequest, res: Response): Promise
 export async function listModels(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { teamId } = req.params;
+
+    if (teamId) {
+      const member = await prisma.teamMember.findUnique({
+        where: { teamId_userId: { teamId, userId: req.userId! } },
+        select: { status: true },
+      });
+      if (!member || member.status !== 'ACTIVE') {
+        res.status(403).json({ error: '您不是该团队的成员' });
+        return;
+      }
+    }
 
     const models = [{ id: 'monkeycode-basic/glm-4.7', name: 'GLM 4.7 (默认)', provider: 'OPENAI', contextWindow: 128000 }];
 

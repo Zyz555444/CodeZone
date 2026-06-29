@@ -3,6 +3,7 @@ import { io, Socket } from 'socket.io-client';
 class WebSocketService {
   private socket: Socket | null = null;
   private url: string;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     this.url = process.env.NEXT_PUBLIC_WS_URL || '/socket.io';
@@ -48,9 +49,11 @@ class WebSocketService {
 
     this.socket.on('reconnect_failed', () => {
       console.error('[WebSocket] 重连耗尽，60秒后发起新一轮重连...');
-      // 不清除 socket 对象，保留所有已注册的监听器
-      // 延迟后通过 socket.connect() 手动发起新一轮重连
-      setTimeout(() => {
+
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+      }
+      this.reconnectTimer = setTimeout(() => {
         if (this.socket?.connected) {
           console.warn('[WebSocket] 已恢复连接，跳过手动重连');
           return;
@@ -63,15 +66,21 @@ class WebSocketService {
   }
 
   disconnect(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     this.socket?.disconnect();
     this.socket = null;
   }
 
-  // 通用事件监听
+  // 通用事件监听 — 回调通过 Socket.IO 转发，参数类型由具体事件定义
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   on(event: string, callback: (...args: any[]) => void): void {
     this.socket?.on(event, callback);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   off(event: string, callback: (...args: any[]) => void): void {
     this.socket?.off(event, callback);
   }

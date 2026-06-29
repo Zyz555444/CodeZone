@@ -17,7 +17,7 @@ export async function createAndPushNotification(
 ): Promise<void> {
   try {
     const notification = await prisma.notification.create({
-      data: { userId, title, content, type: type as any },
+      data: { userId, title, content, type },
     });
 
     if (io) {

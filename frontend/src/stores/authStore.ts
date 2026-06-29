@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 interface User {
   id: string;
@@ -26,6 +26,8 @@ interface AuthState {
   setTeamStatus: (hasTeam: boolean, teams: Team[]) => void;
 }
 
+const isBrowser = typeof window !== 'undefined';
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -40,6 +42,14 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
+      storage: createJSONStorage(() => {
+        if (isBrowser) return sessionStorage;
+        return {
+          getItem: () => null,
+          setItem: () => {},
+          removeItem: () => {},
+        };
+      }),
     }
   )
 );

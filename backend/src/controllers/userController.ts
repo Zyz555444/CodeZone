@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
+import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { AuthRequest } from '../middleware/auth';
@@ -33,7 +34,6 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
       select: {
         id: true,
         username: true,
-        email: true,
         avatar: true,
       },
       take: 10,
@@ -59,17 +59,29 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
       }
     }
 
-    const updated = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        ...(body.username && { username: body.username }),
-        ...(body.bio !== undefined && { bio: body.bio }),
-      },
-      select: { id: true, username: true, email: true, avatar: true, bio: true },
+    const updated = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      if (body.username) {
+        const dup = await tx.user.findUnique({ where: { username: body.username } });
+        if (dup && dup.id !== userId) {
+          throw new Error('USERNAME_TAKEN');
+        }
+      }
+      return tx.user.update({
+        where: { id: userId },
+        data: {
+          ...(body.username && { username: body.username }),
+          ...(body.bio !== undefined && { bio: body.bio }),
+        },
+        select: { id: true, username: true, email: true, avatar: true, bio: true },
+      });
     });
 
     res.json({ user: updated });
   } catch (error) {
+    if (error instanceof Error && error.message === 'USERNAME_TAKEN') {
+      res.status(409).json({ error: '用户名已被占用' });
+      return;
+    }
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: '验证失败', details: error.errors });
       return;

@@ -105,33 +105,21 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
     const priorityMap: Record<string, number> = { LOW: 0, MEDIUM: 0, HIGH: 0, URGENT: 0 };
     tasksByPriority.forEach((p: { priority: string; _count: number }) => { priorityMap[p.priority] = p._count; });
 
-    res.json({
-      stats: {
-        totalProjects,
-        totalTasks,
-        myTasks,
-        teamMembers,
-        tasksByStatus: statusMap,
-        tasksByPriority: priorityMap,
-      },
-      recentActivities: enrichedActivities,
-    });
+    const stats = {
+      totalProjects,
+      totalTasks,
+      myTasks,
+      teamMembers,
+      tasksByStatus: statusMap,
+      tasksByPriority: priorityMap,
+    };
+
+    res.json({ stats, recentActivities: enrichedActivities });
 
     // 异步回写缓存（不阻塞响应）
     if (isRedisConnected()) {
       const redis = getRedisClient();
-      const responseData = {
-        stats: {
-          totalProjects,
-          totalTasks,
-          myTasks,
-          teamMembers,
-          tasksByStatus: statusMap,
-          tasksByPriority: priorityMap,
-        },
-        recentActivities: enrichedActivities,
-      };
-      redis.set(`dashboard:${userId}`, JSON.stringify(responseData), { EX: DASHBOARD_CACHE_TTL }).catch((err) => {
+      redis.set(`dashboard:${userId}`, JSON.stringify({ stats, recentActivities: enrichedActivities }), { EX: DASHBOARD_CACHE_TTL }).catch((err) => {
         logger.warn('仪表盘缓存写入失败', { userId, error: err });
       });
     }

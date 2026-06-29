@@ -1,8 +1,8 @@
 import { Server, Socket } from 'socket.io';
 import { verifyToken } from '../lib/jwt';
 import { logger } from '../utils/logger';
-import { prisma } from '../lib/prisma';
 import { getRedisClient, isRedisConnected } from '../lib/redis';
+import { createAndPushNotification } from '../lib/notificationService';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -162,35 +162,20 @@ export class WebSocketHandler {
     }
   }
 
-  sendNotification(userId: string, data: any): void {
+  sendNotification(userId: string, data: Record<string, unknown>): void {
     this.io.to(`user:${userId}`).emit('notification', data);
   }
 
-  broadcastToTeam(teamId: string, event: string, data: any): void {
+  broadcastToTeam(teamId: string, event: string, data: Record<string, unknown>): void {
     this.io.to(`team:${teamId}`).emit(event, data);
   }
 
-  async createAndPushNotification(
+  async pushNotification(
     userId: string,
     title: string,
     content: string,
     type: string
   ): Promise<void> {
-    try {
-      const notification = await prisma.notification.create({
-        data: { userId, title, content, type: type as any },
-      });
-
-      this.sendNotification(userId, {
-        id: notification.id,
-        title: notification.title,
-        content: notification.content,
-        type: notification.type,
-        isRead: false,
-        createdAt: notification.createdAt,
-      });
-    } catch (error) {
-      logger.error('创建通知失败', { error, userId });
-    }
+    await createAndPushNotification(userId, title, content, type);
   }
 }

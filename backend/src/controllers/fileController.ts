@@ -65,6 +65,17 @@ export const createFile = async (req: AuthRequest, res: Response): Promise<void>
       }
     }
 
+    if (body.parentId) {
+      const parent = await prisma.codeFile.findUnique({
+        where: { id: body.parentId },
+        select: { projectId: true },
+      });
+      if (!parent || parent.projectId !== body.projectId) {
+        res.status(400).json({ error: '父目录不属于此项目' });
+        return;
+      }
+    }
+
     const file = await prisma.codeFile.create({
       data: body,
     });

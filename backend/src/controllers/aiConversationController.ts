@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { logger } from '../utils/logger';
+import { hasProjectAccess } from '../lib/projectAccess';
 
 const createSchema = z.object({
   projectId: z.string().min(1),
@@ -19,6 +20,11 @@ export async function listConversations(req: AuthRequest, res: Response): Promis
     const projectId = req.query.projectId as string;
     if (!projectId) {
       res.status(400).json({ error: 'projectId query parameter is required' });
+      return;
+    }
+
+    if (!(await hasProjectAccess(req.userId!, projectId))) {
+      res.status(403).json({ error: '无权访问此项目的对话' });
       return;
     }
 
@@ -45,6 +51,11 @@ export async function listConversations(req: AuthRequest, res: Response): Promis
 export async function createConversation(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { projectId, title, modelId } = createSchema.parse(req.body);
+
+    if (!(await hasProjectAccess(req.userId!, projectId))) {
+      res.status(403).json({ error: '无权在此项目中创建对话' });
+      return;
+    }
 
     const conversation = await prisma.aIConversation.create({
       data: {

@@ -2,38 +2,57 @@ import { Server as HttpServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { parse as parseUrl } from 'url';
 import { verifyToken } from '../lib/jwt';
+import { hasProjectAccess } from '../lib/projectAccess';
 import { terminalManager } from './TerminalManager';
 import { logger } from '../utils/logger';
 
 export function setupTerminalServer(httpServer: HttpServer): void {
   const wss = new WebSocketServer({ noServer: true });
 
-  httpServer.on('upgrade', (request, socket, head) => {
+  httpServer.on('upgrade', async (request, socket, head) => {
     const pathname = request.url ? parseUrl(request.url).pathname : '';
 
-    if (pathname === '/terminal') {
-      const token = extractToken(request.url || '');
+    if (pathname !== '/terminal') return;
 
-      if (!token) {
-        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-        socket.destroy();
-        return;
-      }
+    const url = request.url || '';
+    const token = extractToken(url);
 
-      let userId: string;
-      try {
-        const decoded = verifyToken(token);
-        userId = decoded.userId;
-      } catch {
-        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-        socket.destroy();
-        return;
-      }
-
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        setupTerminalConnection(ws, userId, request);
-      });
+    if (!token) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
     }
+
+    let userId: string;
+    try {
+      const decoded = verifyToken(token);
+      userId = decoded.userId;
+    } catch {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+
+    const { projectId } = extractParams(url);
+    if (projectId) {
+      try {
+        if (!(await hasProjectAccess(userId, projectId))) {
+          logger.warn('Terminal: project access denied', { userId, projectId });
+          socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+          socket.destroy();
+          return;
+        }
+      } catch (err) {
+        logger.error('Terminal: access check failed', { error: err });
+        socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+    }
+
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      setupTerminalConnection(ws, userId, request);
+    });
   });
 
   logger.info('Terminal WebSocket server initialized');

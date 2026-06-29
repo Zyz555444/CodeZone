@@ -39,14 +39,6 @@ async function checkProjectAccess(projectId: string, userId: string): Promise<bo
   return project?.ownerId === userId;
 }
 
-async function checkProjectOwner(projectId: string, userId: string): Promise<boolean> {
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { ownerId: true },
-  });
-  return project?.ownerId === userId;
-}
-
 export const getRepositories = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { projectId } = req.query;
@@ -178,8 +170,8 @@ export const updateRepository = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
-    const isOwner = await checkProjectOwner(repository.projectId, req.userId!);
-    if (!isOwner) {
+    const hasAccess = await checkProjectAccess(repository.projectId, req.userId!);
+    if (!hasAccess) {
       res.status(403).json({ error: '无权修改仓库' });
       return;
     }
@@ -215,8 +207,8 @@ export const deleteRepository = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
-    const isOwner = await checkProjectOwner(repository.projectId, req.userId!);
-    if (!isOwner) {
+    const hasAccess = await checkProjectAccess(repository.projectId, req.userId!);
+    if (!hasAccess) {
       res.status(403).json({ error: '无权删除仓库' });
       return;
     }

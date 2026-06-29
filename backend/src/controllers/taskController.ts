@@ -34,7 +34,7 @@ export const getTasks = async (req: AuthRequest, res: Response): Promise<void> =
       : `tasks:user:${req.userId}`;
 
     const tasks = await getCachedOrFetch(cacheKey, async () => {
-      const where: any = {
+      const where: Record<string, unknown> = {
         project: {
           OR: [
             { ownerId: req.userId },
@@ -99,6 +99,19 @@ export const createTask = async (req: AuthRequest, res: Response): Promise<void>
       if (!membership) {
         res.status(403).json({ error: '无权在此项目中创建任务' });
         return;
+      }
+    }
+
+    if (body.assigneeId && body.assigneeId !== req.userId) {
+      const isAssigneeOwner = project.ownerId === body.assigneeId;
+      if (!isAssigneeOwner) {
+        const assigneeMembership = await prisma.projectMember.findUnique({
+          where: { projectId_userId: { projectId: body.projectId, userId: body.assigneeId } },
+        });
+        if (!assigneeMembership) {
+          res.status(400).json({ error: '被分配人不是项目成员' });
+          return;
+        }
       }
     }
 

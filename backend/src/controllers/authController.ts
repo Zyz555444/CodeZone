@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
@@ -21,7 +22,6 @@ const loginSchema = z.object({
 
 // 密码强度验证
 const isPasswordStrong = (password: string): boolean => {
-  // 至少包含一个大写字母、一个小写字母和一个数字
   const hasUpperCase = /[A-Z]/.test(password);
   const hasLowerCase = /[a-z]/.test(password);
   const hasNumbers = /[0-9]/.test(password);
@@ -73,11 +73,12 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     // 生成 JWT
     const token = signToken(user.id);
 
-    // 创建会话记录
+    // 创建会话记录（存储 hash 而非明文 token）
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     await prisma.session.create({
       data: {
         userId: user.id,
-        token,
+        token: tokenHash,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
@@ -161,11 +162,12 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     // 生成 JWT
     const token = signToken(user.id);
 
-    // 创建会话记录用于登出时失效
+    // 创建会话记录（存储 hash 而非明文 token）
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     await prisma.session.create({
       data: {
         userId: user.id,
-        token,
+        token: tokenHash,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
@@ -211,9 +213,10 @@ export const logout = async (req: AuthRequest, res: Response): Promise<void> => 
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
       // 删除会话记录使令牌失效
       await prisma.session.deleteMany({
-        where: { token },
+        where: { token: tokenHash },
       });
       // 同时从 Redis 中删除
       if (isRedisConnected()) {
