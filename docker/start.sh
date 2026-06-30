@@ -58,7 +58,6 @@ WHERE "TeamMember"."teamId" = "Team"."id"
   AND "TeamMember"."userId" = "Team"."ownerId"
   AND "TeamMember"."role" = 'ADMIN';
 SQL
-  fi
 else
   echo "   跳过（应用层启动时自动处理）"
 fi
