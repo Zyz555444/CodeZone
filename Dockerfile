@@ -96,6 +96,8 @@ WORKDIR /app
 RUN --mount=type=cache,target=/var/cache/apk \
     apk add --no-cache openssl
 
+# 复制 workspace 根配置（npm prune 依赖 package.json 中的 workspaces 声明）
+COPY package.json package-lock.json ./
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/backend/node_modules ./backend/node_modules
 COPY backend/package.json ./backend/

@@ -224,14 +224,14 @@ export default function AISettingsPage() {
               </Card>
 
               {error && (
-                <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-copy-13 text-red-600">
+                <div className="px-4 py-3 bg-error/10 border border-error/30 rounded-lg text-copy-13 text-error">
                   <AlertCircle className="h-4 w-4 inline mr-1.5" />
                   {error}
                 </div>
               )}
 
               {saved && (
-                <div className="px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-lg text-copy-13 text-emerald-600">
+                <div className="px-4 py-3 bg-success/10 border border-success/30 rounded-lg text-copy-13 text-success">
                   <Check className="h-4 w-4 inline mr-1.5" />
                   设置已保存
                 </div>
@@ -240,8 +240,8 @@ export default function AISettingsPage() {
               {testResult !== 'idle' && (
                 <div className={`px-4 py-3 rounded-lg text-copy-13 ${
                   testResult === 'success'
-                    ? 'bg-emerald-50 border border-emerald-200 text-emerald-600'
-                    : 'bg-red-50 border border-red-200 text-red-600'
+                    ? 'bg-success/10 border border-success/30 text-success'
+                    : 'bg-error/10 border border-error/30 text-error'
                 }`}>
                   {testResult === 'success' ? <Check className="h-4 w-4 inline mr-1.5" /> : <AlertCircle className="h-4 w-4 inline mr-1.5" />}
                   {testMessage}

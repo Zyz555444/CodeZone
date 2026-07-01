@@ -58,6 +58,7 @@ interface AgentCallbacks {
   onToolCall: (toolId: string, toolName: string, toolArgs: Record<string, unknown>) => void;
   onToolResult: (toolId: string, toolName: string, result: string) => void;
   onWriteFile: (filePath: string, content: string, patch?: { old: string; new: string }) => void;
+  onConfirmRequest?: (toolId: string, toolName: string, toolArgs: Record<string, unknown>, conversationId?: string) => void;
   onDone: (conversationId?: string, totalTokens?: number) => void;
   onError: (error: AIError) => void;
 }
@@ -236,6 +237,14 @@ export async function agentExecute(
             data.patch as { old: string; new: string } | undefined,
           );
           break;
+        case 'confirm_request':
+          callbacks.onConfirmRequest?.(
+            data.toolId as string,
+            data.toolName as string,
+            (data.toolArgs as Record<string, unknown>) || {},
+            data.conversationId as string | undefined,
+          );
+          break;
         case 'done':
           callbacks.onDone(
             data.conversationId as string | undefined,
@@ -263,6 +272,18 @@ export async function abortAgentExecute(conversationId: string): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ conversationId }),
   });
+}
+
+export async function confirmAgentTool(conversationId: string, toolId: string, confirmed: boolean): Promise<void> {
+  const res = await authFetch(apiUrl('/api/ai/agent/confirm'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ conversationId, toolId, confirmed }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: '确认失败' }));
+    throw new Error(err.error || '确认失败');
+  }
 }
 
 export async function getAISettings(teamId: string) {

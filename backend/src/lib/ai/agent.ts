@@ -1,7 +1,7 @@
 import { Message, AgentContext, AgentLoopOptions, AgentStreamEvent, ToolCallRequest, StreamChunk, ToolExecutionResult } from './types';
 import { aiStreamChat } from './service';
 import { collectProjectContext, buildContextSystemPrompt } from './context';
-import { getToolDefinitions, executeTool } from './tools';
+import { getToolDefinitions, executeTool, isConfirmRequired } from './tools';
 import { logger } from '../../utils/logger';
 import { getTeamConfig } from './teamConfigHelper';
 import { estimateTokens, truncateByTokens } from './tokens';
@@ -10,6 +10,53 @@ import type { AIConfig } from './types';
 const MAX_LOOPS = 25;
 const MAX_TOOL_OUTPUT_TOKENS = 8000;
 const MAX_HISTORY_MESSAGES = 12;
+const CONFIRMATION_TIMEOUT_MS = 5 * 60 * 1000; // 5 分钟
+
+interface PendingConfirmation {
+  resolve: (value: { confirmed: boolean }) => void;
+  reject: (reason?: unknown) => void;
+  timer: NodeJS.Timeout;
+}
+
+const pendingConfirmations = new Map<string, PendingConfirmation>();
+
+export function resolveAgentConfirmation(
+  conversationId: string,
+  toolId: string,
+  confirmed: boolean,
+): boolean {
+  const key = `${conversationId}:${toolId}`;
+  const pending = pendingConfirmations.get(key);
+  if (!pending) return false;
+  clearTimeout(pending.timer);
+  pendingConfirmations.delete(key);
+  pending.resolve({ confirmed });
+  return true;
+}
+
+function rejectAllConfirmationsForConversation(conversationId: string, reason?: unknown): void {
+  for (const [key, pending] of pendingConfirmations) {
+    if (key.startsWith(`${conversationId}:`)) {
+      clearTimeout(pending.timer);
+      pending.reject(reason);
+      pendingConfirmations.delete(key);
+    }
+  }
+}
+
+function waitForConfirmation(conversationId: string | undefined, toolId: string): Promise<{ confirmed: boolean }> {
+  if (!conversationId) {
+    return Promise.resolve({ confirmed: true });
+  }
+  const key = `${conversationId}:${toolId}`;
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      pendingConfirmations.delete(key);
+      reject(new Error('等待用户确认超时'));
+    }, CONFIRMATION_TIMEOUT_MS);
+    pendingConfirmations.set(key, { resolve, reject, timer });
+  });
+}
 
 const PARALLEL_TOOLS = new Set([
   'read_file',
@@ -130,6 +177,12 @@ export async function* executeAgentTask(
   const maxLoops = options.maxLoops ?? MAX_LOOPS;
   const signal = options.signal;
 
+  if (signal) {
+    signal.addEventListener('abort', () => {
+      if (context.conversationId) rejectAllConfirmationsForConversation(context.conversationId, new Error('任务已取消'));
+    }, { once: true });
+  }
+
   const teamConfig = context.teamId ? await getTeamConfig(context.teamId) : null;
   const { messages: initialMessages } = await buildAgentMessages(task, context, history, teamConfig);
 
@@ -142,6 +195,7 @@ export async function* executeAgentTask(
   while (loopCount < maxLoops) {
     loopCount++;
     if (signal?.aborted) {
+      if (context.conversationId) rejectAllConfirmationsForConversation(context.conversationId, new Error('任务已取消'));
       yield { type: 'error', message: '任务已取消' };
       return;
     }
@@ -297,6 +351,47 @@ export async function* executeAgentTask(
       for (const tc of serialTools) {
         if (signal?.aborted) break;
 
+        let args: Record<string, unknown> = {};
+        try {
+          args = typeof tc.function.arguments === 'string'
+            ? JSON.parse(tc.function.arguments)
+            : (tc.function.arguments as unknown as Record<string, unknown>) || {};
+        } catch { args = {}; }
+
+        if (isConfirmRequired(tc.function.name)) {
+          yield {
+            type: 'confirm_request',
+            toolId: tc.id,
+            toolName: tc.function.name,
+            toolArgs: args,
+          };
+
+          let confirmation: { confirmed: boolean };
+          try {
+            confirmation = await waitForConfirmation(context.conversationId, tc.id);
+          } catch (err) {
+            const message = err instanceof Error ? err.message : '等待用户确认失败';
+            yield { type: 'error', message };
+            return;
+          }
+
+          if (!confirmation.confirmed) {
+            const result: ToolExecutionResult = {
+              success: false,
+              output: '',
+              error: '用户拒绝了该操作',
+            };
+            yield {
+              type: 'tool_result',
+              toolId: tc.id,
+              toolName: tc.function.name,
+              toolResult: `Error: ${result.error}`,
+            };
+            handleToolResult(tc, result);
+            continue;
+          }
+        }
+
         const { result } = await executeSingleTool(tc);
 
         yield {
@@ -320,11 +415,13 @@ export async function* executeAgentTask(
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Agent 执行失败';
       logger.error('Agent loop error:', msg);
+      if (context.conversationId) rejectAllConfirmationsForConversation(context.conversationId, error);
       yield { type: 'error', message: msg };
       return;
     }
   }
 
+  if (context.conversationId) rejectAllConfirmationsForConversation(context.conversationId, new Error('任务结束'));
   yield { type: 'done', totalTokens };
 }
 

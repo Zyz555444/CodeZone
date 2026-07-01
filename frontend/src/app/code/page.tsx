@@ -62,7 +62,7 @@ function CodePageContent() {
               ) : error ? (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
-                    <p className="text-copy-14 font-medium text-red-600 mb-1">{error}</p>
+                    <p className="text-copy-14 font-medium text-error mb-1">{error}</p>
                     <p className="text-copy-13 text-neutral-6">请返回项目列表重试</p>
                   </div>
                 </div>

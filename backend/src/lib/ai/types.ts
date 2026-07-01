@@ -73,6 +73,7 @@ export interface AgentContext {
   projectId: string;
   userId: string;
   teamId?: string;
+  conversationId?: string;
   currentFileId?: string;
   selectedFileIds?: string[];
 }
@@ -86,7 +87,7 @@ export interface AgentLoopOptions {
 }
 
 export interface AgentStreamEvent {
-  type: 'token' | 'tool_call' | 'tool_result' | 'thinking' | 'write_file' | 'done' | 'error';
+  type: 'token' | 'tool_call' | 'tool_result' | 'thinking' | 'write_file' | 'confirm_request' | 'done' | 'error';
   content?: string;
   toolName?: string;
   toolId?: string;

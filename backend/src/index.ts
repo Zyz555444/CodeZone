@@ -90,7 +90,7 @@ app.use(helmet({
 }));
 
 // CORS 配置
-const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:12321';
+const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
 app.use(cors({
   origin: corsOrigin,
   credentials: true,

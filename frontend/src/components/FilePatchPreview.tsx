@@ -41,9 +41,12 @@ export function FilePatchPreview({ patches, onAccept, onReject }: FilePatchPrevi
 
         return (
           <div key={patch.filePath} className="border border-neutral-4 rounded-lg overflow-hidden">
-            <button
+            <div
               onClick={() => toggle(patch.filePath)}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-label-12 hover:bg-neutral-2 transition-colors"
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-label-12 hover:bg-neutral-2 transition-colors cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggle(patch.filePath); }}
             >
               {isOpen
                 ? <ChevronDown className="h-3 w-3 text-neutral-6 shrink-0" />
@@ -54,7 +57,7 @@ export function FilePatchPreview({ patches, onAccept, onReject }: FilePatchPrevi
               <span className="text-neutral-6 truncate">{patch.filePath}</span>
 
               {patch.accepted === true && (
-                <span className="ml-auto text-green-600 flex items-center gap-1">
+                <span className="ml-auto text-success flex items-center gap-1">
                   <Check className="h-3 w-3" /> 已接受
                 </span>
               )}
@@ -67,7 +70,7 @@ export function FilePatchPreview({ patches, onAccept, onReject }: FilePatchPrevi
                 <div className="ml-auto flex gap-1" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={() => onAccept(patch.filePath)}
-                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-label-12 rounded bg-green-600 text-white hover:bg-green-700"
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-label-12 rounded bg-success text-white hover:bg-success/80"
                   >
                     <Check className="h-3 w-3" /> 接受
                   </button>
@@ -79,7 +82,7 @@ export function FilePatchPreview({ patches, onAccept, onReject }: FilePatchPrevi
                   </button>
                 </div>
               )}
-            </button>
+            </div>
 
             {isOpen && (
               <div className="px-2 pb-2" style={{ height: 280 }}>

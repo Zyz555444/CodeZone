@@ -25,16 +25,16 @@ interface FileTreeProps {
 }
 
 const FILE_ICONS: Record<string, React.ReactNode> = {
-  ts: <FileCode className="h-3.5 w-3.5 text-blue-500" />,
-  tsx: <FileCode className="h-3.5 w-3.5 text-cyan-500" />,
-  js: <FileCode className="h-3.5 w-3.5 text-yellow-500" />,
-  jsx: <FileCode className="h-3.5 w-3.5 text-cyan-400" />,
-  json: <FileJson className="h-3.5 w-3.5 text-yellow-600" />,
+  ts: <FileCode className="h-3.5 w-3.5 text-info" />,
+  tsx: <FileCode className="h-3.5 w-3.5 text-info" />,
+  js: <FileCode className="h-3.5 w-3.5 text-warning" />,
+  jsx: <FileCode className="h-3.5 w-3.5 text-info" />,
+  json: <FileJson className="h-3.5 w-3.5 text-warning" />,
   md: <FileText className="h-3.5 w-3.5 text-neutral-6" />,
-  css: <FileText className="h-3.5 w-3.5 text-sky-500" />,
-  scss: <FileText className="h-3.5 w-3.5 text-pink-500" />,
-  html: <FileCode className="h-3.5 w-3.5 text-orange-500" />,
-  prisma: <FileCode className="h-3.5 w-3.5 text-purple-500" />,
+  css: <FileText className="h-3.5 w-3.5 text-info" />,
+  scss: <FileText className="h-3.5 w-3.5 text-accent" />,
+  html: <FileCode className="h-3.5 w-3.5 text-warning" />,
+  prisma: <FileCode className="h-3.5 w-3.5 text-accent" />,
 };
 
 function getFileIcon(name: string): React.ReactNode {

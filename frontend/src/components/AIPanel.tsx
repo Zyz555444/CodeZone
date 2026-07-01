@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useAIStore } from '@/stores/aiStore';
 import {
-  streamChat, agentExecute, abortAgentExecute, listConversations,
+  streamChat, agentExecute, abortAgentExecute, confirmAgentTool, listConversations,
   getConversation, deleteConversation, type AIError,
 } from '@/lib/ai';
 import { AgentThinking } from './AgentThinking';
@@ -27,6 +27,12 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
   const [input, setInput] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [copiedMap, setCopiedMap] = useState<Record<string, boolean>>({});
+  const [pendingConfirmation, setPendingConfirmation] = useState<{
+    toolId: string;
+    toolName: string;
+    toolArgs: Record<string, unknown>;
+    conversationId: string;
+  } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -145,6 +151,17 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
     }
   };
 
+  const handleConfirmTool = async (confirmed: boolean) => {
+    if (!pendingConfirmation) return;
+    const { toolId, conversationId } = pendingConfirmation;
+    setPendingConfirmation(null);
+    try {
+      await confirmAgentTool(conversationId, toolId, confirmed);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '确认失败');
+    }
+  };
+
   const quickActions = [
     { label: '解释代码', prompt: '请解释当前项目/文件的主要逻辑' },
     { label: '生成测试', prompt: '为当前选中的代码生成单元测试' },
@@ -229,6 +246,14 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
                 },
               });
             },
+            onConfirmRequest: (toolId, toolName, toolArgs, conversationId) => {
+              setPendingConfirmation({
+                toolId,
+                toolName,
+                toolArgs,
+                conversationId: conversationId || activeConversationId || '',
+              });
+            },
             onDone: (conversationId) => {
               const finalContent = useAIStore.getState().streamContent;
               if (finalContent) {
@@ -248,6 +273,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
               }
               setIsStreaming(false);
               setExecuting(false);
+              setPendingConfirmation(null);
               resetStreamContent();
               abortRef.current = null;
             },
@@ -265,6 +291,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
               setError(prefix ? `${prefix} ${text}` : text);
               setIsStreaming(false);
               setExecuting(false);
+              setPendingConfirmation(null);
               resetStreamContent();
               abortRef.current = null;
             },
@@ -274,6 +301,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
       } catch {
         setIsStreaming(false);
         setExecuting(false);
+        setPendingConfirmation(null);
         resetStreamContent();
         abortRef.current = null;
       }
@@ -358,6 +386,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
     if (activeConversationId) {
       abortAgentExecute(activeConversationId).catch(() => {});
     }
+    setPendingConfirmation(null);
     const finalContent = useAIStore.getState().streamContent;
     if (finalContent) {
       addMessage({
@@ -373,18 +402,22 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
     clearFilePatches();
   };
 
-  const handleCopy = (msgId: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedMap((prev) => ({ ...prev, [msgId]: true }));
-    setTimeout(() => {
-      setCopiedMap((prev) => ({ ...prev, [msgId]: false }));
-    }, 2000);
+  const handleCopy = async (msgId: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMap((prev) => ({ ...prev, [msgId]: true }));
+      setTimeout(() => {
+        setCopiedMap((prev) => ({ ...prev, [msgId]: false }));
+      }, 2000);
+    } catch {
+      // ignore clipboard errors
+    }
   };
 
   const isRight = position === 'right';
 
   return (
-    <div className={`bg-white border-neutral-3 flex flex-col ${
+    <div className={`bg-neutral-1 border-neutral-3 flex flex-col ${
       isRight ? 'w-96 border-l' : 'border-t'
     }`}>
       {/* Header */}
@@ -462,7 +495,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
 
       {/* Error banner */}
       {error && (
-        <div className="mx-3 mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-label-12 text-red-600 shrink-0">
+        <div className="mx-3 mt-2 px-3 py-2 bg-error/10 border border-error/30 rounded-lg text-label-12 text-error shrink-0">
           {error}
           <button onClick={clearError} className="ml-2 underline">关闭</button>
         </div>
@@ -525,7 +558,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
                     onClick={() => handleCopy(msg.id, msg.content)}
                     className="p-1 rounded hover:bg-neutral-3 text-neutral-6 text-label-12 flex items-center gap-1"
                   >
-                    {copiedMap[msg.id] ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                    {copiedMap[msg.id] ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
                   </button>
                 </div>
               )}
@@ -543,6 +576,36 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
             onRejectFilePatch={rejectFilePatch}
             filePatches={filePatches}
           />
+        )}
+
+        {/* Pending tool confirmation */}
+        {pendingConfirmation && (
+          <div className="flex justify-start">
+            <div className="max-w-[90%] rounded-xl px-3 py-2 text-copy-13 bg-warning/10 border border-warning/30 text-warning">
+              <div className="font-medium mb-1">
+                AI 请求执行工具：{pendingConfirmation.toolName}
+              </div>
+              {typeof pendingConfirmation.toolArgs.filePath === 'string' && pendingConfirmation.toolArgs.filePath && (
+                <div className="text-label-12 text-warning mb-2">
+                  目标文件：{pendingConfirmation.toolArgs.filePath}
+                </div>
+              )}
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => handleConfirmTool(true)}
+                  className="px-3 py-1 text-label-12 rounded-lg bg-warning text-white hover:bg-warning/80"
+                >
+                  允许执行
+                </button>
+                <button
+                  onClick={() => handleConfirmTool(false)}
+                  className="px-3 py-1 text-label-12 rounded-lg bg-neutral-1 border border-warning/30 text-warning hover:bg-warning/10"
+                >
+                  拒绝
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* File patch preview */}
@@ -629,7 +692,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
             className="flex-1 bg-neutral-2 border border-neutral-3 rounded-lg px-3 py-2 text-copy-13 text-neutral-9 placeholder-neutral-6 focus:outline-none focus:border-accent/50 disabled:opacity-50"
           />
           {isStreaming ? (
-            <Button onClick={handleStop} size="sm" className="px-3 bg-red-500 hover:bg-red-600">
+            <Button onClick={handleStop} size="sm" className="px-3 bg-error hover:bg-error/80">
               <Square className="h-4 w-4 fill-current" />
             </Button>
           ) : (

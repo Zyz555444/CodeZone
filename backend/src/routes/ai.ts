@@ -10,6 +10,7 @@ import {
   streamChat,
   agentExecute,
   abortAgent,
+  confirmAgentTool,
 } from '../controllers/aiController';
 
 const router = Router();
@@ -25,5 +26,6 @@ router.post('/chat', chatWithAI);
 router.post('/chat/stream', streamChat);
 router.post('/agent', agentExecute);
 router.post('/agent/abort', abortAgent);
+router.post('/agent/confirm', confirmAgentTool);
 
 export default router;

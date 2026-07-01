@@ -12,7 +12,7 @@ import {
   aiStreamChat,
 } from '../lib/ai/service';
 import { collectProjectContext, buildContextSystemPrompt } from '../lib/ai/context';
-import { executeAgentTask, generateConversationTitle } from '../lib/ai/agent';
+import { executeAgentTask, generateConversationTitle, resolveAgentConfirmation } from '../lib/ai/agent';
 import { getTeamConfig } from '../lib/ai/teamConfigHelper';
 import { writeSSEEvent, setupSSEConnection, createAbortController } from '../lib/ai/sse';
 import type { Message } from '../lib/ai/types';
@@ -206,14 +206,27 @@ export async function streamChat(req: AuthRequest, res: Response): Promise<void>
 
   setupSSEConnection(res);
   const abortController = createAbortController(req);
-  const convId = conversationId as string | undefined;
+  let convId = conversationId as string | undefined;
+
+  if (!convId && projectId && req.userId) {
+    const firstUser = (messages as Message[]).find((m) => m.role === 'user');
+    const title = firstUser?.content?.slice(0, 30) || '新对话';
+    const conv = await prisma.aIConversation.create({
+      data: { projectId, userId: req.userId, title },
+    });
+    convId = conv.id;
+  }
+
+  const normalizedContextFiles = projectId
+    ? (contextFiles || []).map((fid: string) => (fid.startsWith(`${projectId}:`) ? fid.slice(projectId.length + 1) : fid))
+    : [];
 
   try {
     const teamConfig = await getTeamConfig(teamId);
 
     let systemPrompt = '';
     if (projectId) {
-      const context = await collectProjectContext(projectId, undefined, contextFiles);
+      const context = await collectProjectContext(projectId, undefined, normalizedContextFiles);
       systemPrompt = buildContextSystemPrompt(context);
     }
 
@@ -280,19 +293,31 @@ export async function agentExecute(req: AuthRequest, res: Response): Promise<voi
 
   setupSSEConnection(res);
   const abortController = createAbortController(req);
-  const convId = conversationId as string | undefined;
+  let convId = conversationId as string | undefined;
+
+  if (!convId && projectId && req.userId) {
+    const conv = await prisma.aIConversation.create({
+      data: { projectId, userId: req.userId, title: '新对话' },
+    });
+    convId = conv.id;
+  }
 
   if (convId) {
     registerAgentAbort(convId, abortController);
   }
+
+  const normalizedContextFiles = projectId
+    ? (contextFiles || []).map((fid: string) => (fid.startsWith(`${projectId}:`) ? fid.slice(projectId.length + 1) : fid))
+    : [];
 
   try {
     const agentContext = {
       projectId: projectId || '',
       userId: req.userId || '',
       teamId: teamId || undefined,
+      conversationId: convId,
       currentFileId: undefined,
-      selectedFileIds: contextFiles || [],
+      selectedFileIds: normalizedContextFiles,
     };
 
     const options = {
@@ -330,7 +355,15 @@ export async function agentExecute(req: AuthRequest, res: Response): Promise<voi
           content: event.content,
           patch: event.patch,
         });
-     } else if (event.type === 'done') {
+      } else if (event.type === 'confirm_request' && event.toolId) {
+        writeSSEEvent(res, {
+          type: 'confirm_request',
+          conversationId: convId,
+          toolId: event.toolId,
+          toolName: event.toolName,
+          toolArgs: event.toolArgs,
+        });
+      } else if (event.type === 'done') {
          try {
            if (convId && fullContent) {
              const title = await generateConversationTitle(task);
@@ -384,4 +417,21 @@ export async function abortAgent(req: AuthRequest, res: Response): Promise<void>
   } else {
     res.json({ success: true, message: '未找到运行的 Agent 任务' });
   }
+}
+
+export async function confirmAgentTool(req: AuthRequest, res: Response): Promise<void> {
+  const { conversationId, toolId, confirmed } = req.body;
+
+  if (!conversationId || !toolId || typeof confirmed !== 'boolean') {
+    res.status(400).json({ error: 'conversationId, toolId and confirmed are required' });
+    return;
+  }
+
+  const resolved = resolveAgentConfirmation(conversationId, toolId, confirmed);
+  if (!resolved) {
+    res.status(404).json({ error: '未找到待确认的工具调用' });
+    return;
+  }
+
+  res.json({ success: true, message: confirmed ? '已确认执行' : '已拒绝执行' });
 }

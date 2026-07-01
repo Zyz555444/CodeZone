@@ -58,7 +58,17 @@ export function CollaborativeEditor({
   const [onlinePeers, setOnlinePeers] = useState(0);
   const [cursorInfo, setCursorInfo] = useState({ line: 1, column: 1, selectionLength: 0 });
   const [wordWrap, setWordWrap] = useState(false);
-  const initializedRef = useRef(false);
+  const [mountedEditor, setMountedEditor] = useState<editor.IStandaloneCodeEditor | null>(null);
+
+  const callbacksRef = useRef({
+    onSave,
+    onContentChange,
+    onCursorMove,
+    onMount,
+  });
+  useEffect(() => {
+    callbacksRef.current = { onSave, onContentChange, onCursorMove, onMount };
+  });
 
   const baseUrl = wsUrl();
 
@@ -78,9 +88,6 @@ export function CollaborativeEditor({
   }, []);
 
   useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-
     let cancelled = false;
     const cleanupFns: Array<() => void> = [];
 
@@ -145,7 +152,7 @@ export function CollaborativeEditor({
         label: '保存文件',
         keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
         run: () => {
-          onSave?.();
+          callbacksRef.current.onSave?.();
           return undefined;
         },
       });
@@ -225,9 +232,10 @@ export function CollaborativeEditor({
       const binding = new MonacoBinding(ytext, model, new Set([editor]), awareness);
       bindingRef.current = binding;
 
-      if (onContentChange) {
+      const onContentChangeRef = callbacksRef.current.onContentChange;
+      if (onContentChangeRef) {
         const disp = model.onDidChangeContent(() => {
-          onContentChange(model.getValue());
+          onContentChangeRef(model.getValue());
         });
         disposablesRef.current.push(disp);
       }
@@ -248,18 +256,18 @@ export function CollaborativeEditor({
       disposablesRef.current.push(editor.onDidChangeCursorPosition(updateCursorInfo));
       disposablesRef.current.push(editor.onDidChangeCursorSelection(updateCursorInfo));
 
-      if (onCursorMove) {
+      const onCursorMoveRef = callbacksRef.current.onCursorMove;
+      if (onCursorMoveRef) {
         const disp = editor.onDidChangeCursorPosition((e) => {
-          onCursorMove({ line: e.position.lineNumber, column: e.position.column });
+          onCursorMoveRef({ line: e.position.lineNumber, column: e.position.column });
         });
         disposablesRef.current.push(disp);
       }
 
-      if (onMount) {
-        onMount(editor, monaco);
-      }
+      callbacksRef.current.onMount?.(editor, monaco);
 
       editor.focus();
+      setMountedEditor(editor);
 
       cleanupFns.push(() => {
         disposablesRef.current.forEach(d => d.dispose());
@@ -287,7 +295,7 @@ export function CollaborativeEditor({
     <div className="relative h-full w-full flex flex-col">
       {status !== 'connected' && (
         <div className={`flex items-center gap-2 px-3 py-1 text-label-12 border-b ${
-          status === 'connecting' ? 'bg-warning/10 border-warning/20 text-warning' : 'bg-red-50 border-red-200 text-red-600'
+          status === 'connecting' ? 'bg-warning/10 border-warning/20 text-warning' : 'bg-error/10 border-error/30 text-error'
         }`}>
           {status === 'connecting' ? (
             <>
@@ -300,7 +308,7 @@ export function CollaborativeEditor({
               协作连接已断开
               <button
                 onClick={() => providerRef.current?.connect()}
-                className="ml-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/80 hover:bg-white text-red-600 border border-red-200"
+                className="ml-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-neutral-1/80 hover:bg-neutral-1 text-error border border-error/30"
                 title="重新连接"
               >
                 <RotateCcw className="h-3 w-3" />
@@ -314,7 +322,7 @@ export function CollaborativeEditor({
       <div ref={containerRef} className="flex-1 w-full" />
 
       <GhostTextProvider
-        editor={editorRef.current}
+        editor={mountedEditor}
         monaco={monacoRef.current}
         language={language}
         enabled={status === 'connected'}
@@ -323,7 +331,7 @@ export function CollaborativeEditor({
       <div className="flex items-center justify-between px-3 py-1 bg-neutral-1 border-t border-neutral-3 text-label-12 text-neutral-6 shrink-0 select-none">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1" title={status === 'connected' ? '协作连接正常' : '协作连接异常'}>
-            {status === 'connected' ? <Wifi className="h-3 w-3 text-emerald-500" /> : <WifiOff className="h-3 w-3 text-neutral-7" />}
+            {status === 'connected' ? <Wifi className="h-3 w-3 text-success" /> : <WifiOff className="h-3 w-3 text-neutral-7" />}
             {status === 'connected' ? `${onlinePeers} 人在线` : '离线'}
           </span>
           <span className="px-1.5 py-0.5 rounded bg-neutral-2 border border-neutral-3">{language}</span>

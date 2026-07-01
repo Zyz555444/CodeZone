@@ -66,7 +66,7 @@ function NewTaskForm() {
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-6">
                     {error && (
-                      <div className="p-3 rounded-lg bg-red-50 text-error text-copy-13">
+                      <div className="p-3 rounded-lg bg-error/10 text-error text-copy-13">
                         {error}
                       </div>
                     )}
