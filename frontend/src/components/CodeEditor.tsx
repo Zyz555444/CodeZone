@@ -1,14 +1,11 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
-import type { editor } from 'monaco-editor';
 import { useTheme } from 'next-themes';
 import { Loader2 } from 'lucide-react';
-import { useAuthStore } from '@/stores/authStore';
 import { GhostTextProvider } from './GhostTextProvider';
 import { InlineAIMenu } from './InlineAIMenu';
-import { agentExecute } from '@/lib/ai';
 
 interface CodeEditorProps {
   projectId: string;
@@ -22,19 +19,17 @@ interface CodeEditorProps {
 
 export function CodeEditor({
   projectId,
-  fileId,
+  fileId: _fileId,
   initialContent = '',
   language = 'typescript',
   readOnly = false,
   height = '600px',
 }: CodeEditorProps) {
   const { theme } = useTheme();
-  const user = useAuthStore((s) => s.user);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
   const [content, setContent] = useState(initialContent);
   const [selectedText, setSelectedText] = useState('');
-  const [selectedRange, setSelectedRange] = useState<{ startLineNumber: number; startColumn: number; endLineNumber: number; endColumn: number } | null>(null);
   const [aiMenuPosition, setAiMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [inlinePrompt, setInlinePrompt] = useState(false);
   const [agentRunning, setAgentRunning] = useState(false);
@@ -61,12 +56,6 @@ export function CodeEditor({
         if (selection && !selection.isEmpty()) {
           const text = editorInst.getModel()?.getValueInRange(selection) || '';
           setSelectedText(text);
-          setSelectedRange({
-            startLineNumber: selection.startLineNumber,
-            startColumn: selection.startColumn,
-            endLineNumber: selection.endLineNumber,
-            endColumn: selection.endColumn,
-          });
           const pos = editorInst.getScrolledVisiblePosition(selection.getStartPosition());
           if (pos) {
             const editorDom = editorInst.getDomNode();
@@ -85,20 +74,6 @@ export function CodeEditor({
     },
     [],
   );
-
-  const handleApplyEdit = useCallback((text: string) => {
-    const editor = editorRef.current;
-    if (!editor || !selectedRange) return;
-
-    editor.executeEdits('ai-inline-menu', [{
-      range: selectedRange,
-      text,
-    }]);
-
-    setAiMenuPosition(null);
-    setSelectedText('');
-    setSelectedRange(null);
-  }, [selectedRange]);
 
   const handleAgentClose = useCallback(() => {
     setInlinePrompt(false);

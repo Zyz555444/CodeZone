@@ -11,7 +11,7 @@ import { EditorCommandProvider, useEditorCommandBus, type EditorCommand } from '
 import { X, Plus, Sparkles, PanelRight, PanelLeft, Terminal, Loader2 } from 'lucide-react';
 import { apiUrl } from '@/lib/env';
 import { authFetch } from '@/lib/utils';
-import { agentExecute, abortAgentExecute, type AIError } from '@/lib/ai';
+import { agentExecute, type AIError } from '@/lib/ai';
 import type { editor } from 'monaco-editor';
 import type { DiffFile } from '@/stores/aiStore';
 

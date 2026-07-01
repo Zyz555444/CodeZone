@@ -1,5 +1,4 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { Socket } from 'socket.io-client';
 import { wsService } from './index';
 import { useWebSocketStore } from '@/stores/websocketStore';
 import { EVENTS } from './events';

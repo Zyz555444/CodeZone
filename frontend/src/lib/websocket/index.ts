@@ -40,7 +40,7 @@ class WebSocketService {
       useWebSocketStore.getState().setConnected(true);
     });
 
-    this.socket.on('disconnect', (reason) => {
+    this.socket.on('disconnect', (_reason) => {
       useWebSocketStore.getState().setConnected(false);
     });
 
