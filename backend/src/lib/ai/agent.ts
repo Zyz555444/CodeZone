@@ -9,6 +9,7 @@ import type { AIConfig } from './types';
 
 const MAX_LOOPS = 25;
 const MAX_TOOL_OUTPUT_TOKENS = 8000;
+const MAX_HISTORY_MESSAGES = 12;
 
 const PARALLEL_TOOLS = new Set([
   'read_file',
@@ -224,20 +225,38 @@ export async function* executeAgentTask(
       };
 
       const emitWriteFileEvent = (tc: ToolCallRequest, result: ToolExecutionResult): AgentStreamEvent | null => {
-        if (tc.function.name !== 'write_file' || !result.success) return null;
+        if (!result.success) return null;
         let args: Record<string, unknown> = {};
         try {
           args = typeof tc.function.arguments === 'string'
             ? JSON.parse(tc.function.arguments)
             : {};
         } catch { /* ignore */ }
-        return {
-          type: 'write_file',
-          filePath: (args.filePath as string) || '',
-          fileId: result.fileId,
-          content: (args.content as string) || '',
-          patch: { old: result.oldContent || '', new: (args.content as string) || '' },
-        };
+
+        if (tc.function.name === 'write_file') {
+          return {
+            type: 'write_file',
+            filePath: (args.filePath as string) || '',
+            fileId: result.fileId,
+            content: (args.content as string) || '',
+            patch: { old: result.oldContent || '', new: (args.content as string) || '' },
+          };
+        }
+
+        if (tc.function.name === 'replace_in_file') {
+          const newContent = (args.newString as string) || '';
+          const oldContent = result.oldContent || '';
+          const oldString = (args.oldString as string) || '';
+          return {
+            type: 'write_file',
+            filePath: (args.filePath as string) || '',
+            fileId: result.fileId,
+            content: oldContent.replace(oldString, newContent),
+            patch: { old: oldContent, new: oldContent.replace(oldString, newContent) },
+          };
+        }
+
+        return null;
       };
 
       const handleToolResult = (tc: ToolCallRequest, result: { success: boolean; output: string; error?: string }) => {
@@ -291,6 +310,11 @@ export async function* executeAgentTask(
         if (writeEvent) yield writeEvent;
 
         handleToolResult(tc, result);
+      }
+
+      // 防止上下文无限增长：保留系统提示与最近的对话记录
+      while (messages.length > MAX_HISTORY_MESSAGES + 2) {
+        messages.splice(2, 1);
       }
 
     } catch (error: unknown) {

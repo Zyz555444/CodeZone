@@ -7,8 +7,9 @@ import { AIAgentPanel } from './AIPanel';
 import { TerminalPanel } from './TerminalPanel';
 import { InlineAIMenu } from './InlineAIMenu';
 import { InlineDiffEditor } from './InlineDiffEditor';
+import { NewFileModal } from './NewFileModal';
 import { EditorCommandProvider, useEditorCommandBus, type EditorCommand } from './EditorCommandBus';
-import { X, Plus, Sparkles, PanelRight, PanelLeft, Terminal, Loader2 } from 'lucide-react';
+import { X, Plus, Sparkles, PanelRight, PanelLeft, Terminal, Loader2, Save, Circle } from 'lucide-react';
 import { apiUrl } from '@/lib/env';
 import { authFetch } from '@/lib/utils';
 import { agentExecute, type AIError } from '@/lib/ai';
@@ -19,6 +20,7 @@ interface OpenFile {
   path: string;
   name: string;
   content: string;
+  originalContent: string;
   language: string;
   fileId: string;
 }
@@ -37,6 +39,10 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
   const [agentError, setAgentError] = useState<string | null>(null);
   const [diffFiles, setDiffFiles] = useState<DiffFile[]>([]);
   const [showInlineDiff, setShowInlineDiff] = useState(false);
+  const [showNewFileModal, setShowNewFileModal] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [dirtyFileIds, setDirtyFileIds] = useState<Set<string>>(new Set());
+  const [tabContextMenu, setTabContextMenu] = useState<{ x: number; y: number; fileId: string } | null>(null);
 
   const [inlineMenu, setInlineMenu] = useState<{
     selectedText: string;
@@ -79,6 +85,7 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
         path: filePath,
         name: filePath.split('/').pop() || filePath,
         content,
+        originalContent: content,
         language: getLanguageFromFile(filePath),
         fileId: `${projectId}:${target.id}`,
       };
@@ -280,6 +287,7 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
       path: node.path,
       name: node.name,
       content,
+      originalContent: content,
       language: getLanguageFromFile(node.path),
       fileId,
     };
@@ -306,7 +314,15 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
     setOpenFiles(prev => prev.map(f =>
       f.fileId === fileId ? { ...f, content } : f
     ));
-  }, []);
+    setDirtyFileIds(prev => {
+      const file = openFiles.find(f => f.fileId === fileId);
+      const isDirty = file ? content !== file.originalContent : false;
+      const next = new Set(prev);
+      if (isDirty) next.add(fileId);
+      else next.delete(fileId);
+      return next;
+    });
+  }, [openFiles]);
 
   const handleAcceptDiff = useCallback(async (filePath: string) => {
     const file = diffFiles.find(f => f.filePath === filePath);
@@ -355,6 +371,68 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
 
   const pendingDiffCount = useMemo(() => diffFiles.filter(f => f.accepted === null).length, [diffFiles]);
 
+  const handleSaveActiveFile = useCallback(async () => {
+    if (!activeFile) return;
+    try {
+      const res = await authFetch(apiUrl(`/api/code/files?projectId=${projectId}`));
+      if (!res.ok) return;
+      const data = await res.json();
+      const target = (data.files || []).find((f: { path?: string; id?: string }) => f.path === activeFile.path);
+      if (!target?.id) return;
+
+      await authFetch(apiUrl(`/api/code/files/${target.id}`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: activeFile.content }),
+      });
+
+      setOpenFiles(prev => prev.map(f =>
+        f.fileId === activeFile.fileId ? { ...f, originalContent: activeFile.content } : f
+      ));
+      setDirtyFileIds(prev => {
+        const next = new Set(prev);
+        next.delete(activeFile.fileId);
+        return next;
+      });
+    } catch {
+      // silent
+    }
+  }, [activeFile, projectId]);
+
+  const handleCreateFile = useCallback(async (name: string, type: 'FILE' | 'DIRECTORY') => {
+    try {
+      const res = await authFetch(apiUrl('/api/code/files'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, name, type }),
+      });
+      if (!res.ok) return;
+      setRefreshKey(k => k + 1);
+    } catch {
+      // silent
+    }
+  }, [projectId]);
+
+  const closeOtherFiles = useCallback((keepFileId: string) => {
+    setOpenFiles(prev => prev.filter(f => f.fileId === keepFileId));
+    if (activeFileId !== keepFileId) {
+      setActiveFileId(keepFileId);
+    }
+  }, [activeFileId]);
+
+  const closeAllFiles = useCallback(() => {
+    setOpenFiles([]);
+    setActiveFileId('');
+    setDirtyFileIds(new Set());
+  }, []);
+
+  useEffect(() => {
+    if (!tabContextMenu) return;
+    const close = () => setTabContextMenu(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [tabContextMenu]);
+
   return (
     <div className="flex h-full bg-white">
       {showFileTree && (
@@ -363,6 +441,8 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
             projectId={projectId}
             onFileSelect={handleFileSelect}
             activeFilePath={activeFile?.path}
+            onCreateFile={() => setShowNewFileModal(true)}
+            refreshKey={refreshKey}
           />
         </div>
       )}
@@ -378,25 +458,33 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
           </button>
 
           <div className="flex-1 flex items-center overflow-x-auto scrollbar-hide">
-            {openFiles.map(file => (
-              <div
-                key={file.fileId}
-                className={`group flex items-center gap-1.5 px-3 py-2 text-copy-13 border-r border-neutral-3 cursor-pointer transition-colors shrink-0 ${
-                  activeFileId === file.fileId
-                    ? 'bg-white text-neutral-9 border-b-white -mb-[1px]'
-                    : 'bg-neutral-1 text-neutral-6 hover:bg-neutral-2'
-                }`}
-                onClick={() => setActiveFileId(file.fileId)}
-              >
-                <span className="truncate max-w-[140px]">{file.name}</span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleCloseFile(file.fileId); }}
-                  className="p-0.5 rounded hover:bg-neutral-3 opacity-0 group-hover:opacity-100 transition-opacity"
+            {openFiles.map(file => {
+              const isDirty = dirtyFileIds.has(file.fileId);
+              return (
+                <div
+                  key={file.fileId}
+                  className={`group flex items-center gap-1.5 px-3 py-2 text-copy-13 border-r border-neutral-3 cursor-pointer transition-colors shrink-0 ${
+                    activeFileId === file.fileId
+                      ? 'bg-white text-neutral-9 border-b-white -mb-[1px]'
+                      : 'bg-neutral-1 text-neutral-6 hover:bg-neutral-2'
+                  }`}
+                  onClick={() => setActiveFileId(file.fileId)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setTabContextMenu({ x: e.clientX, y: e.clientY, fileId: file.fileId });
+                  }}
                 >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
+                  <span className="truncate max-w-[140px]">{file.name}</span>
+                  {isDirty && <Circle className="h-1.5 w-1.5 fill-amber-500 text-amber-500" />}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleCloseFile(file.fileId); }}
+                    className="p-0.5 rounded hover:bg-neutral-3 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
 
           <div className="flex items-center px-2 gap-1">
@@ -431,7 +519,19 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
               <Terminal className="h-3.5 w-3.5" />
               终端
             </button>
+            {activeFile && (
+              <button
+                onClick={handleSaveActiveFile}
+                disabled={!dirtyFileIds.has(activeFile.fileId)}
+                className="flex items-center gap-1 px-2 py-1.5 text-label-12 rounded-lg text-neutral-6 hover:bg-neutral-2 transition-colors disabled:opacity-50"
+                title="保存 (Ctrl+S)"
+              >
+                <Save className="h-3.5 w-3.5" />
+                保存
+              </button>
+            )}
             <button
+              onClick={() => setShowNewFileModal(true)}
               className="flex items-center gap-1 px-2 py-1.5 text-label-12 rounded-lg text-neutral-6 hover:bg-neutral-2 transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -452,6 +552,7 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
                   language={activeFile.language}
                   onContentChange={(content) => handleContentChange(activeFile.fileId, content)}
                   onMount={handleEditorMount}
+                  onSave={handleSaveActiveFile}
                 />
               </div>
             ) : (
@@ -510,6 +611,39 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
           onClose={() => setShowTerminal(false)}
         />
       </div>
+
+      {tabContextMenu && (
+        <div
+          className="fixed z-50 bg-white border border-neutral-4 rounded-lg shadow-float py-1 min-w-[140px]"
+          style={{ top: tabContextMenu.y, left: tabContextMenu.x }}
+        >
+          <button
+            onClick={() => { handleCloseFile(tabContextMenu.fileId); setTabContextMenu(null); }}
+            className="w-full text-left px-3 py-1.5 text-copy-13 text-neutral-8 hover:bg-neutral-2"
+          >
+            关闭
+          </button>
+          <button
+            onClick={() => { closeOtherFiles(tabContextMenu.fileId); setTabContextMenu(null); }}
+            className="w-full text-left px-3 py-1.5 text-copy-13 text-neutral-8 hover:bg-neutral-2"
+          >
+            关闭其他
+          </button>
+          <button
+            onClick={() => { closeAllFiles(); setTabContextMenu(null); }}
+            className="w-full text-left px-3 py-1.5 text-copy-13 text-neutral-8 hover:bg-neutral-2"
+          >
+            关闭全部
+          </button>
+        </div>
+      )}
+
+      <NewFileModal
+        isOpen={showNewFileModal}
+        onClose={() => setShowNewFileModal(false)}
+        projectId={projectId}
+        onCreateFile={handleCreateFile}
+      />
     </div>
   );
 }

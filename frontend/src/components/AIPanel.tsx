@@ -13,6 +13,7 @@ import {
 } from '@/lib/ai';
 import { AgentThinking } from './AgentThinking';
 import { FilePatchPreview } from './FilePatchPreview';
+import { MarkdownRenderer } from './MarkdownRenderer';
 import { useEditorCommandBus } from './EditorCommandBus';
 
 interface AIAgentPanelProps {
@@ -64,6 +65,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
     clearToolCalls,
     setIsAgentMode,
     setExecuting,
+    toggleContextFile,
   } = useAIStore();
 
   useEffect(() => {
@@ -73,6 +75,15 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
   useEffect(() => {
     if (projectId) loadConversations();
   }, [projectId]);
+
+  useEffect(() => {
+    return () => {
+      if (abortRef.current) {
+        abortRef.current.abort();
+        abortRef.current = null;
+      }
+    };
+  }, []);
 
   const loadConversations = async () => {
     try {
@@ -133,6 +144,13 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
       updateToolCall(toolId, { collapsed: !step.collapsed });
     }
   };
+
+  const quickActions = [
+    { label: '解释代码', prompt: '请解释当前项目/文件的主要逻辑' },
+    { label: '生成测试', prompt: '为当前选中的代码生成单元测试' },
+    { label: '查找 Bug', prompt: '检查当前代码中的潜在 Bug 并给出修复建议' },
+    { label: '重构优化', prompt: '重构并优化当前代码，提升可读性与性能' },
+  ];
 
   const generateId = () => `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -472,6 +490,20 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
                 {isAgentMode ? '工具模式已启用' : '切换到工具模式'}
               </button>
             </div>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {quickActions.map((action) => (
+                <button
+                  key={action.label}
+                  onClick={() => {
+                    setInput(action.prompt);
+                    inputRef.current?.focus();
+                  }}
+                  className="px-2.5 py-1 text-label-12 rounded-lg bg-neutral-2 text-neutral-7 hover:bg-neutral-3 hover:text-neutral-9 transition-colors"
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -483,9 +515,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
                 : 'bg-neutral-2 text-neutral-9'
             }`}>
               {msg.role === 'assistant' ? (
-                <div className="prose prose-sm max-w-none prose-neutral whitespace-pre-wrap break-words leading-relaxed">
-                  {msg.content}
-                </div>
+                <MarkdownRenderer content={msg.content} />
               ) : (
                 <div className="whitespace-pre-wrap break-words">{msg.content}</div>
               )}
@@ -549,9 +579,15 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
         <div className="px-3 py-1.5 border-t border-neutral-3 flex items-center gap-1.5 flex-wrap shrink-0">
           <FileText className="h-3 w-3 text-neutral-6" />
           {contextFiles.map((fid) => (
-            <span key={fid} className="text-label-12 bg-accent/10 text-accent px-1.5 py-0.5 rounded">
+            <button
+              key={fid}
+              onClick={() => toggleContextFile(fid)}
+              className="inline-flex items-center gap-1 text-label-12 bg-accent/10 text-accent px-1.5 py-0.5 rounded hover:bg-accent/20"
+              title="点击移除"
+            >
               {fid.slice(0, 12)}...
-            </span>
+              <X className="h-3 w-3" />
+            </button>
           ))}
           <span className="text-label-12 text-neutral-6 ml-auto">
             {contextFiles.length} 个上下文文件
@@ -561,6 +597,21 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
 
       {/* Input area */}
       <div className="border-t border-neutral-3 p-3 shrink-0">
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {quickActions.map((action) => (
+            <button
+              key={action.label}
+              onClick={() => {
+                setInput(action.prompt);
+                inputRef.current?.focus();
+              }}
+              disabled={isStreaming}
+              className="px-2 py-0.5 text-label-12 rounded-md bg-neutral-2 text-neutral-6 hover:bg-neutral-3 hover:text-neutral-9 transition-colors disabled:opacity-50"
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
         <div className="flex gap-2">
           <input
             ref={inputRef}

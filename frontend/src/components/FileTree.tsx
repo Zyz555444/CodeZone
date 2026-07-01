@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Folder, FolderOpen, File, FileCode, FileText, FileJson, ChevronRight, Loader2, Plus, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Folder, FolderOpen, File, FileCode, FileText, FileJson, ChevronRight, Loader2, Plus, RefreshCw, Search, X } from 'lucide-react';
 import { apiUrl } from '@/lib/env';
 import { authFetch } from '@/lib/utils';
 
@@ -20,6 +20,8 @@ interface FileTreeProps {
   projectId: string;
   onFileSelect: (file: FileNode) => void;
   activeFilePath?: string;
+  onCreateFile?: () => void;
+  refreshKey?: number;
 }
 
 const FILE_ICONS: Record<string, React.ReactNode> = {
@@ -57,13 +59,16 @@ function FileTreeItem({
   depth,
   activeFilePath,
   onSelect,
+  filter,
 }: {
   node: FileNode;
   depth: number;
   activeFilePath?: string;
   onSelect: (file: FileNode) => void;
+  filter: string;
 }) {
   const [expanded, setExpanded] = useState(depth < 2);
+  const isExpanded = filter ? true : expanded;
 
   if (node.type === 'directory') {
     return (
@@ -73,17 +78,18 @@ function FileTreeItem({
           className="flex items-center gap-1.5 w-full px-2 py-1 text-left text-copy-13 text-neutral-7 hover:bg-neutral-2 rounded transition-colors"
           style={{ paddingLeft: `${8 + depth * 16}px` }}
         >
-          <ChevronRight className={`h-3 w-3 transition-transform ${expanded ? 'rotate-90' : ''}`} />
-          {expanded ? <FolderOpen className="h-3.5 w-3.5 text-accent/70" /> : <Folder className="h-3.5 w-3.5 text-accent/50" />}
+          <ChevronRight className={`h-3 w-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+          {isExpanded ? <FolderOpen className="h-3.5 w-3.5 text-accent/70" /> : <Folder className="h-3.5 w-3.5 text-accent/50" />}
           <span className="truncate">{node.name}</span>
         </button>
-        {expanded && node.children?.map((child, _i) => (
+        {isExpanded && node.children?.map((child, _i) => (
           <FileTreeItem
             key={child.path}
             node={child}
             depth={depth + 1}
             activeFilePath={activeFilePath}
             onSelect={onSelect}
+            filter={filter}
           />
         ))}
       </div>
@@ -106,12 +112,32 @@ function FileTreeItem({
   );
 }
 
-export function FileTree({ projectId, onFileSelect, activeFilePath }: FileTreeProps) {
+function filterNodes(nodes: FileNode[], query: string): FileNode[] {
+  if (!query.trim()) return nodes;
+  const lower = query.toLowerCase();
+  return nodes
+    .map((node) => {
+      if (node.type === 'directory' && node.children) {
+        const filteredChildren = filterNodes(node.children, query);
+        if (filteredChildren.length > 0) {
+          return { ...node, children: filteredChildren };
+        }
+      }
+      if (node.name.toLowerCase().includes(lower) || node.path.toLowerCase().includes(lower)) {
+        return node;
+      }
+      return null;
+    })
+    .filter((n): n is FileNode => n !== null);
+}
+
+export function FileTree({ projectId, onFileSelect, activeFilePath, onCreateFile, refreshKey }: FileTreeProps) {
   const [files, setFiles] = useState<FileNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [filter, setFilter] = useState('');
 
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -125,11 +151,17 @@ export function FileTree({ projectId, onFileSelect, activeFilePath }: FileTreePr
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId]);
 
   useEffect(() => {
     fetchFiles();
-  }, [projectId]);
+  }, [projectId, fetchFiles]);
+
+  useEffect(() => {
+    if (refreshKey) fetchFiles();
+  }, [refreshKey, fetchFiles]);
+
+  const filteredFiles = useMemo(() => filterNodes(files, filter), [files, filter]);
 
   return (
     <div className="flex flex-col h-full">
@@ -139,9 +171,30 @@ export function FileTree({ projectId, onFileSelect, activeFilePath }: FileTreePr
           <button onClick={fetchFiles} className="p-1 rounded hover:bg-neutral-2 text-neutral-6 transition-colors" title="刷新">
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
-          <button className="p-1 rounded hover:bg-neutral-2 text-neutral-6 transition-colors" title="新建文件">
+          <button onClick={onCreateFile} className="p-1 rounded hover:bg-neutral-2 text-neutral-6 transition-colors" title="新建文件">
             <Plus className="h-3.5 w-3.5" />
           </button>
+        </div>
+      </div>
+
+      <div className="px-3 py-2 border-b border-neutral-3">
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-6" />
+          <input
+            type="text"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="搜索文件..."
+            className="w-full pl-7 pr-7 py-1.5 text-copy-13 bg-neutral-2 border border-neutral-4 rounded-lg text-neutral-9 placeholder:text-neutral-6 focus:outline-none focus:border-accent/50"
+          />
+          {filter && (
+            <button
+              onClick={() => setFilter('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-6 hover:text-neutral-8"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -152,14 +205,19 @@ export function FileTree({ projectId, onFileSelect, activeFilePath }: FileTreePr
           </div>
         ) : error ? (
           <div className="px-3 py-4 text-label-12 text-neutral-6 text-center">{error}</div>
+        ) : filteredFiles.length === 0 ? (
+          <div className="px-3 py-4 text-label-12 text-neutral-6 text-center">
+            {filter ? '无匹配文件' : '暂无文件'}
+          </div>
         ) : (
-          files.map((node) => (
+          filteredFiles.map((node) => (
             <FileTreeItem
               key={node.path}
               node={node}
               depth={0}
               activeFilePath={activeFilePath}
               onSelect={onFileSelect}
+              filter={filter}
             />
           ))
         )}
