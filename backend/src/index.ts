@@ -4,18 +4,13 @@ import helmet from 'helmet';
 import compression from 'compression';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
-import { Server } from 'socket.io';
 import rateLimit from 'express-rate-limit';
-import { createAdapter } from '@socket.io/redis-adapter';
 import { RedisStore } from 'rate-limit-redis';
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { sanitizeBody } from './middleware/sanitize';
-import { WebSocketHandler } from './websocket/WebSocketHandler';
-import { ChatWebSocketHandler } from './websocket/ChatWebSocketHandler';
-import { setupCollaborationServer } from './collaboration/yServer';
-import { setupTerminalServer } from './terminal/TerminalServer';
-import { setIO } from './lib/notificationService';
+import { initializeWebSocket } from './websocket';
+import { setConnectionManager } from './lib/notificationService';
 import { connectRedis, getRedisClient } from './lib/redis';
 import { prisma } from './lib/prisma';
 import authRoutes from './routes/auth';
@@ -186,35 +181,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Socket.IO 初始化（Redis 适配器支持集群模式跨进程通信）
-const redisClient = getRedisClient();
-const pubClient = redisClient.duplicate();
-const subClient = redisClient.duplicate();
-
-const io = new Server(httpServer, {
-  adapter: createAdapter(pubClient, subClient),
-  cors: {
-    origin: corsOrigin,
-    credentials: true,
-  },
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  transports: ['websocket', 'polling'],
-});
-
-setIO(io);
-
-// WebSocket 处理器
-const wsHandler = new WebSocketHandler(io);
-const chatHandler = new ChatWebSocketHandler(io);
-wsHandler.initialize();
-chatHandler.initialize();
-
-// Yjs 协作编辑服务
-setupCollaborationServer(httpServer);
-
-// 终端 WebSocket 服务
-setupTerminalServer(httpServer);
+// Socket.IO + WebSocket 统一初始化（含 Redis 适配器、认证、所有 handler）
+const { io, connMgr } = initializeWebSocket(httpServer);
+setConnectionManager(connMgr);
 
 // 路由 - 认证端点使用严格限制
 app.use('/api/auth/login', strictLimiter);
@@ -322,9 +291,6 @@ async function startServer() {
 
     // 数据迁移
     await migrateTeamCreatorRoles();
-
-    // 连接 Socket.IO Redis 适配器的 Pub/Sub 客户端
-    await Promise.all([pubClient.connect(), subClient.connect()]);
 
     httpServer.listen({
       port: Number(port),

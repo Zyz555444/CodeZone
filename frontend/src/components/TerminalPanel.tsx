@@ -4,8 +4,7 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import { getToken } from '@/lib/utils';
-import { wsUrl } from '@/lib/env';
+import { useTerminal } from '@/lib/websocket/hooks';
 
 import '@xterm/xterm/css/xterm.css';
 
@@ -18,11 +17,13 @@ interface TerminalPanelProps {
 export function TerminalPanel({ projectId, visible, onClose }: TerminalPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
 
-  const connectTerminal = useCallback(() => {
-    if (!containerRef.current) return;
+  // 使用 Socket.IO 终端 hook
+  const { initialized, bindOutput, sendInput, sendResize } = useTerminal(projectId);
+
+  const initTerminal = useCallback(() => {
+    if (!containerRef.current || terminalRef.current) return;
 
     const term = new XTerm({
       cursorBlink: true,
@@ -63,55 +64,17 @@ export function TerminalPanel({ projectId, visible, onClose }: TerminalPanelProp
     terminalRef.current = term;
     fitAddonRef.current = fitAddon;
 
-    const token = getToken();
-    const baseWsUrl = wsUrl();
-    let wsEndpoint: string;
-
-    if (baseWsUrl.startsWith('http://') || baseWsUrl.startsWith('https://')) {
-      // 绝对 URL: 将 http/https 转换为 ws/wss
-      const wsProtocol = baseWsUrl.startsWith('https') ? 'wss' : 'ws';
-      const wsHost = baseWsUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
-      wsEndpoint = `${wsProtocol}://${wsHost}/terminal?token=${encodeURIComponent(token)}&projectId=${encodeURIComponent(projectId)}`;
-    } else {
-      // 相对路径: 直接使用 /terminal, 浏览器会根据当前页面 origin 自动选用 wss://
-      wsEndpoint = `/terminal?token=${encodeURIComponent(token)}&projectId=${encodeURIComponent(projectId)}`;
-    }
-
-    const ws = new WebSocket(wsEndpoint);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      term.write('\x1b[32mConnected to terminal\x1b[0m\r\n');
-    };
-
-    ws.onmessage = (event) => {
-      if (event.data instanceof Blob) {
-        event.data.text().then((text) => term.write(text));
-      } else {
-        term.write(event.data as string);
-      }
-    };
-
-    ws.onclose = () => {
-      term.write('\r\n\x1b[33mTerminal disconnected\x1b[0m\r\n');
-    };
-
-    ws.onerror = () => {
-      term.write('\r\n\x1b[31mTerminal connection error\x1b[0m\r\n');
-    };
-
+    // 终端输入通过 Socket.IO 发送
     term.onData((data) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'input', data }));
-      }
+      sendInput(data);
     });
 
+    // 终端大小调整
     term.onResize(({ cols, rows }) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'resize', cols, rows }));
-      }
+      sendResize(cols, rows);
     });
 
+    // 窗口大小变化时重新适配
     const handleResize = () => {
       fitAddon.fit();
     };
@@ -120,22 +83,28 @@ export function TerminalPanel({ projectId, visible, onClose }: TerminalPanelProp
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [projectId]);
+  }, [sendInput, sendResize]);
 
+  // 当终端初始化后，绑定后端输出
+  useEffect(() => {
+    if (initialized && terminalRef.current) {
+      return bindOutput(terminalRef.current.write.bind(terminalRef.current));
+    }
+  }, [initialized, bindOutput]);
+
+  // visible 时初始化终端
   useEffect(() => {
     if (visible && containerRef.current && !terminalRef.current) {
-      const cleanup = connectTerminal();
+      const cleanup = initTerminal();
       return () => {
         cleanup?.();
       };
     }
-  }, [visible, connectTerminal]);
+  }, [visible, initTerminal]);
 
+  // 组件卸载时清理
   useEffect(() => {
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
       if (terminalRef.current) {
         terminalRef.current.dispose();
       }

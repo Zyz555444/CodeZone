@@ -1,12 +1,10 @@
-import { Server } from 'socket.io';
-import { prisma } from './prisma';
+import { ConnectionManager } from '../websocket/connection-manager';
 import { logger } from '../utils/logger';
-import { invalidateCache } from './cache';
 
-let io: Server | null = null;
+let connMgr: ConnectionManager | null = null;
 
-export function setIO(server: Server): void {
-  io = server;
+export function setConnectionManager(manager: ConnectionManager): void {
+  connMgr = manager;
 }
 
 export async function createAndPushNotification(
@@ -16,22 +14,9 @@ export async function createAndPushNotification(
   type: string
 ): Promise<void> {
   try {
-    const notification = await prisma.notification.create({
-      data: { userId, title, content, type },
-    });
-
-    if (io) {
-      io.to(`user:${userId}`).emit('notification', {
-        id: notification.id,
-        title: notification.title,
-        content: notification.content,
-        type: notification.type,
-        isRead: false,
-        createdAt: notification.createdAt.toISOString(),
-      });
+    if (connMgr) {
+      await connMgr.pushNotification(userId, title, content, type);
     }
-
-    invalidateCache(`notifications:${userId}`).catch(() => {});
   } catch (error) {
     logger.error('创建并推送通知失败', { error, userId });
   }

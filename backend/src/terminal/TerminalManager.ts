@@ -1,10 +1,17 @@
 import { spawn, IPty } from 'node-pty';
-import { WebSocket } from 'ws';
 import { logger } from '../utils/logger';
+
+/**
+ * 终端会话回调接口
+ * 将 WebSocket 依赖替换为回调，实现传输层解耦
+ */
+export interface TerminalSessionCallbacks {
+  send: (data: string) => void;
+  onClose: () => void;
+}
 
 interface TerminalSession {
   pty: IPty;
-  ws: WebSocket;
   projectId: string;
   userId: string;
   createdAt: Date;
@@ -14,7 +21,12 @@ class TerminalManagerImpl {
   private sessions: Map<string, TerminalSession> = new Map();
   private maxSessions = 20;
 
-  createSession(sessionId: string, ws: WebSocket, projectId: string, userId: string): void {
+  createSession(
+    sessionId: string,
+    projectId: string,
+    userId: string,
+    callbacks: TerminalSessionCallbacks
+  ): IPty {
     if (this.sessions.size >= this.maxSessions) {
       const oldest = this.sessions.keys().next().value;
       if (oldest) this.destroySession(oldest);
@@ -35,48 +47,23 @@ class TerminalManagerImpl {
       },
     });
 
-    const session: TerminalSession = { pty, ws, projectId, userId, createdAt: new Date() };
+    const session: TerminalSession = { pty, projectId, userId, createdAt: new Date() };
     this.sessions.set(sessionId, session);
 
+    // PTY 输出通过回调发送
     pty.onData((data: string) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data);
-      }
+      callbacks.send(data);
     });
 
+    // PTY 退出通知
     pty.onExit(({ exitCode }) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(`\r\n\x1b[33mProcess exited with code ${exitCode}\x1b[0m\r\n`);
-      }
+      callbacks.send(`\r\n\x1b[33mProcess exited with code ${exitCode}\x1b[0m\r\n`);
       this.sessions.delete(sessionId);
-    });
-
-    ws.on('message', (raw: Buffer | string) => {
-      const data = raw.toString();
-      try {
-        const msg = JSON.parse(data);
-        if (msg.type === 'resize') {
-          pty.resize(msg.cols, msg.rows);
-          return;
-        }
-        if (msg.type === 'input') {
-          pty.write(msg.data);
-          return;
-        }
-      } catch {
-        pty.write(data);
-      }
-    });
-
-    ws.on('close', () => {
-      this.destroySession(sessionId);
-    });
-
-    ws.on('error', () => {
-      this.destroySession(sessionId);
+      callbacks.onClose();
     });
 
     logger.info('Terminal session created', { sessionId, projectId, userId });
+    return pty;
   }
 
   destroySession(sessionId: string): void {
@@ -87,14 +74,6 @@ class TerminalManagerImpl {
       session.pty.kill();
     } catch {
       // already dead
-    }
-
-    try {
-      if (session.ws.readyState === WebSocket.OPEN) {
-        session.ws.close();
-      }
-    } catch {
-      // already closed
     }
 
     this.sessions.delete(sessionId);
@@ -109,6 +88,13 @@ class TerminalManagerImpl {
     const session = this.sessions.get(sessionId);
     if (!session) return false;
     session.pty.write(data);
+    return true;
+  }
+
+  resizeSession(sessionId: string, cols: number, rows: number): boolean {
+    const session = this.sessions.get(sessionId);
+    if (!session) return false;
+    session.pty.resize(cols, rows);
     return true;
   }
 

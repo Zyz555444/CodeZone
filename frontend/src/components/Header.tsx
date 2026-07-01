@@ -4,12 +4,12 @@ import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
-import { useWebSocketStore } from '@/stores/websocketStore';
 import { Button } from '@/components/ui/Button';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { Moon, Sun, LogOut, User, Menu, X, Wifi, WifiOff, Users } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { wsService } from '@/lib/websocket';
+import { useWebSocket, useTeam } from '@/lib/websocket/hooks';
 
 export const Header = React.memo(function Header() {
   const router = useRouter();
@@ -17,67 +17,28 @@ export const Header = React.memo(function Header() {
   const token = useAuthStore((s) => s.token);
   const logout = useAuthStore((s) => s.logout);
   const teams = useAuthStore((s) => s.teams);
-  const isConnected = useWebSocketStore((s) => s.isConnected);
-  const onlineCount = useWebSocketStore((s) => s.onlineCount);
-  const setConnected = useWebSocketStore((s) => s.setConnected);
-  const setOnlineCount = useWebSocketStore((s) => s.setOnlineCount);
   const { setTheme, theme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [mounted, setMounted] = React.useState(false);
-  const teamsRef = React.useRef(teams);
-  teamsRef.current = teams;
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
 
+  // WebSocket 连接：Header 是唯一入口
   React.useEffect(() => {
     if (!user || !mounted || !token) return;
-
     if (!wsService.socketInstance?.connected) {
       wsService.connect(token);
     }
+  }, [user, mounted, token]);
 
-    const handleConnect = () => {
-      setConnected(true);
-      setOnlineCount(0);
-      if (teamsRef.current.length > 0) {
-        wsService.joinTeam(teamsRef.current[0].id);
-      }
-    };
-    const handleDisconnect = () => setConnected(false);
-    const handleOnlineUsers = (data: { count: number }) => {
-      setOnlineCount(data.count);
-    };
-
-    wsService.on('connect', handleConnect);
-    wsService.on('disconnect', handleDisconnect);
-    wsService.on('online-users', handleOnlineUsers);
-
-    if (wsService.socketInstance?.connected) {
-      setConnected(true);
-      if (teamsRef.current.length > 0) {
-        wsService.joinTeam(teamsRef.current[0].id);
-      }
-    }
-
-    return () => {
-      wsService.off('connect', handleConnect);
-      wsService.off('disconnect', handleDisconnect);
-      wsService.off('online-users', handleOnlineUsers);
-    };
-  }, [user, mounted, token, setConnected, setOnlineCount]);
-
-  // 当 teams 加载完成后重新加入团队房间
-  React.useEffect(() => {
-    if (!wsService.socketInstance?.connected) return;
-    if (!teams || teams.length === 0) return;
-    wsService.joinTeam(teams[0].id);
-  }, [teams]);
+  // 使用 hooks 管理团队在线状态
+  const { isConnected } = useWebSocket();
+  const currentTeamId = teams?.[0]?.id ?? null;
+  const { onlineCount } = useTeam(currentTeamId);
 
   const handleLogout = () => {
-    setConnected(false);
-    setOnlineCount(0);
     wsService.disconnect();
     document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     logout();

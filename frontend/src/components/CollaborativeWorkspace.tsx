@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { CollaborativeEditorCore } from './CollaborativeEditorCore';
+import { CollaborativeEditor } from './CollaborativeEditor';
 import { FileTree, FileNode, getLanguageFromFile } from './FileTree';
 import { AIAgentPanel } from './AIPanel';
 import { TerminalPanel } from './TerminalPanel';
@@ -20,10 +20,9 @@ interface OpenFile {
 
 interface CollaborativeWorkspaceProps {
   projectId: string;
-  wsUrl?: string;
 }
 
-export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorkspaceProps) {
+export function CollaborativeWorkspace({ projectId }: CollaborativeWorkspaceProps) {
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   const [activeFileId, setActiveFileId] = useState<string>('');
   const [showAIPanel, setShowAIPanel] = useState(false);
@@ -215,13 +214,12 @@ export function CollaborativeWorkspace({ projectId, wsUrl }: CollaborativeWorksp
         <div className="flex-1 flex min-h-0 relative">
           <div className="flex-1 min-w-0">
             {activeFile ? (
-              <CollaborativeEditorCore
+              <CollaborativeEditor
                 key={activeFile.fileId}
                 projectId={projectId}
                 fileId={activeFile.path}
                 initialContent={activeFile.content}
                 language={activeFile.language}
-                wsUrl={wsUrl}
                 onContentChange={(content) => handleContentChange(activeFile.fileId, content)}
                 onMount={handleEditorMount}
               />

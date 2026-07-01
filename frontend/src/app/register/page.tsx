@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { useAuthStore } from '@/stores/authStore';
-import { wsService } from '@/lib/websocket';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -32,7 +31,6 @@ export default function RegisterPage() {
       
       document.cookie = `auth-token=${token}; path=/; max-age=${7 * 24 * 60 * 60}`;
       login(user, token);
-      wsService.connect(token);
       
       router.push('/team-setup');
     } catch (err: any) {
