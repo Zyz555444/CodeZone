@@ -8,6 +8,7 @@ import type { Awareness } from 'y-protocols/awareness';
 import type { editor, IDisposable } from 'monaco-editor';
 import { Loader2, Wifi, WifiOff } from 'lucide-react';
 import { wsUrl } from '@/lib/env';
+import { GhostTextProvider } from './GhostTextProvider';
 
 interface CollaborativeEditorProps {
   projectId: string;
@@ -235,6 +236,13 @@ export function CollaborativeEditor({
       )}
 
       <div ref={containerRef} className="flex-1 w-full" />
+
+      <GhostTextProvider
+        editor={editorRef.current}
+        monaco={monacoRef.current}
+        language={language}
+        enabled={status === 'connected'}
+      />
 
       <div className="flex items-center justify-between px-3 py-1 bg-neutral-1 border-t border-neutral-3 text-label-12 text-neutral-6 shrink-0">
         <div className="flex items-center gap-3">

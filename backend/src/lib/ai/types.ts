@@ -43,13 +43,6 @@ export interface AIConfig {
   };
 }
 
-export interface ToolCall {
-  id: string;
-  type: string;
-  name: string;
-  arguments: Record<string, unknown>;
-}
-
 export interface ToolCallRequest {
   id: string;
   type: 'function';
@@ -57,12 +50,6 @@ export interface ToolCallRequest {
     name: string;
     arguments: string;
   };
-}
-
-export interface ToolResult {
-  toolCallId: string;
-  output: string;
-  error?: string;
 }
 
 export interface ToolDefinition {
@@ -78,6 +65,8 @@ export interface ToolExecutionResult {
   success: boolean;
   output: string;
   error?: string;
+  oldContent?: string;
+  fileId?: string;
 }
 
 export interface AgentContext {
@@ -104,6 +93,7 @@ export interface AgentStreamEvent {
   toolArgs?: Record<string, unknown>;
   toolResult?: string;
   filePath?: string;
+  fileId?: string;
   patch?: { old: string; new: string };
   conversationId?: string;
   totalTokens?: number;

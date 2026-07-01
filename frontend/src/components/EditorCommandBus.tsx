@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useCallback, useReducer } from 'react';
 
-interface EditorCommand {
+export interface EditorCommand {
   type: 'goto' | 'diff' | 'replace' | 'focus' | 'agent_start' | 'agent_done';
   payload: Record<string, unknown>;
 }

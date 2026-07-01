@@ -5,6 +5,7 @@ import { DiffEditor } from '@monaco-editor/react';
 import { useTheme } from 'next-themes';
 import { Check, X, ChevronRight, CheckCheck } from 'lucide-react';
 import type { DiffFile } from '@/stores/aiStore';
+import { getLanguageFromFile } from './FileTree';
 
 interface InlineDiffEditorProps {
   files: DiffFile[];
@@ -121,7 +122,7 @@ export function InlineDiffEditor({
         <DiffEditor
           original={currentFile.oldContent || ''}
           modified={currentFile.newContent}
-          language="typescript"
+          language={getLanguageFromFile(currentFile.filePath)}
           theme={theme === 'dark' ? 'vs-dark' : 'vs'}
           options={{
             readOnly: true,

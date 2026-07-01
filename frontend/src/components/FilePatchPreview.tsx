@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { DiffEditor } from '@monaco-editor/react';
 import { useTheme } from 'next-themes';
 import { FileText, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { getLanguageFromFile } from './FileTree';
 
 interface FilePatch {
   filePath: string;
@@ -85,7 +86,7 @@ export function FilePatchPreview({ patches, onAccept, onReject }: FilePatchPrevi
                 <DiffEditor
                   original={oldContent}
                   modified={newContent}
-                  language="typescript"
+                  language={getLanguageFromFile(patch.filePath)}
                   theme={theme === 'dark' ? 'vs-dark' : 'vs'}
                   options={{
                     readOnly: true,

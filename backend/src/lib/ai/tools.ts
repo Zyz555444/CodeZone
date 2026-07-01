@@ -150,11 +150,17 @@ async function writeFileHandler(
   });
 
   if (existing) {
+    const oldContent = existing.content || '';
     await prisma.codeFile.update({
       where: { id: existing.id },
       data: { content },
     });
-    return { success: true, output: `文件已更新: ${filePath}\n${content.split('\n').length} 行已写入。` };
+    return {
+      success: true,
+      output: `文件已更新: ${filePath}\n${content.split('\n').length} 行已写入。`,
+      oldContent,
+      fileId: existing.id,
+    };
   }
 
   const folderPath = filePath.substring(0, filePath.lastIndexOf('/'));
@@ -189,7 +195,12 @@ async function writeFileHandler(
     },
   });
 
-  return { success: true, output: `文件已创建: ${filePath} (id: ${created.id})\n${content.split('\n').length} 行已写入。` };
+  return {
+    success: true,
+    output: `文件已创建: ${filePath} (id: ${created.id})\n${content.split('\n').length} 行已写入。`,
+    oldContent: '',
+    fileId: created.id,
+  };
 }
 
 async function replaceInFileHandler(
