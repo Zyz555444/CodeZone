@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useAIStore } from '@/stores/aiStore';
 import {
-  streamChat, agentExecute, abortAgentExecute, listConversations,
+  streamChat, agentExecute, abortAgentExecute, confirmAgentTool, listConversations,
   getConversation, deleteConversation, type AIError,
 } from '@/lib/ai';
 import { AgentThinking } from './AgentThinking';
@@ -27,6 +27,12 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
   const [input, setInput] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [copiedMap, setCopiedMap] = useState<Record<string, boolean>>({});
+  const [pendingConfirmation, setPendingConfirmation] = useState<{
+    toolId: string;
+    toolName: string;
+    toolArgs: Record<string, unknown>;
+    conversationId: string;
+  } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -145,6 +151,17 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
     }
   };
 
+  const handleConfirmTool = async (confirmed: boolean) => {
+    if (!pendingConfirmation) return;
+    const { toolId, conversationId } = pendingConfirmation;
+    setPendingConfirmation(null);
+    try {
+      await confirmAgentTool(conversationId, toolId, confirmed);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '确认失败');
+    }
+  };
+
   const quickActions = [
     { label: '解释代码', prompt: '请解释当前项目/文件的主要逻辑' },
     { label: '生成测试', prompt: '为当前选中的代码生成单元测试' },
@@ -229,6 +246,14 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
                 },
               });
             },
+            onConfirmRequest: (toolId, toolName, toolArgs, conversationId) => {
+              setPendingConfirmation({
+                toolId,
+                toolName,
+                toolArgs,
+                conversationId: conversationId || activeConversationId || '',
+              });
+            },
             onDone: (conversationId) => {
               const finalContent = useAIStore.getState().streamContent;
               if (finalContent) {
@@ -248,6 +273,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
               }
               setIsStreaming(false);
               setExecuting(false);
+              setPendingConfirmation(null);
               resetStreamContent();
               abortRef.current = null;
             },
@@ -265,6 +291,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
               setError(prefix ? `${prefix} ${text}` : text);
               setIsStreaming(false);
               setExecuting(false);
+              setPendingConfirmation(null);
               resetStreamContent();
               abortRef.current = null;
             },
@@ -274,6 +301,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
       } catch {
         setIsStreaming(false);
         setExecuting(false);
+        setPendingConfirmation(null);
         resetStreamContent();
         abortRef.current = null;
       }
@@ -358,6 +386,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
     if (activeConversationId) {
       abortAgentExecute(activeConversationId).catch(() => {});
     }
+    setPendingConfirmation(null);
     const finalContent = useAIStore.getState().streamContent;
     if (finalContent) {
       addMessage({
@@ -547,6 +576,36 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
             onRejectFilePatch={rejectFilePatch}
             filePatches={filePatches}
           />
+        )}
+
+        {/* Pending tool confirmation */}
+        {pendingConfirmation && (
+          <div className="flex justify-start">
+            <div className="max-w-[90%] rounded-xl px-3 py-2 text-copy-13 bg-amber-50 border border-amber-200 text-amber-900">
+              <div className="font-medium mb-1">
+                AI 请求执行工具：{pendingConfirmation.toolName}
+              </div>
+              {typeof pendingConfirmation.toolArgs.filePath === 'string' && pendingConfirmation.toolArgs.filePath && (
+                <div className="text-label-12 text-amber-800 mb-2">
+                  目标文件：{pendingConfirmation.toolArgs.filePath}
+                </div>
+              )}
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => handleConfirmTool(true)}
+                  className="px-3 py-1 text-label-12 rounded-lg bg-amber-600 text-white hover:bg-amber-700"
+                >
+                  允许执行
+                </button>
+                <button
+                  onClick={() => handleConfirmTool(false)}
+                  className="px-3 py-1 text-label-12 rounded-lg bg-white border border-amber-300 text-amber-800 hover:bg-amber-100"
+                >
+                  拒绝
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* File patch preview */}
