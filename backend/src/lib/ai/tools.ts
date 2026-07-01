@@ -267,6 +267,8 @@ async function replaceInFileHandler(
   return {
     success: true,
     output: `文件已修改: ${filePath}\n替换了第 ${lineNum} 行的 ${oldLines} 行为 ${newLines} 行。`,
+    oldContent: content,
+    fileId: file.id,
   };
 }
 

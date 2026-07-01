@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useAuthStore } from '@/stores/authStore';
+import { useWebSocketStore } from '@/stores/websocketStore';
 import { useChat } from '@/lib/websocket/hooks';
 import type { ChatMessage } from '@/lib/websocket/types';
 import { Send, Loader2 } from 'lucide-react';
@@ -106,8 +107,8 @@ const ChatMessageItem = React.memo(function ChatMessageItem({
 
 export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
   const user = useAuthStore((s) => s.user);
+  const isConnected = useWebSocketStore((s) => s.isConnected);
   const [inputMessage, setInputMessage] = useState('');
-  const [connected, setConnected] = useState(true); // WebSocket 由 Header 统一管理
   const [loadingHistory, setLoadingHistory] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -251,7 +252,7 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {!connected && (
+          {!isConnected && (
             <span className="flex items-center gap-1.5 text-label-12 text-amber-6">
               重连中...
             </span>

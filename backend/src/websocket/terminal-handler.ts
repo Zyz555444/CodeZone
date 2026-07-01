@@ -1,5 +1,4 @@
 import { Server } from 'socket.io';
-import { IPty } from 'node-pty';
 import { terminalManager } from '../terminal/TerminalManager';
 import { hasProjectAccess } from '../lib/projectAccess';
 import { logger } from '../utils/logger';
@@ -13,7 +12,6 @@ import { AuthenticatedSocket, EVENTS } from './types';
 export class TerminalHandler {
   register(io: Server): void {
     io.on('connection', (socket: AuthenticatedSocket) => {
-      let ptyProcess: IPty | null = null;
       let sessionId: string | null = null;
 
       // 初始化终端
@@ -35,7 +33,7 @@ export class TerminalHandler {
 
           sessionId = `term_${socket.data.userId}_${Date.now()}`;
 
-          ptyProcess = terminalManager.createSession(
+          terminalManager.createSession(
             sessionId,
             projectId,
             socket.data.userId,
@@ -44,7 +42,7 @@ export class TerminalHandler {
                 socket.emit(EVENTS.TERM_OUTPUT, data);
               },
               onClose: () => {
-                ptyProcess = null;
+                sessionId = null;
               },
             }
           );

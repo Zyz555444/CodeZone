@@ -14,6 +14,8 @@ services:
     container_name: codezone-frontend
     ports:
       - "12321:12321"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
       - PORT=12321
@@ -25,8 +27,21 @@ services:
     networks:
       - codezone-network
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:12321"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:12321/login"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -44,6 +59,8 @@ services:
     container_name: codezone-backend
     ports:
       - "10101:10101"
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=postgresql://${DB_USER:-codezone}:${DB_PASSWORD:-codezone_password}@postgres:5432/${DB_NAME:-codezone}
       - REDIS_URL=redis://redis:6379
@@ -61,8 +78,21 @@ services:
     networks:
       - codezone-network
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:10101/health"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:10101/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -75,6 +105,8 @@ services:
     image: postgres:17-alpine
     container_name: codezone-postgres
     user: postgres
+    env_file:
+      - .env
     environment:
       - POSTGRES_USER=${DB_USER:-codezone}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-codezone_password}
@@ -85,6 +117,19 @@ services:
     networks:
       - codezone-network
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-codezone} -d ${DB_NAME:-codezone}"]
       interval: 10s
@@ -104,6 +149,19 @@ services:
     networks:
       - codezone-network
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

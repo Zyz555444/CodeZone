@@ -6,7 +6,7 @@ import { SocketIOProvider } from 'y-socket.io';
 import { MonacoBinding } from 'y-monaco';
 import type { Awareness } from 'y-protocols/awareness';
 import type { editor, IDisposable } from 'monaco-editor';
-import { Loader2, Wifi, WifiOff } from 'lucide-react';
+import { Loader2, Wifi, WifiOff, RotateCcw } from 'lucide-react';
 import { wsUrl } from '@/lib/env';
 import { GhostTextProvider } from './GhostTextProvider';
 
@@ -19,6 +19,7 @@ interface CollaborativeEditorProps {
   onContentChange?: (content: string) => void;
   onMount?: (editor: editor.IStandaloneCodeEditor, monaco: typeof import('monaco-editor')) => void;
   onCursorMove?: (position: { line: number; column: number }) => void;
+  onSave?: () => void;
 }
 
 const USER_COLORS = [
@@ -44,6 +45,7 @@ export function CollaborativeEditor({
   onContentChange,
   onMount,
   onCursorMove,
+  onSave,
 }: CollaborativeEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -54,6 +56,8 @@ export function CollaborativeEditor({
   const disposablesRef = useRef<IDisposable[]>([]);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const [onlinePeers, setOnlinePeers] = useState(0);
+  const [cursorInfo, setCursorInfo] = useState({ line: 1, column: 1, selectionLength: 0 });
+  const [wordWrap, setWordWrap] = useState(false);
   const initializedRef = useRef(false);
 
   const baseUrl = wsUrl();
@@ -100,6 +104,7 @@ export function CollaborativeEditor({
         minimap: { enabled: true, maxColumn: 80 },
         fontSize: 13,
         fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+        fontLigatures: true,
         lineNumbers: 'on',
         scrollBeyondLastLine: false,
         automaticLayout: true,
@@ -126,6 +131,49 @@ export function CollaborativeEditor({
         renderLineHighlight: 'all',
         lineDecorationsWidth: 8,
         matchBrackets: 'always',
+        stickyScroll: { enabled: true },
+        folding: true,
+        unfoldOnClickAfterEndOfLine: false,
+        dragAndDrop: true,
+        multiCursorModifier: 'ctrlCmd',
+        emptySelectionClipboard: true,
+      });
+
+      // 注册常用编辑器命令
+      editor.addAction({
+        id: 'codezone-save-file',
+        label: '保存文件',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+        run: () => {
+          onSave?.();
+          return undefined;
+        },
+      });
+
+      editor.addAction({
+        id: 'codezone-toggle-word-wrap',
+        label: '切换自动换行',
+        keybindings: [monaco.KeyMod.Alt | monaco.KeyCode.KeyZ],
+        run: (ed) => {
+          const next = (ed.getOption(monaco.editor.EditorOption.wordWrap) as unknown as string) === 'on' ? 'off' : 'on';
+          ed.updateOptions({ wordWrap: next });
+          setWordWrap(next === 'on');
+          return undefined;
+        },
+      });
+
+      editor.addAction({
+        id: 'codezone-format-document',
+        label: '格式化文档',
+        keybindings: [monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF],
+        run: async (ed) => {
+          try {
+            await ed.getAction('editor.action.formatDocument')?.run();
+          } catch {
+            // 当前语言未配置格式化器时静默失败
+          }
+          return undefined;
+        },
       });
 
       editorRef.current = editor;
@@ -166,8 +214,12 @@ export function CollaborativeEditor({
       awareness.on('change', updatePeers);
 
       const ytext = doc.getText('content');
-      if (initialContent && ytext.toString() === '') {
-        ytext.insert(0, initialContent);
+      if (ytext.toString() === '') {
+        // 如果模型已有内容（复用缓存或协作同步），优先同步到 Yjs；否则使用初始内容
+        const seed = model.getValue() || initialContent || '';
+        if (seed) {
+          ytext.insert(0, seed);
+        }
       }
 
       const binding = new MonacoBinding(ytext, model, new Set([editor]), awareness);
@@ -179,6 +231,22 @@ export function CollaborativeEditor({
         });
         disposablesRef.current.push(disp);
       }
+
+      const updateCursorInfo = () => {
+        const position = editor.getPosition();
+        const selection = editor.getSelection();
+        const selectionLength = selection && !selection.isEmpty()
+          ? editor.getModel()?.getValueInRange(selection).length || 0
+          : 0;
+        setCursorInfo({
+          line: position?.lineNumber || 1,
+          column: position?.column || 1,
+          selectionLength,
+        });
+      };
+
+      disposablesRef.current.push(editor.onDidChangeCursorPosition(updateCursorInfo));
+      disposablesRef.current.push(editor.onDidChangeCursorSelection(updateCursorInfo));
 
       if (onCursorMove) {
         const disp = editor.onDidChangeCursorPosition((e) => {
@@ -230,6 +298,14 @@ export function CollaborativeEditor({
             <>
               <WifiOff className="h-3 w-3" />
               协作连接已断开
+              <button
+                onClick={() => providerRef.current?.connect()}
+                className="ml-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/80 hover:bg-white text-red-600 border border-red-200"
+                title="重新连接"
+              >
+                <RotateCcw className="h-3 w-3" />
+                重连
+              </button>
             </>
           )}
         </div>
@@ -244,23 +320,24 @@ export function CollaborativeEditor({
         enabled={status === 'connected'}
       />
 
-      <div className="flex items-center justify-between px-3 py-1 bg-neutral-1 border-t border-neutral-3 text-label-12 text-neutral-6 shrink-0">
+      <div className="flex items-center justify-between px-3 py-1 bg-neutral-1 border-t border-neutral-3 text-label-12 text-neutral-6 shrink-0 select-none">
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1" title={status === 'connected' ? '协作连接正常' : '协作连接异常'}>
             {status === 'connected' ? <Wifi className="h-3 w-3 text-emerald-500" /> : <WifiOff className="h-3 w-3 text-neutral-7" />}
             {status === 'connected' ? `${onlinePeers} 人在线` : '离线'}
           </span>
-          <span>{language}</span>
+          <span className="px-1.5 py-0.5 rounded bg-neutral-2 border border-neutral-3">{language}</span>
           <span>UTF-8</span>
           <span>2 空格</span>
+          {wordWrap && <span className="text-accent">自动换行</span>}
         </div>
         <div className="flex items-center gap-3">
-          {editorRef.current && (
-            <span>
-              行 {editorRef.current.getPosition()?.lineNumber || 1},
-              列 {editorRef.current.getPosition()?.column || 1}
-            </span>
+          {cursorInfo.selectionLength > 0 && (
+            <span>已选择 {cursorInfo.selectionLength} 字符</span>
           )}
+          <span>
+            行 {cursorInfo.line}, 列 {cursorInfo.column}
+          </span>
         </div>
       </div>
     </div>

@@ -1,17 +1,20 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
-import dotenv from 'dotenv';
 import { createServer } from 'http';
 import rateLimit from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
+import { z } from 'zod';
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { sanitizeBody } from './middleware/sanitize';
 import { initializeWebSocket } from './websocket';
 import { setConnectionManager } from './lib/notificationService';
-import { connectRedis, getRedisClient } from './lib/redis';
+import { connectRedis, disconnectRedis, getRedisClient } from './lib/redis';
 import { prisma } from './lib/prisma';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
@@ -34,9 +37,42 @@ import aiConversationsRoutes from './routes/aiConversations';
 import usageRoutes from './routes/usage';
 import aiPermissionsRoutes from './routes/aiPermissions';
 
-dotenv.config();
+function validateEnv() {
+  const schema = z.object({
+    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    PORT: z.string().regex(/^\d+$/).default('10101'),
+    DATABASE_URL: z.string().min(1, 'DATABASE_URL 不能为空'),
+    REDIS_URL: z.string().min(1, 'REDIS_URL 不能为空'),
+    JWT_SECRET: z.string().min(32, 'JWT_SECRET 至少需要 32 个字符'),
+    FRONTEND_URL: z.string().url().optional(),
+    LOG_LEVEL: z.string().default('info'),
+  });
+
+  const result = schema.safeParse(process.env);
+  if (!result.success) {
+    logger.error('环境变量验证失败', { issues: result.error.format() });
+    process.exit(1);
+  }
+
+  if (
+    result.data.NODE_ENV === 'production' &&
+    process.env.JWT_SECRET === 'dev-secret-key-change-in-production'
+  ) {
+    logger.error('生产环境禁止使用默认 JWT_SECRET，请设置强密钥');
+    process.exit(1);
+  }
+
+  return result.data;
+}
+
+const env = validateEnv();
 
 const app = express();
+
+// 生产环境位于反向代理后，信任代理以获取真实客户端 IP
+if (env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
 const httpServer = createServer(app);
 const port = process.env.PORT || 10101;
 
@@ -222,9 +258,28 @@ app.use((req, res) => {
 // 错误处理
 app.use(errorHandler);
 
+async function gracefulShutdown(signal: string, exitCode = 0) {
+  logger.info(`${signal} 信号收到，开始优雅关闭`);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      httpServer.close((err) => (err ? reject(err) : resolve()));
+    });
+    await disconnectRedis();
+    await prisma.$disconnect();
+    logger.info('服务已优雅关闭');
+  } catch (error) {
+    logger.error('优雅关闭失败', { error });
+  }
+  process.exit(exitCode);
+}
+
 // 未捕获的 Promise 拒绝
 process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection', { reason, promise });
+  if (env.NODE_ENV === 'production') {
+    // 生产环境出现未处理的 Promise 拒绝时主动退出，由编排器重新调度
+    setTimeout(() => gracefulShutdown('unhandledRejection', 1), 1000);
+  }
 });
 
 // 未捕获的异常 - 优雅关闭
@@ -232,6 +287,8 @@ process.on('uncaughtException', async (error) => {
   logger.error('Uncaught Exception', { error });
   try {
     await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+    await disconnectRedis();
+    await prisma.$disconnect();
     logger.info('Server closed after uncaught exception');
   } catch {
     // force exit if server close fails
@@ -240,21 +297,8 @@ process.on('uncaughtException', async (error) => {
 });
 
 // 优雅关闭
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM signal received, shutting down gracefully');
-  httpServer.close(() => {
-    logger.info('Server closed');
-    process.exit(0);
-  });
-});
-
-process.on('SIGINT', () => {
-  logger.info('SIGINT signal received, shutting down gracefully');
-  httpServer.close(() => {
-    logger.info('Server closed');
-    process.exit(0);
-  });
-});
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // 数据迁移：将已有团队创建者从 ADMIN 升级为 OWNER
 async function migrateTeamCreatorRoles() {

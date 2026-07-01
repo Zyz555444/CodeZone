@@ -1,7 +1,7 @@
 # ============================================
 # 阶段1: 依赖安装 (npm + apk 缓存加速)
 # ============================================
-FROM node:24-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 
 RUN --mount=type=cache,target=/var/cache/apk \
@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/root/.npm \
 # ============================================
 # 阶段2: 前端构建
 # ============================================
-FROM node:24-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=1536"
@@ -43,10 +43,9 @@ COPY frontend/tailwind.config.js ./tailwind.config.js
 COPY frontend/middleware.ts ./middleware.ts
 COPY frontend/src ./src
 
-# 利用 Next.js 构建缓存加速
-# Alpine musl与SWC原生绑定不兼容，回退Webpack
+# 利用 Next.js 构建缓存加速（Alpine 已支持 musl SWC 绑定）
 RUN --mount=type=cache,target=/app/frontend/.next/cache \
-    npx next build --webpack
+    npx next build
 
 # 标准化 standalone 输出：消除 workspace 检测差异
 # 无论 Next.js 输出 flat 还是 frontend/ 子目录，统一整理到 standalone/
@@ -65,7 +64,7 @@ RUN rm -rf standalone && mkdir -p standalone && \
 # ============================================
 # 阶段3: 前端生产镜像
 # ============================================
-FROM node:24-alpine AS frontend
+FROM node:22-alpine AS frontend
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=512"
@@ -88,14 +87,14 @@ CMD ["node", "server.js"]
 # ============================================
 # 阶段4: 后端构建
 # ============================================
-FROM node:24-alpine AS backend-builder
+FROM node:22-alpine AS backend-builder
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=1536"
 
 WORKDIR /app
 
 RUN --mount=type=cache,target=/var/cache/apk \
-    apk add --no-cache openssl python3 make g++
+    apk add --no-cache openssl
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/backend/node_modules ./backend/node_modules
@@ -111,12 +110,17 @@ COPY backend/src ./src/
 RUN --mount=type=cache,target=/root/.cache/esbuild \
     npm run build
 
+# 剔除开发依赖，显著缩小最终镜像体积
+WORKDIR /app
+RUN npm prune --workspace=backend --omit=dev
+
 # ============================================
 # 阶段5: 后端生产镜像
 # ============================================
-FROM node:24-alpine AS backend
+FROM node:22-alpine AS backend
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=512"
+ENV PORT=10101
 
 WORKDIR /app
 
