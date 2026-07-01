@@ -206,14 +206,27 @@ export async function streamChat(req: AuthRequest, res: Response): Promise<void>
 
   setupSSEConnection(res);
   const abortController = createAbortController(req);
-  const convId = conversationId as string | undefined;
+  let convId = conversationId as string | undefined;
+
+  if (!convId && projectId && req.userId) {
+    const firstUser = (messages as Message[]).find((m) => m.role === 'user');
+    const title = firstUser?.content?.slice(0, 30) || '新对话';
+    const conv = await prisma.aIConversation.create({
+      data: { projectId, userId: req.userId, title },
+    });
+    convId = conv.id;
+  }
+
+  const normalizedContextFiles = projectId
+    ? (contextFiles || []).map((fid: string) => (fid.startsWith(`${projectId}:`) ? fid.slice(projectId.length + 1) : fid))
+    : [];
 
   try {
     const teamConfig = await getTeamConfig(teamId);
 
     let systemPrompt = '';
     if (projectId) {
-      const context = await collectProjectContext(projectId, undefined, contextFiles);
+      const context = await collectProjectContext(projectId, undefined, normalizedContextFiles);
       systemPrompt = buildContextSystemPrompt(context);
     }
 
@@ -280,11 +293,22 @@ export async function agentExecute(req: AuthRequest, res: Response): Promise<voi
 
   setupSSEConnection(res);
   const abortController = createAbortController(req);
-  const convId = conversationId as string | undefined;
+  let convId = conversationId as string | undefined;
+
+  if (!convId && projectId && req.userId) {
+    const conv = await prisma.aIConversation.create({
+      data: { projectId, userId: req.userId, title: '新对话' },
+    });
+    convId = conv.id;
+  }
 
   if (convId) {
     registerAgentAbort(convId, abortController);
   }
+
+  const normalizedContextFiles = projectId
+    ? (contextFiles || []).map((fid: string) => (fid.startsWith(`${projectId}:`) ? fid.slice(projectId.length + 1) : fid))
+    : [];
 
   try {
     const agentContext = {
@@ -292,7 +316,7 @@ export async function agentExecute(req: AuthRequest, res: Response): Promise<voi
       userId: req.userId || '',
       teamId: teamId || undefined,
       currentFileId: undefined,
-      selectedFileIds: contextFiles || [],
+      selectedFileIds: normalizedContextFiles,
     };
 
     const options = {

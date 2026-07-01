@@ -58,7 +58,17 @@ export function CollaborativeEditor({
   const [onlinePeers, setOnlinePeers] = useState(0);
   const [cursorInfo, setCursorInfo] = useState({ line: 1, column: 1, selectionLength: 0 });
   const [wordWrap, setWordWrap] = useState(false);
-  const initializedRef = useRef(false);
+  const [mountedEditor, setMountedEditor] = useState<editor.IStandaloneCodeEditor | null>(null);
+
+  const callbacksRef = useRef({
+    onSave,
+    onContentChange,
+    onCursorMove,
+    onMount,
+  });
+  useEffect(() => {
+    callbacksRef.current = { onSave, onContentChange, onCursorMove, onMount };
+  });
 
   const baseUrl = wsUrl();
 
@@ -78,9 +88,6 @@ export function CollaborativeEditor({
   }, []);
 
   useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-
     let cancelled = false;
     const cleanupFns: Array<() => void> = [];
 
@@ -145,7 +152,7 @@ export function CollaborativeEditor({
         label: '保存文件',
         keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
         run: () => {
-          onSave?.();
+          callbacksRef.current.onSave?.();
           return undefined;
         },
       });
@@ -225,9 +232,10 @@ export function CollaborativeEditor({
       const binding = new MonacoBinding(ytext, model, new Set([editor]), awareness);
       bindingRef.current = binding;
 
-      if (onContentChange) {
+      const onContentChangeRef = callbacksRef.current.onContentChange;
+      if (onContentChangeRef) {
         const disp = model.onDidChangeContent(() => {
-          onContentChange(model.getValue());
+          onContentChangeRef(model.getValue());
         });
         disposablesRef.current.push(disp);
       }
@@ -248,18 +256,18 @@ export function CollaborativeEditor({
       disposablesRef.current.push(editor.onDidChangeCursorPosition(updateCursorInfo));
       disposablesRef.current.push(editor.onDidChangeCursorSelection(updateCursorInfo));
 
-      if (onCursorMove) {
+      const onCursorMoveRef = callbacksRef.current.onCursorMove;
+      if (onCursorMoveRef) {
         const disp = editor.onDidChangeCursorPosition((e) => {
-          onCursorMove({ line: e.position.lineNumber, column: e.position.column });
+          onCursorMoveRef({ line: e.position.lineNumber, column: e.position.column });
         });
         disposablesRef.current.push(disp);
       }
 
-      if (onMount) {
-        onMount(editor, monaco);
-      }
+      callbacksRef.current.onMount?.(editor, monaco);
 
       editor.focus();
+      setMountedEditor(editor);
 
       cleanupFns.push(() => {
         disposablesRef.current.forEach(d => d.dispose());
@@ -314,7 +322,7 @@ export function CollaborativeEditor({
       <div ref={containerRef} className="flex-1 w-full" />
 
       <GhostTextProvider
-        editor={editorRef.current}
+        editor={mountedEditor}
         monaco={monacoRef.current}
         language={language}
         enabled={status === 'connected'}

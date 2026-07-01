@@ -1,6 +1,17 @@
 import { prisma } from '../prisma';
 import { estimateTokens, truncateByTokens } from './tokens';
 
+interface CodeFileInfo {
+  id: string;
+  path: string;
+  name: string;
+  type: string;
+  language: string | null;
+  content: string | null;
+  parentId: string | null;
+  updatedAt: Date | null;
+}
+
 interface ProjectContext {
   fileTree: string;
   currentFile?: { path: string; content: string; language: string };
@@ -36,12 +47,31 @@ export async function collectProjectContext(
 ): Promise<ProjectContext> {
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
 
-  const allFiles = await prisma.codeFile.findMany({
+  const allFiles: CodeFileInfo[] = await prisma.codeFile.findMany({
     where: { projectId },
     select: { id: true, path: true, name: true, type: true, language: true, content: true, parentId: true, updatedAt: true },
     orderBy: { path: 'asc' },
     take: FIRST_BATCH_SIZE,
   });
+
+  const missingIds = new Set<string>();
+  if (currentFileId && !allFiles.some((f) => f.id === currentFileId)) {
+    missingIds.add(currentFileId);
+  }
+  if (selectedFileIds) {
+    for (const fid of selectedFileIds) {
+      if (!allFiles.some((f) => f.id === fid)) {
+        missingIds.add(fid);
+      }
+    }
+  }
+  if (missingIds.size > 0) {
+    const extra = await prisma.codeFile.findMany({
+      where: { projectId, id: { in: Array.from(missingIds) } },
+      select: { id: true, path: true, name: true, type: true, language: true, content: true, parentId: true, updatedAt: true },
+    });
+    allFiles.push(...extra);
+  }
 
   const fileTree = formatFileTree(allFiles);
   const context: ProjectContext = {
@@ -54,7 +84,7 @@ export async function collectProjectContext(
   let currentTokens = context.estimatedTokens;
 
   if (currentFileId) {
-    const currentFile = allFiles.find((f: { id: string; path: string; content: string | null; language: string | null }) => f.id === currentFileId);
+    const currentFile = allFiles.find((f) => f.id === currentFileId);
 
     if (currentFile?.content) {
       let content = currentFile.content;
@@ -74,7 +104,7 @@ export async function collectProjectContext(
       const dir = currentFile.path.substring(0, currentFile.path.lastIndexOf('/'));
       if (dir) {
         const siblings = allFiles
-          .filter((f: { path: string; type: string; id: string; content: string | null; language: string | null }) => {
+          .filter((f) => {
             const fDir = f.path.substring(0, f.path.lastIndexOf('/'));
             return fDir === dir && f.id !== currentFile.id && f.type === 'FILE';
           })
@@ -99,8 +129,8 @@ export async function collectProjectContext(
   }
 
   const recentFiles = allFiles
-    .filter((f: { id: string; path: string; type: string; content: string | null; language: string | null; updatedAt: Date | null }) => f.id !== currentFileId && f.type === 'FILE' && f.content)
-    .sort((a: { updatedAt: Date | null }, b: { updatedAt: Date | null }) => {
+    .filter((f) => f.id !== currentFileId && f.type === 'FILE' && f.content)
+    .sort((a, b) => {
       const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
       const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
       return dateB - dateA;
@@ -131,7 +161,7 @@ export async function collectProjectContext(
       for (const fid of selectedFileIds) {
         if (currentTokens >= maxTokens) break;
 
-        const f = allFiles.find((x: { id: string; path: string; content: string | null; language: string | null }) => x.id === fid);
+        const f = allFiles.find((x) => x.id === fid);
         if (!f?.content) continue;
 
         if (context.selectedFiles.find((sf) => sf.path === f.path)) continue;

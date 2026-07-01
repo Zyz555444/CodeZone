@@ -1,4 +1,4 @@
-import { AIProvider, AIConfig, AIProviderType } from '../types';
+import { AIProvider, AIConfig } from '../types';
 import { OpenAIProvider } from './openai';
 import { AnthropicProvider } from './anthropic';
 import { CustomProvider } from './custom';
@@ -9,7 +9,7 @@ const DEFAULT_ENDPOINTS: Record<string, string> = {
 };
 
 class ProviderRegistryImpl {
-  private providers: Map<AIProviderType, AIProvider> = new Map();
+  private providers: Map<string, AIProvider> = new Map();
 
   getDefaultConfig(): AIConfig {
     return {
@@ -46,7 +46,8 @@ class ProviderRegistryImpl {
   }
 
   private getOrCreateProvider(config: AIConfig): AIProvider {
-    const cached = this.providers.get(config.provider);
+    const cacheKey = `${config.provider}:${config.endpoint}:${config.apiKey}`;
+    const cached = this.providers.get(cacheKey);
     if (cached) return cached;
 
     const endpoint = config.endpoint || DEFAULT_ENDPOINTS[config.provider] || '';
@@ -65,7 +66,7 @@ class ProviderRegistryImpl {
         break;
     }
 
-    this.providers.set(config.provider, provider);
+    this.providers.set(cacheKey, provider);
     return provider;
   }
 

@@ -161,9 +161,14 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
     }
   }, [openFileByPath, activeFile?.path, addDiffFile, replaceSelection]);
 
+  const handleCommandRef = useRef(handleCommand);
   useEffect(() => {
-    setCommandHandler(handleCommand);
-  }, [setCommandHandler, handleCommand]);
+    handleCommandRef.current = handleCommand;
+  });
+
+  useEffect(() => {
+    setCommandHandler((cmd) => handleCommandRef.current(cmd));
+  }, [setCommandHandler]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -251,14 +256,8 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
     editorRef.current = editor;
     monacoRef.current = monaco;
 
-    editor.addAction({
-      id: 'ai-inline-prompt',
-      label: 'AI Inline Prompt',
-      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK],
-      run: () => {
-        // handled by window keydown
-      },
-    });
+    // Ctrl+K inline prompt is handled by the window keydown listener so it works
+    // even when the editor does not have focus.
   }, []);
 
   const handleFileSelect = useCallback(async (node: FileNode) => {
@@ -308,6 +307,11 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
       }
       return newFiles;
     });
+    setDirtyFileIds(prev => {
+      const next = new Set(prev);
+      next.delete(fileId);
+      return next;
+    });
   }, [activeFileId]);
 
   const handleContentChange = useCallback((fileId: string, content: string) => {
@@ -341,6 +345,17 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
         body: JSON.stringify({ content: file.newContent }),
       });
 
+      const acceptedFileId = `${projectId}:${target.id}`;
+      setOpenFiles(prev => prev.map(f =>
+        f.fileId === acceptedFileId
+          ? { ...f, content: file.newContent, originalContent: file.newContent }
+          : f
+      ));
+      setDirtyFileIds(prev => {
+        const next = new Set(prev);
+        next.delete(acceptedFileId);
+        return next;
+      });
       setDiffFiles(prev => prev.map(f =>
         f.filePath === filePath ? { ...f, accepted: true } : f
       ));
@@ -418,6 +433,11 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
     if (activeFileId !== keepFileId) {
       setActiveFileId(keepFileId);
     }
+    setDirtyFileIds(prev => {
+      const next = new Set<string>();
+      if (prev.has(keepFileId)) next.add(keepFileId);
+      return next;
+    });
   }, [activeFileId]);
 
   const closeAllFiles = useCallback(() => {

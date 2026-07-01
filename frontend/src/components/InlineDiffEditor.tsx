@@ -29,6 +29,10 @@ export function InlineDiffEditor({
   const { theme } = useTheme();
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    const target = e.target as HTMLElement | null;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+      return;
+    }
     const meta = e.metaKey || e.ctrlKey;
     if (meta && e.key === 'y') {
       e.preventDefault();

@@ -8,11 +8,13 @@ function buildUrl(endpoint: string): string {
 export class OpenAIProvider implements AIProvider {
   id: AIProvider['id'] = 'OPENAI';
   label = 'OpenAI Compatible';
+  private baseEndpoint: string;
   private endpoint: string;
   private apiKey: string;
   private defaultModel: string;
 
   constructor(endpoint: string, apiKey: string, defaultModel: string) {
+    this.baseEndpoint = endpoint.replace(/\/+$/, '');
     this.endpoint = buildUrl(endpoint);
     this.apiKey = apiKey;
     this.defaultModel = defaultModel;
@@ -58,6 +60,16 @@ export class OpenAIProvider implements AIProvider {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60000);
 
+    function isCompleteArguments(args: string): boolean {
+      if (args.trim() === '') return true;
+      try {
+        JSON.parse(args);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
     try {
       const body: Record<string, unknown> = {
         model: this.defaultModel,
@@ -88,108 +100,103 @@ export class OpenAIProvider implements AIProvider {
         return;
       }
 
-       const reader = response.body?.getReader();
-       if (!reader) {
-         yield { type: 'error', error: 'No response body' };
-         return;
-       }
+      const reader = response.body?.getReader();
+      if (!reader) {
+        yield { type: 'error', error: 'No response body' };
+        return;
+      }
 
-       const decoder = new TextDecoder();
-       let buffer = '';
-       const toolCallAccumulator = new Map<number, { id: string; name: string; arguments: string }>();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      const toolCallAccumulator = new Map<number, { id: string; name: string; arguments: string }>();
+      const emittedToolCalls = new Set<number>();
 
-       try {
-         while (true) {
-           const { done, value } = await reader.read();
-           if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-           buffer += decoder.decode(value, { stream: true });
-           const lines = buffer.split('\n');
-           buffer = lines.pop() || '';
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
 
-           for (const line of lines) {
-             const trimmed = line.trim();
-             if (!trimmed || !trimmed.startsWith('data:')) continue;
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith('data:')) continue;
 
-             const dataStr = trimmed.slice(5).trim();
-             if (dataStr === '[DONE]') {
-               return;
-             }
+            const dataStr = trimmed.slice(5).trim();
+            if (dataStr === '[DONE]') {
+              return;
+            }
 
-             try {
-               const parsed = JSON.parse(dataStr);
-               const delta = parsed?.choices?.[0]?.delta;
-               if (!delta) continue;
-
-               const content = delta.content;
-               if (content) {
-                 yield { type: 'token', content };
-               }
-
-               if (delta.tool_calls && Array.isArray(delta.tool_calls)) {
-                 for (const tc of delta.tool_calls) {
-                   const idx = tc.index ?? 0;
-                   const existing = toolCallAccumulator.get(idx);
-                   if (existing) {
-                     if (tc.function?.arguments) {
-                       existing.arguments += tc.function.arguments;
-                     }
-                   } else {
-                     toolCallAccumulator.set(idx, {
-                       id: tc.id || `call_${idx}`,
-                       name: tc.function?.name || '',
-                       arguments: tc.function?.arguments || '',
-                     });
-                   }
-                   const acc = toolCallAccumulator.get(idx)!;
-                   try {
-                     JSON.parse(acc.arguments);
-                     yield {
-                       type: 'tool_call',
-                       tool: {
-                         id: acc.id,
-                         type: 'function',
-                         function: {
-                           name: acc.name,
-                           arguments: acc.arguments,
-                         },
-                       },
-                     };
-                   } catch {
-                     // arguments not complete yet, wait for more chunks
-                   }
-                 }
-               }
-             } catch {
-               // skip unparseable lines
-             }
-           }
-         }
-        } finally {
-          for (const acc of toolCallAccumulator.values()) {
             try {
-              JSON.parse(acc.arguments);
+              const parsed = JSON.parse(dataStr);
+              const delta = parsed?.choices?.[0]?.delta;
+              if (!delta) continue;
+
+              const content = delta.content;
+              if (content) {
+                yield { type: 'token', content };
+              }
+
+              if (delta.tool_calls && Array.isArray(delta.tool_calls)) {
+                for (const tc of delta.tool_calls) {
+                  const idx = tc.index ?? 0;
+                  const existing = toolCallAccumulator.get(idx);
+                  if (existing) {
+                    if (tc.function?.arguments) {
+                      existing.arguments += tc.function.arguments;
+                    }
+                  } else {
+                    toolCallAccumulator.set(idx, {
+                      id: tc.id || `call_${idx}`,
+                      name: tc.function?.name || '',
+                      arguments: tc.function?.arguments || '',
+                    });
+                  }
+                  const acc = toolCallAccumulator.get(idx)!;
+                  if (!emittedToolCalls.has(idx) && acc.arguments && isCompleteArguments(acc.arguments)) {
+                    emittedToolCalls.add(idx);
+                    yield {
+                      type: 'tool_call',
+                      tool: {
+                        id: acc.id,
+                        type: 'function',
+                        function: {
+                          name: acc.name,
+                          arguments: acc.arguments,
+                        },
+                      },
+                    };
+                  }
+                }
+              }
             } catch {
-              yield {
-                type: 'tool_call',
-                tool: {
-                  id: acc.id,
-                  type: 'function',
-                  function: { name: acc.name, arguments: acc.arguments },
-                },
-              };
+              // skip unparseable lines
             }
           }
         }
-          clearTimeout(timeout);
-       } catch {
-       // stream error handled by generator consumer
-     }
-     }
+      } finally {
+        for (const [idx, acc] of toolCallAccumulator) {
+          if (emittedToolCalls.has(idx)) continue;
+          yield {
+            type: 'tool_call',
+            tool: {
+              id: acc.id,
+              type: 'function',
+              function: { name: acc.name, arguments: acc.arguments },
+            },
+          };
+        }
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
 
-    async listModels(): Promise<ModelInfo[]> {
+  async listModels(): Promise<ModelInfo[]> {
     try {
-      const response = await fetch(this.endpoint.replace('/chat/completions', '/models'), {
+      const response = await fetch(`${this.baseEndpoint}/models`, {
         headers: { 'Authorization': `Bearer ${this.apiKey}` },
       });
       if (!response.ok) return [];
@@ -207,7 +214,7 @@ export class OpenAIProvider implements AIProvider {
 
   async validateConfig(config: AIConfig): Promise<boolean> {
     try {
-      const response = await fetch(buildUrl(config.endpoint || this.endpoint), {
+      const response = await fetch(buildUrl(config.endpoint || this.baseEndpoint), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

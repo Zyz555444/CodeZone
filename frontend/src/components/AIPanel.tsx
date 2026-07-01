@@ -373,12 +373,16 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
     clearFilePatches();
   };
 
-  const handleCopy = (msgId: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedMap((prev) => ({ ...prev, [msgId]: true }));
-    setTimeout(() => {
-      setCopiedMap((prev) => ({ ...prev, [msgId]: false }));
-    }, 2000);
+  const handleCopy = async (msgId: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMap((prev) => ({ ...prev, [msgId]: true }));
+      setTimeout(() => {
+        setCopiedMap((prev) => ({ ...prev, [msgId]: false }));
+      }, 2000);
+    } catch {
+      // ignore clipboard errors
+    }
   };
 
   const isRight = position === 'right';
