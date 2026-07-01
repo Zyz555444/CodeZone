@@ -157,7 +157,7 @@ export function InlineAIMenu({ selectedText, language, position, onClose, projec
   return (
     <div
       ref={menuRef}
-      className="absolute z-50 bg-white border border-neutral-4 rounded-xl shadow-float"
+      className="absolute z-50 bg-neutral-1 border border-neutral-4 rounded-xl shadow-float"
       style={adjustedPosition()}
     >
       {!activeAction ? (
@@ -209,7 +209,7 @@ export function InlineAIMenu({ selectedText, language, position, onClose, projec
               )}
               <button
                 onClick={() => applyReplace(cleanCodeResult(streamContent))}
-                className="px-2 py-0.5 text-label-12 rounded-md bg-green-600 text-white hover:bg-green-700"
+                className="px-2 py-0.5 text-label-12 rounded-md bg-success text-white hover:bg-success/80"
               >
                 应用
               </button>

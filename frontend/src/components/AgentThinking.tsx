@@ -61,8 +61,8 @@ const toolLabels: Record<string, string> = {
 const statusIcons: Record<string, React.ReactNode> = {
   pending: <Clock className="h-3.5 w-3.5 text-neutral-6 shrink-0" />,
   running: <Loader2 className="h-3.5 w-3.5 animate-spin text-accent shrink-0" />,
-  completed: <Check className="h-3.5 w-3.5 text-green-600 shrink-0" />,
-  error: <X className="h-3.5 w-3.5 text-red-500 shrink-0" />,
+  completed: <Check className="h-3.5 w-3.5 text-success shrink-0" />,
+  error: <X className="h-3.5 w-3.5 text-error shrink-0" />,
 };
 
 interface ToolGroup {
@@ -292,7 +292,7 @@ function FilePatchActions({
   const patch = filePatches.find((p) => p.filePath === filePath);
   if (!patch || patch.accepted !== null) {
     if (patch?.accepted === true) {
-      return <div className="mt-1.5 text-label-12 text-green-600">已接受</div>;
+      return <div className="mt-1.5 text-label-12 text-success">已接受</div>;
     }
     if (patch?.accepted === false) {
       return <div className="mt-1.5 text-label-12 text-neutral-6">已拒绝</div>;
@@ -304,7 +304,7 @@ function FilePatchActions({
     <div className="mt-1.5 flex gap-1.5">
       <button
         onClick={() => onAccept(filePath)}
-        className="flex items-center gap-1 px-2 py-1 text-label-12 rounded bg-green-600 text-white hover:bg-green-700 transition-colors"
+        className="flex items-center gap-1 px-2 py-1 text-label-12 rounded bg-success text-white hover:bg-success/80 transition-colors"
       >
         <Check className="h-3 w-3" />
         接受

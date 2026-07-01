@@ -15,12 +15,12 @@ interface ChatRoomProps {
 }
 
 const AVATAR_COLORS = [
-  'bg-rose-100 text-rose-600',
-  'bg-blue-100 text-blue-600',
-  'bg-emerald-100 text-emerald-600',
-  'bg-amber-100 text-amber-600',
-  'bg-violet-100 text-violet-600',
-  'bg-cyan-100 text-cyan-600',
+  'bg-accent-subtle text-accent',
+  'bg-info/20 text-info',
+  'bg-success/20 text-success',
+  'bg-warning/20 text-warning',
+  'bg-accent-subtle text-accent',
+  'bg-info/20 text-info',
 ];
 
 function getAvatarColor(userName: string): string {
@@ -253,7 +253,7 @@ export function ChatRoom({ roomId, roomName = '聊天室' }: ChatRoomProps) {
         </div>
         <div className="flex items-center gap-2">
           {!isConnected && (
-            <span className="flex items-center gap-1.5 text-label-12 text-amber-6">
+            <span className="flex items-center gap-1.5 text-label-12 text-warning">
               重连中...
             </span>
           )}

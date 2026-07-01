@@ -295,7 +295,7 @@ export function CollaborativeEditor({
     <div className="relative h-full w-full flex flex-col">
       {status !== 'connected' && (
         <div className={`flex items-center gap-2 px-3 py-1 text-label-12 border-b ${
-          status === 'connecting' ? 'bg-warning/10 border-warning/20 text-warning' : 'bg-red-50 border-red-200 text-red-600'
+          status === 'connecting' ? 'bg-warning/10 border-warning/20 text-warning' : 'bg-error/10 border-error/30 text-error'
         }`}>
           {status === 'connecting' ? (
             <>
@@ -308,7 +308,7 @@ export function CollaborativeEditor({
               协作连接已断开
               <button
                 onClick={() => providerRef.current?.connect()}
-                className="ml-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/80 hover:bg-white text-red-600 border border-red-200"
+                className="ml-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-neutral-1/80 hover:bg-neutral-1 text-error border border-error/30"
                 title="重新连接"
               >
                 <RotateCcw className="h-3 w-3" />
@@ -331,7 +331,7 @@ export function CollaborativeEditor({
       <div className="flex items-center justify-between px-3 py-1 bg-neutral-1 border-t border-neutral-3 text-label-12 text-neutral-6 shrink-0 select-none">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1" title={status === 'connected' ? '协作连接正常' : '协作连接异常'}>
-            {status === 'connected' ? <Wifi className="h-3 w-3 text-emerald-500" /> : <WifiOff className="h-3 w-3 text-neutral-7" />}
+            {status === 'connected' ? <Wifi className="h-3 w-3 text-success" /> : <WifiOff className="h-3 w-3 text-neutral-7" />}
             {status === 'connected' ? `${onlinePeers} 人在线` : '离线'}
           </span>
           <span className="px-1.5 py-0.5 rounded bg-neutral-2 border border-neutral-3">{language}</span>

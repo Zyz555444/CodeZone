@@ -95,7 +95,7 @@ export function InlineDiffEditor({
         <div className="flex items-center gap-1">
           <button
             onClick={() => onAccept(currentFile.filePath)}
-            className="flex items-center gap-1 px-2 py-1 text-label-12 rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 text-label-12 rounded-md bg-success text-white hover:bg-success/80 transition-colors"
           >
             <Check className="h-3 w-3" />
             <span>接受</span>

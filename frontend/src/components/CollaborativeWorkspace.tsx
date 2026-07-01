@@ -454,7 +454,7 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
   }, [tabContextMenu]);
 
   return (
-    <div className="flex h-full bg-white">
+    <div className="flex h-full bg-neutral-1">
       {showFileTree && (
         <div className="w-56 border-r border-neutral-3 flex-shrink-0 overflow-hidden">
           <FileTree
@@ -485,7 +485,7 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
                   key={file.fileId}
                   className={`group flex items-center gap-1.5 px-3 py-2 text-copy-13 border-r border-neutral-3 cursor-pointer transition-colors shrink-0 ${
                     activeFileId === file.fileId
-                      ? 'bg-white text-neutral-9 border-b-white -mb-[1px]'
+                      ? 'bg-neutral-1 text-neutral-9 border-b-neutral-1 -mb-[1px]'
                       : 'bg-neutral-1 text-neutral-6 hover:bg-neutral-2'
                   }`}
                   onClick={() => setActiveFileId(file.fileId)}
@@ -495,7 +495,7 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
                   }}
                 >
                   <span className="truncate max-w-[140px]">{file.name}</span>
-                  {isDirty && <Circle className="h-1.5 w-1.5 fill-amber-500 text-amber-500" />}
+                  {isDirty && <Circle className="h-1.5 w-1.5 fill-warning text-warning" />}
                   <button
                     onClick={(e) => { e.stopPropagation(); handleCloseFile(file.fileId); }}
                     className="p-0.5 rounded hover:bg-neutral-3 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -589,7 +589,7 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
             )}
 
             {agentError && (
-              <div className="px-3 py-2 bg-red-50 border-t border-red-200 text-label-12 text-red-600 shrink-0">
+              <div className="px-3 py-2 bg-error/10 border-t border-error/30 text-label-12 text-error shrink-0">
                 {agentError}
                 <button onClick={() => setAgentError(null)} className="ml-2 underline">关闭</button>
               </div>
@@ -634,7 +634,7 @@ function WorkspaceInner({ projectId }: CollaborativeWorkspaceProps) {
 
       {tabContextMenu && (
         <div
-          className="fixed z-50 bg-white border border-neutral-4 rounded-lg shadow-float py-1 min-w-[140px]"
+          className="fixed z-50 bg-neutral-1 border border-neutral-4 rounded-lg shadow-float py-1 min-w-[140px]"
           style={{ top: tabContextMenu.y, left: tabContextMenu.x }}
         >
           <button

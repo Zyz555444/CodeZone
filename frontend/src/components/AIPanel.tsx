@@ -417,7 +417,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
   const isRight = position === 'right';
 
   return (
-    <div className={`bg-white border-neutral-3 flex flex-col ${
+    <div className={`bg-neutral-1 border-neutral-3 flex flex-col ${
       isRight ? 'w-96 border-l' : 'border-t'
     }`}>
       {/* Header */}
@@ -495,7 +495,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
 
       {/* Error banner */}
       {error && (
-        <div className="mx-3 mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-label-12 text-red-600 shrink-0">
+        <div className="mx-3 mt-2 px-3 py-2 bg-error/10 border border-error/30 rounded-lg text-label-12 text-error shrink-0">
           {error}
           <button onClick={clearError} className="ml-2 underline">关闭</button>
         </div>
@@ -558,7 +558,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
                     onClick={() => handleCopy(msg.id, msg.content)}
                     className="p-1 rounded hover:bg-neutral-3 text-neutral-6 text-label-12 flex items-center gap-1"
                   >
-                    {copiedMap[msg.id] ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                    {copiedMap[msg.id] ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
                   </button>
                 </div>
               )}
@@ -581,25 +581,25 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
         {/* Pending tool confirmation */}
         {pendingConfirmation && (
           <div className="flex justify-start">
-            <div className="max-w-[90%] rounded-xl px-3 py-2 text-copy-13 bg-amber-50 border border-amber-200 text-amber-900">
+            <div className="max-w-[90%] rounded-xl px-3 py-2 text-copy-13 bg-warning/10 border border-warning/30 text-warning">
               <div className="font-medium mb-1">
                 AI 请求执行工具：{pendingConfirmation.toolName}
               </div>
               {typeof pendingConfirmation.toolArgs.filePath === 'string' && pendingConfirmation.toolArgs.filePath && (
-                <div className="text-label-12 text-amber-800 mb-2">
+                <div className="text-label-12 text-warning mb-2">
                   目标文件：{pendingConfirmation.toolArgs.filePath}
                 </div>
               )}
               <div className="flex gap-2 mt-2">
                 <button
                   onClick={() => handleConfirmTool(true)}
-                  className="px-3 py-1 text-label-12 rounded-lg bg-amber-600 text-white hover:bg-amber-700"
+                  className="px-3 py-1 text-label-12 rounded-lg bg-warning text-white hover:bg-warning/80"
                 >
                   允许执行
                 </button>
                 <button
                   onClick={() => handleConfirmTool(false)}
-                  className="px-3 py-1 text-label-12 rounded-lg bg-white border border-amber-300 text-amber-800 hover:bg-amber-100"
+                  className="px-3 py-1 text-label-12 rounded-lg bg-neutral-1 border border-warning/30 text-warning hover:bg-warning/10"
                 >
                   拒绝
                 </button>
@@ -692,7 +692,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
             className="flex-1 bg-neutral-2 border border-neutral-3 rounded-lg px-3 py-2 text-copy-13 text-neutral-9 placeholder-neutral-6 focus:outline-none focus:border-accent/50 disabled:opacity-50"
           />
           {isStreaming ? (
-            <Button onClick={handleStop} size="sm" className="px-3 bg-red-500 hover:bg-red-600">
+            <Button onClick={handleStop} size="sm" className="px-3 bg-error hover:bg-error/80">
               <Square className="h-4 w-4 fill-current" />
             </Button>
           ) : (
