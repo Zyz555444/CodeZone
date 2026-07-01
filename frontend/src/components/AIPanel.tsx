@@ -9,10 +9,11 @@ import {
 import { useAIStore } from '@/stores/aiStore';
 import {
   streamChat, agentExecute, abortAgentExecute, listConversations,
-  getConversation, deleteConversation,
+  getConversation, deleteConversation, type AIError,
 } from '@/lib/ai';
 import { AgentThinking } from './AgentThinking';
 import { FilePatchPreview } from './FilePatchPreview';
+import { useEditorCommandBus } from './EditorCommandBus';
 
 interface AIAgentPanelProps {
   projectId: string;
@@ -28,6 +29,7 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
   const abortRef = useRef<AbortController | null>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { emitCommand } = useEditorCommandBus();
 
   const {
     conversations,
@@ -58,9 +60,10 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
     addFilePatch,
     acceptFilePatch,
     rejectFilePatch,
+    clearFilePatches,
+    clearToolCalls,
     setIsAgentMode,
     setExecuting,
-    resetAgent: resetAgentStore,
   } = useAIStore();
 
   useEffect(() => {
@@ -192,8 +195,21 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
                 collapsed: true,
               });
             },
-            onWriteFile: (filePath, content) => {
-              addFilePatch({ filePath, newContent: content, accepted: null });
+            onWriteFile: (filePath, content, patch) => {
+              addFilePatch({
+                filePath,
+                newContent: content,
+                oldContent: patch?.old,
+                accepted: null,
+              });
+              emitCommand({
+                type: 'diff',
+                payload: {
+                  filePath,
+                  old: patch?.old ?? '',
+                  new: content,
+                },
+              });
             },
             onDone: (conversationId) => {
               const finalContent = useAIStore.getState().streamContent;
@@ -217,8 +233,18 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
               resetStreamContent();
               abortRef.current = null;
             },
-            onError: (err) => {
-              setError(err.suggestion ? `${err.message}。${err.suggestion}` : err.message);
+            onError: (err: AIError) => {
+              const prefixMap: Record<string, string> = {
+                auth: '【认证失败】',
+                rate_limit: '【请求过于频繁】',
+                server: '【服务器错误】',
+                timeout: '【请求超时】',
+                network: '【网络错误】',
+                abort: '',
+              };
+              const prefix = prefixMap[err.type] || '';
+              const text = err.suggestion ? `${err.message}。${err.suggestion}` : err.message;
+              setError(prefix ? `${prefix} ${text}` : text);
               setIsStreaming(false);
               setExecuting(false);
               resetStreamContent();
@@ -282,8 +308,18 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
               setExecuting(false);
               abortRef.current = null;
             },
-            onError: (err) => {
-              setError(err.suggestion ? `${err.message}。${err.suggestion}` : err.message);
+            onError: (err: AIError) => {
+              const prefixMap: Record<string, string> = {
+                auth: '【认证失败】',
+                rate_limit: '【请求过于频繁】',
+                server: '【服务器错误】',
+                timeout: '【请求超时】',
+                network: '【网络错误】',
+                abort: '',
+              };
+              const prefix = prefixMap[err.type] || '';
+              const text = err.suggestion ? `${err.message}。${err.suggestion}` : err.message;
+              setError(prefix ? `${prefix} ${text}` : text);
               setIsStreaming(false);
               setExecuting(false);
               abortRef.current = null;
@@ -315,7 +351,8 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
     }
     resetStreamContent();
     resetThinking();
-    resetAgentStore();
+    clearToolCalls();
+    clearFilePatches();
   };
 
   const handleCopy = (msgId: string, text: string) => {
@@ -344,7 +381,12 @@ export function AIAgentPanel({ projectId, teamId, onClose, position = 'right' }:
           </button>
           <span className="text-copy-13 font-medium text-neutral-9">AI Agent</span>
           <button
-            onClick={() => setIsAgentMode(!isAgentMode)}
+            onClick={() => {
+              setIsAgentMode(!isAgentMode);
+              resetThinking();
+              clearToolCalls();
+              clearFilePatches();
+            }}
             className={`p-1 rounded-lg transition-colors ${isAgentMode ? 'bg-accent/10 text-accent' : 'text-neutral-6 hover:bg-neutral-2'}`}
             title={isAgentMode ? '工具型 Agent 模式' : '对话模式'}
           >

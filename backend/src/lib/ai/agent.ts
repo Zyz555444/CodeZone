@@ -1,9 +1,10 @@
-import { Message, AgentContext, AgentLoopOptions, AgentStreamEvent, ToolCallRequest, StreamChunk } from './types';
+import { Message, AgentContext, AgentLoopOptions, AgentStreamEvent, ToolCallRequest, StreamChunk, ToolExecutionResult } from './types';
 import { aiStreamChat } from './service';
 import { collectProjectContext, buildContextSystemPrompt } from './context';
 import { getToolDefinitions, executeTool } from './tools';
 import { logger } from '../../utils/logger';
 import { getTeamConfig } from './teamConfigHelper';
+import { estimateTokens, truncateByTokens } from './tokens';
 import type { AIConfig } from './types';
 
 const MAX_LOOPS = 25;
@@ -19,15 +20,11 @@ const PARALLEL_TOOLS = new Set([
   'read_lints',
 ]);
 
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
-}
-
 function truncateToolOutput(output: string, maxTokens: number): string {
   const currentTokens = estimateTokens(output);
   if (currentTokens <= maxTokens) return output;
-  const chars = maxTokens * 4;
-  return output.slice(0, chars) + `\n\n[...结果已截断，原始长度 ${currentTokens} tokens]`;
+  const truncated = truncateByTokens(output, maxTokens);
+  return truncated + `\n\n[...结果已截断，原始长度 ${currentTokens} tokens]`;
 }
 
 function buildAgentSystemPrompt(customInstructions?: string): string {
@@ -214,7 +211,7 @@ export async function* executeAgentTask(
         }
       }
 
-      const executeSingleTool = async (tc: ToolCallRequest): Promise<{ tc: ToolCallRequest; result: { success: boolean; output: string; error?: string } }> => {
+      const executeSingleTool = async (tc: ToolCallRequest): Promise<{ tc: ToolCallRequest; result: ToolExecutionResult }> => {
         let args: Record<string, unknown> = {};
         try {
           args = typeof tc.function.arguments === 'string'
@@ -224,6 +221,23 @@ export async function* executeAgentTask(
 
         const result = await executeTool(tc.function.name, args, context);
         return { tc, result };
+      };
+
+      const emitWriteFileEvent = (tc: ToolCallRequest, result: ToolExecutionResult): AgentStreamEvent | null => {
+        if (tc.function.name !== 'write_file' || !result.success) return null;
+        let args: Record<string, unknown> = {};
+        try {
+          args = typeof tc.function.arguments === 'string'
+            ? JSON.parse(tc.function.arguments)
+            : {};
+        } catch { /* ignore */ }
+        return {
+          type: 'write_file',
+          filePath: (args.filePath as string) || '',
+          fileId: result.fileId,
+          content: (args.content as string) || '',
+          patch: { old: result.oldContent || '', new: (args.content as string) || '' },
+        };
       };
 
       const handleToolResult = (tc: ToolCallRequest, result: { success: boolean; output: string; error?: string }) => {
@@ -253,19 +267,8 @@ export async function* executeAgentTask(
             toolResult: result.success ? result.output : `Error: ${result.error}`,
           };
 
-          if (tc.function.name === 'write_file' && result.success) {
-            let args: Record<string, unknown> = {};
-            try {
-              args = typeof tc.function.arguments === 'string'
-                ? JSON.parse(tc.function.arguments)
-                : {};
-            } catch { /* ignore */ }
-            yield {
-              type: 'write_file',
-              filePath: (args.filePath as string) || '',
-              content: (args.content as string) || '',
-            };
-          }
+          const writeEvent = emitWriteFileEvent(tc, result);
+          if (writeEvent) yield writeEvent;
 
           if (signal?.aborted) break;
           handleToolResult(tc, result);
@@ -284,19 +287,8 @@ export async function* executeAgentTask(
           toolResult: result.success ? result.output : `Error: ${result.error}`,
         };
 
-        if (tc.function.name === 'write_file' && result.success) {
-          let args: Record<string, unknown> = {};
-          try {
-            args = typeof tc.function.arguments === 'string'
-              ? JSON.parse(tc.function.arguments)
-              : {};
-          } catch { /* ignore */ }
-          yield {
-            type: 'write_file',
-            filePath: (args.filePath as string) || '',
-            content: (args.content as string) || '',
-          };
-        }
+        const writeEvent = emitWriteFileEvent(tc, result);
+        if (writeEvent) yield writeEvent;
 
         handleToolResult(tc, result);
       }

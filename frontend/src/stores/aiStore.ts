@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { immer } from 'zustand/middleware/immer';
 
 interface AIConversation {
   id: string;
@@ -108,6 +109,8 @@ interface AIStore {
   addFilePatch: (patch: FilePatch) => void;
   acceptFilePatch: (filePath: string) => void;
   rejectFilePatch: (filePath: string) => void;
+  clearFilePatches: () => void;
+  clearToolCalls: () => void;
   setIsAgentMode: (v: boolean) => void;
   incrementLoop: () => void;
   setExecuting: (exec: boolean) => void;
@@ -127,12 +130,12 @@ interface AIStore {
 }
 
 const initialChat = {
-  conversations: [],
+  conversations: [] as AIConversation[],
   activeConversationId: null as string | null,
-  messages: [],
+  messages: [] as AIMessage[],
   isStreaming: false,
   streamContent: '',
-  contextFiles: [],
+  contextFiles: [] as string[],
   selectedModel: '',
   settings: null as AISettings | null,
   error: '',
@@ -155,90 +158,102 @@ const initialEditor = {
   inlineCommand: null as string | null,
 };
 
-export const useAIStore = create<AIStore>((set) => ({
-  // Initial state
-  ...initialChat,
-  ...initialAgent,
-  ...initialEditor,
-
-  // Chat actions
-  setConversations: (convs) => set({ conversations: convs }),
-  setActiveConversation: (id) => set({
-    activeConversationId: id,
-    messages: [],
-    streamContent: '',
-    thinkingContent: '',
-    toolCalls: [],
-    filePatches: [],
-  }),
-  addConversation: (conv) => set((s) => ({ conversations: [conv, ...s.conversations] })),
-  removeConversation: (id) => set((s) => ({
-    conversations: s.conversations.filter((c) => c.id !== id),
-    activeConversationId: s.activeConversationId === id ? null : s.activeConversationId,
-  })),
-  setMessages: (msgs) => set({ messages: msgs }),
-  addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
-  setIsStreaming: (v) => set({ isStreaming: v }),
-  appendStreamContent: (chunk) => set((s) => ({ streamContent: s.streamContent + chunk })),
-  resetStreamContent: () => set({ streamContent: '' }),
-  setContextFiles: (files) => set({ contextFiles: files }),
-  toggleContextFile: (fileId) => set((s) => ({
-    contextFiles: s.contextFiles.includes(fileId)
-      ? s.contextFiles.filter((f) => f !== fileId)
-      : [...s.contextFiles, fileId],
-  })),
-  setSelectedModel: (model) => set({ selectedModel: model }),
-  setSettings: (s) => set({ settings: s }),
-  setError: (e) => set({ error: e }),
-  clearError: () => set({ error: '' }),
-
-  // Agent actions
-  appendThinking: (chunk) => set((s) => ({ thinkingContent: s.thinkingContent + chunk })),
-  resetThinking: () => set({ thinkingContent: '' }),
-  addToolCall: (tc) => set((s) => ({ toolCalls: [...s.toolCalls, tc] })),
-  updateToolCall: (toolId, updates) => set((s) => ({
-    toolCalls: s.toolCalls.map((tc) => tc.toolId === toolId ? { ...tc, ...updates } : tc),
-  })),
-  addFilePatch: (patch) => set((s) => ({ filePatches: [...s.filePatches, patch] })),
-  acceptFilePatch: (filePath) => set((s) => ({
-    filePatches: s.filePatches.map((p) => p.filePath === filePath ? { ...p, accepted: true } : p),
-  })),
-  rejectFilePatch: (filePath) => set((s) => ({
-    filePatches: s.filePatches.map((p) => p.filePath === filePath ? { ...p, accepted: false } : p),
-  })),
-  setIsAgentMode: (v) => set({ isAgentMode: v }),
-  incrementLoop: () => set((s) => ({ loopCount: s.loopCount + 1 })),
-  setExecuting: (exec) => set({ isExecuting: exec }),
-  setAbortController: (ctrl) => set({ abortController: ctrl }),
-   resetAgent: () => {
-     const ctrl = useAIStore.getState().abortController;
-     ctrl?.abort();
-     set({
-       thinkingContent: '',
-       toolCalls: [],
-       filePatches: [],
-       loopCount: 0,
-       isExecuting: false,
-       isAgentMode: false,
-       abortController: null,
-     });
-   },
-
-  // Editor actions
-  setActiveFile: (fileId) => set({ activeFileId: fileId }),
-  setEditorState: (state) => set({ editorState: state }),
-  addDiffFile: (file) => set((s) => ({ diffFiles: [...s.diffFiles, file] })),
-  removeDiffFile: (filePath) => set((s) => ({
-    diffFiles: s.diffFiles.filter((d) => d.filePath !== filePath),
-  })),
-  clearDiffFiles: () => set({ diffFiles: [] }),
-  setInlineCommand: (cmd) => set({ inlineCommand: cmd }),
-
-  // Global reset
-  reset: () => set({
+export const useAIStore = create<AIStore>()(
+  immer((set) => ({
+    // Initial state
     ...initialChat,
     ...initialAgent,
     ...initialEditor,
-    isAgentMode: false,
-  }),
-}));
+
+    // Chat actions
+    setConversations: (convs) => set((draft) => { draft.conversations = convs; }),
+    setActiveConversation: (id) => set((draft) => {
+      draft.activeConversationId = id;
+      draft.messages = [];
+      draft.streamContent = '';
+      draft.thinkingContent = '';
+      draft.toolCalls = [];
+      draft.filePatches = [];
+    }),
+    addConversation: (conv) => set((draft) => { draft.conversations.unshift(conv); }),
+    removeConversation: (id) => set((draft) => {
+      draft.conversations = draft.conversations.filter((c) => c.id !== id);
+      if (draft.activeConversationId === id) {
+        draft.activeConversationId = null;
+      }
+    }),
+    setMessages: (msgs) => set((draft) => { draft.messages = msgs; }),
+    addMessage: (msg) => set((draft) => { draft.messages.push(msg); }),
+    setIsStreaming: (v) => set((draft) => { draft.isStreaming = v; }),
+    appendStreamContent: (chunk) => set((draft) => { draft.streamContent += chunk; }),
+    resetStreamContent: () => set((draft) => { draft.streamContent = ''; }),
+    setContextFiles: (files) => set((draft) => { draft.contextFiles = files; }),
+    toggleContextFile: (fileId) => set((draft) => {
+      const idx = draft.contextFiles.indexOf(fileId);
+      if (idx >= 0) {
+        draft.contextFiles.splice(idx, 1);
+      } else {
+        draft.contextFiles.push(fileId);
+      }
+    }),
+    setSelectedModel: (model) => set((draft) => { draft.selectedModel = model; }),
+    setSettings: (s) => set((draft) => { draft.settings = s; }),
+    setError: (e) => set((draft) => { draft.error = e; }),
+    clearError: () => set((draft) => { draft.error = ''; }),
+
+    // Agent actions
+    appendThinking: (chunk) => set((draft) => { draft.thinkingContent += chunk; }),
+    resetThinking: () => set((draft) => { draft.thinkingContent = ''; }),
+    addToolCall: (tc) => set((draft) => { draft.toolCalls.push(tc); }),
+    updateToolCall: (toolId, updates) => set((draft) => {
+      const tc = draft.toolCalls.find((t) => t.toolId === toolId);
+      if (tc) {
+        Object.assign(tc, updates);
+      }
+    }),
+    addFilePatch: (patch) => set((draft) => { draft.filePatches.push(patch); }),
+    acceptFilePatch: (filePath) => set((draft) => {
+      const patch = draft.filePatches.find((p) => p.filePath === filePath);
+      if (patch) patch.accepted = true;
+    }),
+    rejectFilePatch: (filePath) => set((draft) => {
+      const patch = draft.filePatches.find((p) => p.filePath === filePath);
+      if (patch) patch.accepted = false;
+    }),
+    clearFilePatches: () => set((draft) => { draft.filePatches = []; }),
+    clearToolCalls: () => set((draft) => { draft.toolCalls = []; }),
+    setIsAgentMode: (v) => set((draft) => { draft.isAgentMode = v; }),
+    incrementLoop: () => set((draft) => { draft.loopCount += 1; }),
+    setExecuting: (exec) => set((draft) => { draft.isExecuting = exec; }),
+    setAbortController: (ctrl) => set((draft) => { draft.abortController = ctrl; }),
+    resetAgent: () => {
+      const ctrl = useAIStore.getState().abortController;
+      ctrl?.abort();
+      set((draft) => {
+        draft.thinkingContent = '';
+        draft.toolCalls = [];
+        draft.filePatches = [];
+        draft.loopCount = 0;
+        draft.isExecuting = false;
+        draft.isAgentMode = false;
+        draft.abortController = null;
+      });
+    },
+
+    // Editor actions
+    setActiveFile: (fileId) => set((draft) => { draft.activeFileId = fileId; }),
+    setEditorState: (state) => set((draft) => { draft.editorState = state; }),
+    addDiffFile: (file) => set((draft) => { draft.diffFiles.push(file); }),
+    removeDiffFile: (filePath) => set((draft) => {
+      draft.diffFiles = draft.diffFiles.filter((d) => d.filePath !== filePath);
+    }),
+    clearDiffFiles: () => set((draft) => { draft.diffFiles = []; }),
+    setInlineCommand: (cmd) => set((draft) => { draft.inlineCommand = cmd; }),
+
+    // Global reset
+    reset: () => set((draft) => {
+      Object.assign(draft, initialChat, initialAgent, initialEditor);
+      draft.isAgentMode = false;
+    }),
+  })),
+);

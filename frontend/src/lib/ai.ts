@@ -57,7 +57,7 @@ interface AgentCallbacks {
   onThinking: (content: string) => void;
   onToolCall: (toolId: string, toolName: string, toolArgs: Record<string, unknown>) => void;
   onToolResult: (toolId: string, toolName: string, result: string) => void;
-  onWriteFile: (filePath: string, content: string) => void;
+  onWriteFile: (filePath: string, content: string, patch?: { old: string; new: string }) => void;
   onDone: (conversationId?: string, totalTokens?: number) => void;
   onError: (error: AIError) => void;
 }
@@ -233,6 +233,7 @@ export async function agentExecute(
           callbacks.onWriteFile(
             (data.filePath as string) || '',
             (data.content as string) || '',
+            data.patch as { old: string; new: string } | undefined,
           );
           break;
         case 'done':

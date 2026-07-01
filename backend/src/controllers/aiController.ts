@@ -324,7 +324,12 @@ export async function agentExecute(req: AuthRequest, res: Response): Promise<voi
       } else if (event.type === 'tool_result' && event.toolName) {
         writeSSEEvent(res, { type: 'tool_result', toolId: event.toolId, toolName: event.toolName, toolResult: event.toolResult });
       } else if (event.type === 'write_file' && event.filePath) {
-        writeSSEEvent(res, { type: 'write_file', filePath: event.filePath, content: event.content });
+        writeSSEEvent(res, {
+          type: 'write_file',
+          filePath: event.filePath,
+          content: event.content,
+          patch: event.patch,
+        });
      } else if (event.type === 'done') {
          try {
            if (convId && fullContent) {

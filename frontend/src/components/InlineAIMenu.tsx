@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { FileSearch, Bug, Wand2, MessageSquare, Loader2, X, TestTube, BookOpen } from 'lucide-react';
 import { streamChat } from '@/lib/ai';
+import { useEditorCommandBus } from '@/components/EditorCommandBus';
 
 interface Position {
   top: number;
@@ -14,7 +15,6 @@ interface InlineAIMenuProps {
   language: string;
   position: Position;
   onClose: () => void;
-  onApplyEdit: (text: string) => void;
   projectId?: string;
   teamId?: string;
 }
@@ -24,12 +24,13 @@ type AIAction = 'explain' | 'fix' | 'refactor' | 'comment' | 'test' | 'docs';
 const MENU_WIDTH = 360;
 const MENU_MAX_HEIGHT = 400;
 
-export function InlineAIMenu({ selectedText, language, position, onClose, onApplyEdit, projectId, teamId }: InlineAIMenuProps) {
+export function InlineAIMenu({ selectedText, language, position, onClose, projectId, teamId }: InlineAIMenuProps) {
   const [loading, setLoading] = useState(false);
   const [streamContent, setStreamContent] = useState('');
   const [activeAction, setActiveAction] = useState<AIAction | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { emitCommand } = useEditorCommandBus();
 
   const adjustedPosition = useCallback((): React.CSSProperties => {
     const style: React.CSSProperties = { top: position.top, left: position.left };
@@ -116,29 +117,39 @@ export function InlineAIMenu({ selectedText, language, position, onClose, onAppl
       .trim();
   };
 
-  const actions: { key: AIAction; label: string; icon: React.ReactNode; prompt: string; replaceEditor: boolean }[] = [
+  const applyDiff = useCallback((replacement: string) => {
+    emitCommand({ type: 'diff', payload: { old: selectedText, new: replacement } });
+    handleClose();
+  }, [emitCommand, selectedText, handleClose]);
+
+  const applyReplace = useCallback((replacement: string) => {
+    emitCommand({ type: 'replace', payload: { text: replacement } });
+    handleClose();
+  }, [emitCommand, handleClose]);
+
+  const actions: { key: AIAction; label: string; icon: React.ReactNode; prompt: string; diffEditor: boolean }[] = [
     {
-      key: 'explain', label: '解释', icon: <FileSearch className="h-3.5 w-3.5" />, replaceEditor: false,
+      key: 'explain', label: '解释', icon: <FileSearch className="h-3.5 w-3.5" />, diffEditor: false,
       prompt: `You are an expert ${language} developer. Explain the following code clearly and concisely in Chinese.`,
     },
     {
-      key: 'fix', label: '修复', icon: <Bug className="h-3.5 w-3.5" />, replaceEditor: true,
+      key: 'fix', label: '修复', icon: <Bug className="h-3.5 w-3.5" />, diffEditor: true,
       prompt: `You are an expert ${language} developer. Find and fix bugs in the following code. Return ONLY the fixed code without markdown fences.`,
     },
     {
-      key: 'refactor', label: '优化', icon: <Wand2 className="h-3.5 w-3.5" />, replaceEditor: true,
+      key: 'refactor', label: '优化', icon: <Wand2 className="h-3.5 w-3.5" />, diffEditor: true,
       prompt: `You are an expert ${language} developer. Refactor the following code to improve quality, readability, and performance. Return ONLY the refactored code without markdown fences.`,
     },
     {
-      key: 'comment', label: '注释', icon: <MessageSquare className="h-3.5 w-3.5" />, replaceEditor: true,
+      key: 'comment', label: '注释', icon: <MessageSquare className="h-3.5 w-3.5" />, diffEditor: true,
       prompt: `You are an expert ${language} developer. Add helpful comments to the following code. Return ONLY the commented code without markdown fences.`,
     },
     {
-      key: 'test', label: '测试', icon: <TestTube className="h-3.5 w-3.5" />, replaceEditor: true,
+      key: 'test', label: '测试', icon: <TestTube className="h-3.5 w-3.5" />, diffEditor: true,
       prompt: `You are an expert ${language} developer. Generate comprehensive unit tests for the following code. Return ONLY the test code without markdown fences.`,
     },
     {
-      key: 'docs', label: '文档', icon: <BookOpen className="h-3.5 w-3.5" />, replaceEditor: true,
+      key: 'docs', label: '文档', icon: <BookOpen className="h-3.5 w-3.5" />, diffEditor: false,
       prompt: `You are an expert ${language} developer. Generate documentation for the following code. Return ONLY the documentation without markdown fences.`,
     },
   ];
@@ -188,18 +199,20 @@ export function InlineAIMenu({ selectedText, language, position, onClose, onAppl
               {actions.find(a => a.key === activeAction)?.label} 结果
             </span>
             <div className="flex items-center gap-1">
-              {actions.find(a => a.key === activeAction)?.replaceEditor && (
+              {actions.find(a => a.key === activeAction)?.diffEditor && (
                 <button
-                  onClick={() => {
-                    const cleaned = cleanCodeResult(streamContent);
-                    onApplyEdit(cleaned || streamContent);
-                    handleClose();
-                  }}
+                  onClick={() => applyDiff(cleanCodeResult(streamContent))}
                   className="px-2 py-0.5 text-label-12 rounded-md bg-accent text-white hover:bg-accent/90"
                 >
-                  应用
+                  查看 Diff
                 </button>
               )}
+              <button
+                onClick={() => applyReplace(cleanCodeResult(streamContent))}
+                className="px-2 py-0.5 text-label-12 rounded-md bg-green-600 text-white hover:bg-green-700"
+              >
+                应用
+              </button>
               <button onClick={handleClose} className="p-0.5 rounded hover:bg-neutral-2 text-neutral-6">
                 <X className="h-3.5 w-3.5" />
               </button>

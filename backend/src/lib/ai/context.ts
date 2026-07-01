@@ -1,4 +1,5 @@
 import { prisma } from '../prisma';
+import { estimateTokens, truncateByTokens } from './tokens';
 
 interface ProjectContext {
   fileTree: string;
@@ -17,10 +18,6 @@ const FIRST_BATCH_SIZE = 200;
 const MAX_CURRENT_FILE_TOKENS = 16000;
 const SIBLING_LIMIT = 10;
 const RECENT_FILES_LIMIT = 5;
-
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 3.2);
-}
 
 function formatFileTree(files: Array<{ path: string; type: string; language?: string | null }>, indent = ''): string {
   const lines: string[] = [];
@@ -64,7 +61,7 @@ export async function collectProjectContext(
       const contentTokens = estimateTokens(content);
 
       if (contentTokens > MAX_CURRENT_FILE_TOKENS) {
-        content = content.slice(0, MAX_CURRENT_FILE_TOKENS * 3.2) + '\n// ...文件内容已截断';
+        content = truncateByTokens(content, MAX_CURRENT_FILE_TOKENS) + '\n// ...文件内容已截断';
       }
 
       context.currentFile = {
@@ -87,7 +84,7 @@ export async function collectProjectContext(
           if (sib.content && currentTokens < maxTokens) {
             const sibTokens = estimateTokens(sib.content);
             const truncated = sibTokens > 2000
-              ? sib.content.slice(0, 2000 * 3.2) + '\n// ...截断'
+              ? truncateByTokens(sib.content, 2000) + '\n// ...截断'
               : sib.content;
             context.selectedFiles.push({
               path: sib.path,
@@ -116,7 +113,7 @@ export async function collectProjectContext(
 
     const rfTokens = estimateTokens(rf.content!);
     const truncated = rfTokens > 2000
-      ? rf.content!.slice(0, 2000 * 3.2) + '\n// ...截断'
+      ? truncateByTokens(rf.content!, 2000) + '\n// ...截断'
       : rf.content!;
     context.selectedFiles.push({
       path: rf.path,
@@ -141,7 +138,7 @@ export async function collectProjectContext(
 
         const fTokens = estimateTokens(f.content);
         const truncated = fTokens > perFileBudget
-          ? f.content.slice(0, perFileBudget * 3.2) + '\n// ...截断'
+          ? truncateByTokens(f.content, perFileBudget) + '\n// ...截断'
           : f.content;
         context.selectedFiles.push({
           path: f.path,

@@ -157,7 +157,6 @@ export function CodeEditor({
           position={aiMenuPosition}
           selectedText={selectedText}
           language={language}
-          onApplyEdit={handleApplyEdit}
           onClose={() => setAiMenuPosition(null)}
           projectId={projectId}
         />
