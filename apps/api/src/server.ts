@@ -1,17 +1,21 @@
 /**
  * CodeZone · 服务启动入口
  *
- * 监听端口、注册优雅退出。
+ * 监听端口、注册优雅退出、挂载 WebSocket。
  */
 import "dotenv/config";
 import { createApp } from "./app.js";
 import { config } from "./config.js";
+import { attachWebSocket } from "./ws.js";
 
 const app = createApp();
 
 const server = app.listen(config.port, () => {
   console.log(`[CodeZone API] 服务已启动 → http://localhost:${config.port} (${config.nodeEnv})`);
 });
+
+// 挂载 WebSocket
+attachWebSocket(server);
 
 // 优雅退出
 function shutdown(signal: string) {

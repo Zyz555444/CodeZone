@@ -27,6 +27,7 @@ import Notifications from "@/pages/Notifications";
 import Activity from "@/pages/Activity";
 import Collaborate from "@/pages/Collaborate";
 import { useAppStore } from "@/store/useAppStore";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 function CommandPaletteShortcut() {
   const [open, setOpen] = useState(false);
@@ -68,6 +69,7 @@ function CurrentProfileRedirect() {
 }
 
 export default function App() {
+  useWebSocket();
   return (
     <Router>
       <CommandPaletteShortcut />

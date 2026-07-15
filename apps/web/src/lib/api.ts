@@ -2,7 +2,7 @@
 import type {
   User, Repo, Issue, PullRequest, Commit, Comment,
   Pipeline, Discussion, Activity, DashboardStats, IssueStatus,
-  Milestone, AppNotification,
+  Milestone, AppNotification, Team, TeamMember, InviteCode, TeamRole,
 } from "./types";
 
 const BASE = "/api";
@@ -32,7 +32,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   // ─────────── 认证 ───────────
   login: (email: string, password: string) =>
-    request<{ user: User; token: string }>("/auth/login", {
+    request<{ user: User; token: string; team?: Team; teamRole?: TeamRole | null }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
@@ -40,6 +40,16 @@ export const api = {
     request<{ user: User; token: string }>("/auth/register", {
       method: "POST",
       body: JSON.stringify({ name, email, password }),
+    }),
+  registerAdmin: (name: string, email: string, password: string, teamName: string) =>
+    request<{ user: User; token: string; team: Team }>("/auth/register-admin", {
+      method: "POST",
+      body: JSON.stringify({ name, email, password, teamName }),
+    }),
+  joinByInvite: (name: string, email: string, password: string, inviteCode: string) =>
+    request<{ user: User; token: string; team: Team }>("/auth/join-by-invite", {
+      method: "POST",
+      body: JSON.stringify({ name, email, password, inviteCode }),
     }),
   me: () => request<User>("/auth/me"),
   logout: () => {
@@ -93,6 +103,38 @@ export const api = {
 
   // ─────────── 团队 ───────────
   getTeam: () => request<User[]>("/team"),
+  getTeamDetail: () => request<{ team: Team; members: TeamMember[]; myRole: TeamRole }>("/team"),
+  createTeam: (name: string) =>
+    request<{ team: Team; members: TeamMember[]; myRole: TeamRole }>("/team", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+  updateTeam: (name: string) =>
+    request<Team>("/team", {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    }),
+  joinTeam: (code: string) =>
+    request<{ team: Team; members: TeamMember[]; myRole: TeamRole }>("/team/join", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    }),
+  getInviteCodes: () => request<InviteCode[]>("/team/invite-codes"),
+  createInviteCode: (maxUses?: number, expiresInDays?: number) =>
+    request<InviteCode>("/team/invite-codes", {
+      method: "POST",
+      body: JSON.stringify({ maxUses, expiresInDays }),
+    }),
+  deleteInviteCode: (id: string) =>
+    request<{ success: boolean }>(`/team/invite-codes/${id}`, { method: "DELETE" }),
+  updateMemberRole: (userId: string, role: TeamRole) =>
+    request<{ success: boolean }>(`/team/members/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    }),
+  removeMember: (userId: string) =>
+    request<{ success: boolean }>(`/team/members/${userId}`, { method: "DELETE" }),
+  getOnlineCount: () => request<{ total: number; teamOnline: number }>("/team/online"),
 
   // ─────────── 里程碑 ───────────
   getMilestones: () => request<Milestone[]>("/milestones"),

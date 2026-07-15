@@ -2,6 +2,7 @@
 // 前后端共用的实体与响应类型
 
 export type UserRole = "member" | "maintainer" | "admin";
+export type TeamRole = "owner" | "admin" | "member";
 
 export interface User {
   id: string;
@@ -220,4 +221,31 @@ export interface AppNotification {
 export interface ApiResponse<T> {
   data: T;
   message?: string;
+}
+
+// ───────────────────────────── 团队 ─────────────────────────────
+export interface Team {
+  id: string;
+  name: string;
+  ownerId: string;
+  createdAt: number;
+}
+
+export interface TeamMember {
+  teamId: string;
+  userId: string;
+  role: TeamRole;
+  joinedAt: number;
+  user?: User;
+}
+
+export interface InviteCode {
+  id: string;
+  teamId: string;
+  code: string;
+  createdBy: string;
+  maxUses: number;
+  usedCount: number;
+  expiresAt: number | null;
+  createdAt: number;
 }

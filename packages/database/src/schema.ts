@@ -183,6 +183,38 @@ export const milestones = pgTable("milestones", {
   repoIdx: index("milestones_repo_idx").on(t.repoId),
 }));
 
+// ───────────────────────────── 团队 ─────────────────────────────
+export const teams = pgTable("teams", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(),
+  ownerId: varchar("owner_id", { length: 32 }).notNull().references(() => users.id),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+});
+
+export const teamMembers = pgTable("team_members", {
+  teamId: varchar("team_id", { length: 32 }).notNull().references(() => teams.id),
+  userId: varchar("user_id", { length: 32 }).notNull().references(() => users.id),
+  role: varchar("role", { length: 16 }).notNull().default("member"), // owner | admin | member
+  joinedAt: bigint("joined_at", { mode: "number" }).notNull(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.teamId, t.userId] }),
+  userIdx: index("tm_user_idx").on(t.userId),
+}));
+
+export const inviteCodes = pgTable("invite_codes", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  teamId: varchar("team_id", { length: 32 }).notNull().references(() => teams.id),
+  code: varchar("code", { length: 16 }).notNull().unique(),
+  createdBy: varchar("created_by", { length: 32 }).notNull().references(() => users.id),
+  maxUses: integer("max_uses").notNull().default(0), // 0 = 无限制
+  usedCount: integer("used_count").notNull().default(0),
+  expiresAt: bigint("expires_at", { mode: "number" }),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+}, (t) => ({
+  teamIdx: index("ic_team_idx").on(t.teamId),
+  codeIdx: index("ic_code_idx").on(t.code),
+}));
+
 // ───────────────────────────── 通知 ─────────────────────────────
 export const notifications = pgTable("notifications", {
   id: varchar("id", { length: 32 }).primaryKey(),

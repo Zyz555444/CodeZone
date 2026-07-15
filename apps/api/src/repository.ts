@@ -10,6 +10,7 @@ import type {
   User, Repo, Issue, PullRequest, Commit, Comment,
   Pipeline, Discussion, Activity, FileNode, Milestone,
   AppNotification, DashboardStats, Label, IssueStatus, PRStatus,
+  Team, TeamMember, InviteCode, TeamRole,
 } from "@codezone/shared";
 
 const now = () => Date.now();
@@ -228,5 +229,107 @@ export const statsRepo = {
       openIssues: openIssues?.c ?? 0,
       activeRepos: activeRepos?.c ?? 0,
     };
+  },
+};
+
+// ───────────────────────────── 团队 ─────────────────────────────
+export const teamRepo = {
+  async getById(id: string): Promise<Team | null> {
+    const rows = await db.select().from(schema.teams).where(eq(schema.teams.id, id)).limit(1);
+    return (rows[0] as Team) ?? null;
+  },
+  async getByOwnerId(ownerId: string): Promise<Team | null> {
+    const rows = await db.select().from(schema.teams).where(eq(schema.teams.ownerId, ownerId)).limit(1);
+    return (rows[0] as Team) ?? null;
+  },
+  async create(data: { name: string; ownerId: string }): Promise<Team> {
+    const id = `t${Date.now()}`;
+    const ts = now();
+    const row = { id, name: data.name, ownerId: data.ownerId, createdAt: ts };
+    await db.insert(schema.teams).values(row);
+    return row as Team;
+  },
+};
+
+// ───────────────────────────── 团队成员 ─────────────────────────────
+export const teamMemberRepo = {
+  async listByTeam(teamId: string): Promise<TeamMember[]> {
+    const rows = await db.select().from(schema.teamMembers)
+      .where(eq(schema.teamMembers.teamId, teamId))
+      .orderBy(asc(schema.teamMembers.joinedAt));
+    return rows as TeamMember[];
+  },
+  async getByTeamAndUser(teamId: string, userId: string): Promise<TeamMember | null> {
+    const rows = await db.select().from(schema.teamMembers)
+      .where(and(eq(schema.teamMembers.teamId, teamId), eq(schema.teamMembers.userId, userId)))
+      .limit(1);
+    return (rows[0] as TeamMember) ?? null;
+  },
+  async getByUser(userId: string): Promise<TeamMember | null> {
+    const rows = await db.select().from(schema.teamMembers)
+      .where(eq(schema.teamMembers.userId, userId))
+      .limit(1);
+    return (rows[0] as TeamMember) ?? null;
+  },
+  async add(data: { teamId: string; userId: string; role?: TeamRole }): Promise<TeamMember> {
+    const row = {
+      teamId: data.teamId,
+      userId: data.userId,
+      role: data.role ?? "member" as TeamRole,
+      joinedAt: now(),
+    };
+    await db.insert(schema.teamMembers).values(row);
+    return row as TeamMember;
+  },
+  async updateRole(teamId: string, userId: string, role: TeamRole): Promise<void> {
+    await db.update(schema.teamMembers).set({ role })
+      .where(and(eq(schema.teamMembers.teamId, teamId), eq(schema.teamMembers.userId, userId)));
+  },
+  async remove(teamId: string, userId: string): Promise<void> {
+    await db.delete(schema.teamMembers)
+      .where(and(eq(schema.teamMembers.teamId, teamId), eq(schema.teamMembers.userId, userId)));
+  },
+  async count(teamId: string): Promise<number> {
+    const rows = await db.select({ c: count() }).from(schema.teamMembers)
+      .where(eq(schema.teamMembers.teamId, teamId));
+    return rows[0]?.c ?? 0;
+  },
+};
+
+// ───────────────────────────── 邀请码 ─────────────────────────────
+export const inviteCodeRepo = {
+  async getByCode(code: string): Promise<InviteCode | null> {
+    const rows = await db.select().from(schema.inviteCodes)
+      .where(eq(schema.inviteCodes.code, code)).limit(1);
+    return (rows[0] as InviteCode) ?? null;
+  },
+  async listByTeam(teamId: string): Promise<InviteCode[]> {
+    const rows = await db.select().from(schema.inviteCodes)
+      .where(eq(schema.inviteCodes.teamId, teamId))
+      .orderBy(desc(schema.inviteCodes.createdAt));
+    return rows as InviteCode[];
+  },
+  async create(data: { teamId: string; code: string; createdBy: string; maxUses?: number; expiresAt?: number | null }): Promise<InviteCode> {
+    const id = `ic${Date.now()}`;
+    const row = {
+      id,
+      teamId: data.teamId,
+      code: data.code,
+      createdBy: data.createdBy,
+      maxUses: data.maxUses ?? 0,
+      usedCount: 0,
+      expiresAt: data.expiresAt ?? null,
+      createdAt: now(),
+    };
+    await db.insert(schema.inviteCodes).values(row);
+    return row as InviteCode;
+  },
+  async incrementUsed(id: string): Promise<void> {
+    await db.update(schema.inviteCodes)
+      .set({ usedCount: sql`${schema.inviteCodes.usedCount} + 1` })
+      .where(eq(schema.inviteCodes.id, id));
+  },
+  async delete(id: string): Promise<void> {
+    await db.delete(schema.inviteCodes).where(eq(schema.inviteCodes.id, id));
   },
 };
