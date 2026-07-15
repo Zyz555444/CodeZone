@@ -1,20 +1,17 @@
 // 合并请求路由
-import { Router, type Request, type Response } from "express";
+import { Router } from "express";
 import { store } from "../db/store";
 
 const router = Router({ mergeParams: true });
 
-type RepoParams = { repoId: string };
-type PRParams = { repoId: string; prId: string };
-
 // PR 列表
-router.get("/", (req: Request<RepoParams>, res: Response) => {
+router.get("/", (req, res) => {
   const status = (req.query.status as string) || "all";
   res.json({ data: store.listPRs(req.params.repoId, status) });
 });
 
 // PR 详情
-router.get("/:prId", (req: Request<PRParams>, res: Response) => {
+router.get("/:prId", (req, res) => {
   const pr = store.getPR(req.params.repoId, req.params.prId);
   if (!pr) {
     res.status(404).json({ message: "合并请求不存在" });
@@ -25,7 +22,7 @@ router.get("/:prId", (req: Request<PRParams>, res: Response) => {
 });
 
 // 添加行内评论
-router.post("/:prId/comments", (req: Request<PRParams>, res: Response) => {
+router.post("/:prId/comments", (req, res) => {
   const pr = store.getPR(req.params.repoId, req.params.prId);
   if (!pr) {
     res.status(404).json({ message: "合并请求不存在" });
