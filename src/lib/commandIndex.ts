@@ -26,6 +26,7 @@ const navItems: CommandItem[] = [
   { id: "nav-login", title: "登录 / 注册", group: "导航", icon: "LogIn", keywords: "login 登录 register 注册", href: "/login" },
   { id: "nav-milestones", title: "里程碑与路线图", group: "导航", icon: "Map", keywords: "milestone roadmap 路线图", href: "/milestones" },
   { id: "nav-profile", title: "个人主页", group: "导航", icon: "User", keywords: "profile 个人主页", href: "/profile/u1" },
+  { id: "nav-collaborate", title: "协作编辑器", group: "导航", icon: "Radio", keywords: "collaborate 协作 编辑器 monaco", href: "/collaborate" },
   { id: "nav-notifications", title: "通知中心", group: "导航", icon: "Bell", keywords: "notifications 通知", href: "/notifications" },
 ];
 

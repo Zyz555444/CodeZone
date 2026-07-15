@@ -25,6 +25,7 @@ import Milestones from "@/pages/Milestones";
 import Profile from "@/pages/Profile";
 import Notifications from "@/pages/Notifications";
 import Activity from "@/pages/Activity";
+import Collaborate from "@/pages/Collaborate";
 
 function CommandPaletteShortcut() {
   const [open, setOpen] = useState(false);
@@ -70,6 +71,7 @@ export default function App() {
           <Route path="/pipelines" element={<PipelinesList repoId="r1" />} />
           <Route path="/activity" element={<Activity />} />
           <Route path="/milestones" element={<Milestones />} />
+          <Route path="/collaborate" element={<Collaborate />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/profile" element={<Navigate to="/profile/u1" replace />} />
           <Route path="/profile/:userId" element={<Profile />} />

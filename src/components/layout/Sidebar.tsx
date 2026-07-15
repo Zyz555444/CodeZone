@@ -2,13 +2,14 @@ import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, BookMarked, CircleDot, GitPullRequest,
   MessagesSquare, Workflow, Users, Settings, Hash,
-  Bell, Map, Activity as ActivityIcon,
+  Bell, Map, Activity as ActivityIcon, Radio,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/dashboard", label: "工作台", icon: LayoutDashboard },
   { to: "/repos", label: "仓库", icon: BookMarked },
+  { to: "/collaborate", label: "协作编辑", icon: Radio },
   { to: "/issues", label: "议题", icon: CircleDot },
   { to: "/pulls", label: "合并请求", icon: GitPullRequest },
   { to: "/discussions", label: "讨论", icon: MessagesSquare },
