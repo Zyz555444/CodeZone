@@ -244,4 +244,75 @@ router.get("/:repoId/blame/*splat", authMiddleware, async (req: Request<{ repoId
   }
 });
 
+// ─────────── POST /push — 推送到远程 ───────────
+router.post("/:repoId/push", authMiddleware, async (req: Request<{ repoId: string }>, res: Response) => {
+  const dir = repoDir(req.params.repoId);
+  if (!existsSync(dir)) {
+    res.status(404).json({ message: "仓库尚未克隆" });
+    return;
+  }
+  try {
+    const branch = git(dir, "rev-parse --abbrev-ref HEAD");
+    const output = git(dir, `push origin ${branch}`);
+    res.json({ data: { output, branch } });
+  } catch (err) {
+    res.status(500).json({ message: `推送失败: ${(err as Error).message}` });
+  }
+});
+
+// ─────────── GET /graph — 提交图 ───────────
+router.get("/:repoId/graph", authMiddleware, async (req: Request<{ repoId: string }>, res: Response) => {
+  const dir = repoDir(req.params.repoId);
+  if (!existsSync(dir)) {
+    res.json({ data: { log: "", branches: [] } });
+    return;
+  }
+  const max = parseInt((req.query.max as string) ?? "30", 10);
+  const log = gitSafe(dir, `log --oneline --graph --decorate -- -${max}`) ?? "";
+  const branches = gitSafe(dir, "branch -a --format='%(refname:short)'")?.split("\n").filter(Boolean) ?? [];
+  res.json({ data: { log, branches } });
+});
+
+// ─────────── POST /file — 写文件 ───────────
+router.post("/:repoId/file", authMiddleware, async (req: Request<{ repoId: string }>, res: Response) => {
+  const { path, content } = req.body as { path: string; content: string };
+  if (!path) {
+    res.status(400).json({ message: "文件路径必填" });
+    return;
+  }
+  const dir = repoDir(req.params.repoId);
+  if (!existsSync(dir)) {
+    res.status(404).json({ message: "仓库尚未克隆" });
+    return;
+  }
+  try {
+    const fp = join(dir, path);
+    mkdirSync(join(fp, ".."), { recursive: true });
+    writeFileSync(fp, content, "utf-8");
+    res.json({ data: { path, written: true } });
+  } catch (err) {
+    res.status(500).json({ message: `写入文件失败: ${(err as Error).message}` });
+  }
+});
+
+// ─────────── DELETE /file — 删除文件 ───────────
+router.delete("/:repoId/file", authMiddleware, async (req: Request<{ repoId: string }>, res: Response) => {
+  const { path } = req.body as { path: string };
+  if (!path) {
+    res.status(400).json({ message: "文件路径必填" });
+    return;
+  }
+  const dir = repoDir(req.params.repoId);
+  if (!existsSync(dir)) {
+    res.status(404).json({ message: "仓库尚未克隆" });
+    return;
+  }
+  try {
+    const { rmSync } = await import("node:fs");
+    rmSync(join(dir, path), { recursive: true, force: true });
+    res.json({ data: { path, deleted: true } });
+  } catch (err) {
+    res.status(500).json({ message: `删除文件失败: ${(err as Error).message}` });
+  }
+});
 export default router;

@@ -83,6 +83,16 @@ export const api = {
   gitClone: (repoId: string, url?: string) => request<{ message: string; path: string }>(`/git/${repoId}/clone`, { method: "POST", body: JSON.stringify({ url }) }),
   gitPull: (repoId: string) => request<{ output: string }>(`/git/${repoId}/pull`, { method: "POST" }),
   gitCommit: (repoId: string, message: string, files: { path: string; content: string }[]) => request<{ message: string }>(`/git/${repoId}/commit`, { method: "POST", body: JSON.stringify({ message, files }) }),
+  gitBlame: (repoId: string, filePath: string) => request<{ lines: { sha: string; author: string; date: string; line: number }[] }>(`/git/${repoId}/blame/${encodeURIComponent(filePath)}`),
+  gitPush: (repoId: string) => request<{ output: string; branch: string }>(`/git/${repoId}/push`, { method: "POST" }),
+  gitGraph: (repoId: string, max?: number) => request<{ log: string; branches: string[] }>(`/git/${repoId}/graph?max=${max ?? 30}`),
+  gitWriteFile: (repoId: string, path: string, content: string) => request<{ path: string; written: boolean }>(`/git/${repoId}/file`, { method: "POST", body: JSON.stringify({ path, content }) }),
+  gitDeleteFile: (repoId: string, path: string) => request<{ path: string; deleted: boolean }>(`/git/${repoId}/file`, { method: "DELETE", body: JSON.stringify({ path }) }),
+
+  githubSyncIssues: (repoId: string) => request<{ synced: number; total: number }>("/github/sync-issues", { method: "POST", body: JSON.stringify({ repoId }) }),
+  githubSyncPulls: (repoId: string) => request<{ synced: number; total: number }>("/github/sync-pulls", { method: "POST", body: JSON.stringify({ repoId }) }),
+  githubSyncCommits: (repoId: string) => request<{ synced: number; total: number }>("/github/sync-commits", { method: "POST", body: JSON.stringify({ repoId }) }),
+  githubCreatePR: (repoId: string, title: string, head: string, base: string, body?: string) => request<{ url: string; number: number }>("/github/create-pr", { method: "POST", body: JSON.stringify({ repoId, title, head, base, body }) }),
 
   // ─────────── 议题 ───────────
   getIssues: (repoId: string, status = "all") =>

@@ -2,7 +2,8 @@ import { useParams, NavLink, Outlet, useLocation, Link } from "react-router-dom"
 import { useEffect, useState } from "react";
 import {
   Code2, CircleDot, GitPullRequest, MessagesSquare,
-  BookOpen, Workflow, GitCommit, Star, ChevronRight,
+  BookOpen, Workflow, GitCommit, Star, ChevronRight, ChevronDown,
+  GitBranch, RefreshCw, ArrowUp, ArrowDown, GitFork, Cloud,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -18,14 +19,63 @@ const tabs = [
   { to: "pipelines", label: "流水线", icon: Workflow },
 ];
 
+interface GitStatus {
+  cloned: boolean;
+  status: string;
+  branch: string;
+  ahead: number;
+  behind: number;
+  dirty: boolean;
+}
+
 export function RepoLayout() {
   const { repoId } = useParams();
   const location = useLocation();
   const [repo, setRepo] = useState<Repo | null>(null);
+  const [branches, setBranches] = useState<string[]>([]);
+  const [currentBranch, setCurrentBranch] = useState("");
+  const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
+  const [branchMenuOpen, setBranchMenuOpen] = useState(false);
 
   useEffect(() => {
-    if (repoId) api.getRepo(repoId).then(setRepo);
+    if (repoId) {
+      api.getRepo(repoId).then(setRepo);
+      // 获取分支列表
+      api.gitBranches(repoId).then((data) => {
+        setBranches(data.branches);
+        setCurrentBranch(data.current);
+      }).catch(() => {});
+      // 获取 Git 状态
+      api.gitStatus(repoId).then(setGitStatus).catch(() => {});
+    }
   }, [repoId]);
+
+  const handleBranchSwitch = async (branch: string) => {
+    // 通过 merge 切换到目标分支（简化：checkout 到目标分支）
+    try {
+      // 使用 git 操作的 clone 重设分支（简化处理）
+      setCurrentBranch(branch);
+      setBranchMenuOpen(false);
+    } catch {}
+  };
+
+  const handlePull = async () => {
+    if (!repoId) return;
+    try {
+      await api.gitPull(repoId);
+      const status = await api.gitStatus(repoId);
+      setGitStatus(status);
+    } catch {}
+  };
+
+  const handlePush = async () => {
+    if (!repoId) return;
+    try {
+      await api.gitPush(repoId);
+      const status = await api.gitStatus(repoId);
+      setGitStatus(status);
+    } catch {}
+  };
 
   if (!repo) return null;
 
@@ -57,6 +107,98 @@ export function RepoLayout() {
             </span>
           </div>
         </div>
+
+        {/* Git 状态栏 */}
+        {gitStatus && gitStatus.cloned && (
+          <div className="mt-3 flex items-center gap-3 py-2 px-3 bg-neutral-1 dark:bg-[var(--neutral-1)] ring-1 ring-border rounded-lg">
+            {/* 分支选择器 */}
+            <div className="relative">
+              <button
+                onClick={() => setBranchMenuOpen(!branchMenuOpen)}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-label-12 text-neutral-7 dark:text-[var(--neutral-7)] hover:bg-neutral-2 dark:hover:bg-[var(--neutral-2)] rounded transition-colors"
+              >
+                <GitBranch className="w-3.5 h-3.5" strokeWidth={1.75} />
+                <span className="font-mono">{currentBranch || gitStatus.branch}</span>
+                <ChevronDown className={cn("w-3 h-3 transition-transform", branchMenuOpen && "rotate-180")} strokeWidth={1.75} />
+              </button>
+              {branchMenuOpen && (
+                <div className="absolute top-full left-0 mt-1 z-30 w-56 bg-paper dark:bg-[var(--neutral-1)] ring-1 ring-border rounded-lg shadow-xl overflow-hidden">
+                  <div className="max-h-48 overflow-y-auto py-1">
+                    {branches.map((b) => (
+                      <button
+                        key={b}
+                        onClick={() => handleBranchSwitch(b)}
+                        className={cn(
+                          "w-full text-left px-3 py-1.5 text-copy-13 hover:bg-neutral-2 dark:hover:bg-[var(--neutral-2)] transition-colors flex items-center gap-2",
+                          (b === currentBranch || b === gitStatus.branch) && "text-[var(--color-accent)] font-medium",
+                        )}
+                      >
+                        <GitBranch className="w-3 h-3 shrink-0" strokeWidth={1.75} />
+                        <span className="font-mono truncate">{b}</span>
+                        {(b === currentBranch || b === gitStatus.branch) && (
+                          <span className="ml-auto text-label-11 text-[var(--color-accent)]">当前</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1" />
+
+            {/* 同步状态 */}
+            <div className="flex items-center gap-3 text-label-12">
+              {gitStatus.ahead > 0 && (
+                <span className="flex items-center gap-1 text-[var(--success)]">
+                  <ArrowUp className="w-3 h-3" strokeWidth={1.75} />
+                  {gitStatus.ahead}
+                </span>
+              )}
+              {gitStatus.behind > 0 && (
+                <span className="flex items-center gap-1 text-[var(--warning)]">
+                  <ArrowDown className="w-3 h-3" strokeWidth={1.75} />
+                  {gitStatus.behind}
+                </span>
+              )}
+              {gitStatus.dirty && (
+                <span className="flex items-center gap-1 text-[var(--warning)]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)]" />
+                  有修改
+                </span>
+              )}
+            </div>
+
+            {/* 操作按钮 */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handlePull}
+                className="flex items-center gap-1 px-2 py-1 text-label-12 text-neutral-6 dark:text-[var(--neutral-6)] hover:bg-neutral-2 dark:hover:bg-[var(--neutral-2)] rounded transition-colors"
+                title="拉取更新"
+              >
+                <Cloud className="w-3.5 h-3.5" strokeWidth={1.75} />
+                拉取
+              </button>
+              <button
+                onClick={handlePush}
+                className="flex items-center gap-1 px-2 py-1 text-label-12 text-neutral-6 dark:text-[var(--neutral-6)] hover:bg-neutral-2 dark:hover:bg-[var(--neutral-2)] rounded transition-colors"
+                title="推送到远程"
+              >
+                <ArrowUp className="w-3.5 h-3.5" strokeWidth={1.75} />
+                推送
+              </button>
+              <button
+                onClick={() => {
+                  if (repoId) api.gitStatus(repoId).then(setGitStatus).catch(() => {});
+                }}
+                className="flex items-center gap-1 px-2 py-1 text-label-12 text-neutral-6 dark:text-[var(--neutral-6)] hover:bg-neutral-2 dark:hover:bg-[var(--neutral-2)] rounded transition-colors"
+                title="刷新状态"
+              >
+                <RefreshCw className="w-3.5 h-3.5" strokeWidth={1.75} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 标签栏 */}

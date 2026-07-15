@@ -219,4 +219,200 @@ function getLanguageColor(lang: string): string {
   return languageColors[lang] ?? "#787670";
 }
 
+
+// ─────────── POST /github/sync-issues — 同步 GitHub Issues 到 CodeZone ───────────
+router.post("/github/sync-issues", authMiddleware, async (req: Request, res: Response) => {
+  const user = await userRepo.getById(req.user!.id);
+  if (!user?.githubToken) {
+    res.status(400).json({ message: "请先连接 GitHub 账号" });
+    return;
+  }
+  const { repoId } = req.body as { repoId: string };
+  const repo = await repoRepo.getById(repoId);
+  if (!repo) {
+    res.status(404).json({ message: "仓库不存在" });
+    return;
+  }
+  try {
+    const octokit = new Octokit({ auth: user.githubToken });
+    const [owner, reponame] = repo.name.split("/");
+    const { data: issues } = await octokit.rest.issues.listForRepo({
+      owner, repo: reponame, state: "all", per_page: 50,
+    });
+    const { db, schema } = await import("@codezone/database");
+    const { eq } = await import("drizzle-orm");
+    let synced = 0;
+    for (const issue of issues) {
+      if (issue.pull_request) continue; // skip PRs
+      const existing = await db.select().from(schema.issues)
+        .where(eq(schema.issues.id, `i_gh_${issue.number}`)).limit(1);
+      if (existing.length > 0) {
+        // update
+        await db.update(schema.issues).set({
+          title: issue.title,
+          status: issue.state === "closed" ? "closed" as any : "open" as any,
+          updatedAt: new Date(issue.updated_at).getTime(),
+        }).where(eq(schema.issues.id, `i_gh_${issue.number}`));
+      } else {
+        // create
+        await db.insert(schema.issues).values({
+          id: `i_gh_${issue.number}`,
+          repoId: repo.id,
+          title: issue.title,
+          description: issue.body ?? "",
+          status: "open" as any,
+          authorId: req.user!.id,
+          updatedAt: new Date(issue.updated_at).getTime(),
+        } as any);
+        synced++;
+      }
+    }
+    res.json({ data: { synced, total: issues.length } });
+  } catch (err) {
+    console.error("[github] sync issues error:", err);
+    res.status(500).json({ message: "同步 Issues 失败" });
+  }
+});
+
+// ─────────── POST /github/sync-pulls — 同步 GitHub PRs 到 CodeZone ───────────
+router.post("/github/sync-pulls", authMiddleware, async (req: Request, res: Response) => {
+  const user = await userRepo.getById(req.user!.id);
+  if (!user?.githubToken) {
+    res.status(400).json({ message: "请先连接 GitHub 账号" });
+    return;
+  }
+  const { repoId } = req.body as { repoId: string };
+  const repo = await repoRepo.getById(repoId);
+  if (!repo) {
+    res.status(404).json({ message: "仓库不存在" });
+    return;
+  }
+  try {
+    const octokit = new Octokit({ auth: user.githubToken });
+    const [owner, reponame] = repo.name.split("/");
+    const { data: pulls } = await octokit.rest.pulls.list({
+      owner, repo: reponame, state: "all", per_page: 50,
+    });
+    const { db, schema } = await import("@codezone/database");
+    const { eq } = await import("drizzle-orm");
+    let synced = 0;
+    for (const pr of pulls) {
+      const prStatus = pr.merged_at ? "merged" : pr.state === "closed" ? "closed" : "open";
+      const existing = await db.select().from(schema.pullRequests)
+        .where(eq(schema.pullRequests.id, `pr_gh_${pr.number}`)).limit(1);
+      if (existing.length > 0) {
+        await db.update(schema.pullRequests).set({
+          title: pr.title,
+          status: prStatus as any,
+          updatedAt: new Date(pr.updated_at).getTime(),
+        }).where(eq(schema.pullRequests.id, `pr_gh_${pr.number}`));
+      } else {
+        await db.insert(schema.pullRequests).values({
+          id: `pr_gh_${pr.number}`,
+          repoId: repo.id,
+          title: pr.title,
+          description: pr.body ?? "",
+          status: prStatus as any,
+          sourceBranch: pr.head.ref,
+          targetBranch: pr.base.ref,
+          authorId: req.user!.id,
+          updatedAt: new Date(pr.updated_at).getTime(),
+        } as any);
+        synced++;
+      }
+    }
+    res.json({ data: { synced, total: pulls.length } });
+  } catch (err) {
+    console.error("[github] sync pulls error:", err);
+    res.status(500).json({ message: "同步 PRs 失败" });
+  }
+});
+
+// ─────────── POST /github/sync-commits — 同步 GitHub Commits 到 CodeZone ───────────
+router.post("/github/sync-commits", authMiddleware, async (req: Request, res: Response) => {
+  const user = await userRepo.getById(req.user!.id);
+  if (!user?.githubToken) {
+    res.status(400).json({ message: "请先连接 GitHub 账号" });
+    return;
+  }
+  const { repoId } = req.body as { repoId: string };
+  const repo = await repoRepo.getById(repoId);
+  if (!repo) {
+    res.status(404).json({ message: "仓库不存在" });
+    return;
+  }
+  try {
+    const octokit = new Octokit({ auth: user.githubToken });
+    const [owner, reponame] = repo.name.split("/");
+    const { data: commits } = await octokit.rest.repos.listCommits({
+      owner, repo: reponame, per_page: 50,
+    });
+    const { db, schema } = await import("@codezone/database");
+    const { eq } = await import("drizzle-orm");
+    let synced = 0;
+    for (const commit of commits) {
+      const existing = await db.select().from(schema.commits)
+        .where(eq(schema.commits.id, commit.sha)).limit(1);
+      if (existing.length === 0) {
+        await db.insert(schema.commits).values({
+          id: commit.sha,
+          repoId: repo.id,
+          message: commit.commit.message.split("\n")[0],
+          authorName: commit.commit.author?.name ?? "unknown",
+          additions: commit.stats?.additions ?? 0,
+          deletions: commit.stats?.deletions ?? 0,
+          createdAt: new Date(commit.commit.author?.date ?? "").getTime(),
+        } as any);
+        synced++;
+      }
+    }
+    // 更新仓库 openIssues
+    const { data: repoData } = await octokit.rest.repos.get({ owner, repo: reponame });
+    await (db.update(schema.repos) as any).set({
+      openIssues: repoData.open_issues_count,
+      updatedAt: Date.now(),
+    }).where(eq(schema.repos.id, repoId));
+    res.json({ data: { synced, total: commits.length } });
+  } catch (err) {
+    console.error("[github] sync commits error:", err);
+    res.status(500).json({ message: "同步 Commits 失败" });
+  }
+});
+
+// ─────────── POST /github/create-pr — 创建 GitHub PR ───────────
+router.post("/github/create-pr", authMiddleware, async (req: Request, res: Response) => {
+  const user = await userRepo.getById(req.user!.id);
+  if (!user?.githubToken) {
+    res.status(400).json({ message: "请先连接 GitHub 账号" });
+    return;
+  }
+  const { repoId, title, head, base, body } = req.body as {
+    repoId: string; title: string; head: string; base: string; body?: string;
+  };
+  if (!title || !head || !base) {
+    res.status(400).json({ message: "标题、源分支、目标分支为必填" });
+    return;
+  }
+  const repo = await repoRepo.getById(repoId);
+  if (!repo) {
+    res.status(404).json({ message: "仓库不存在" });
+    return;
+  }
+  try {
+    const octokit = new Octokit({ auth: user.githubToken });
+    const [owner, reponame] = repo.name.split("/");
+    const { data: pr } = await octokit.rest.pulls.create({
+      owner, repo: reponame, title, head, base, body: body ?? "",
+    });
+    res.json({ data: {
+      url: pr.html_url,
+      number: pr.number,
+      title: pr.title,
+      state: pr.state,
+    } });
+  } catch (err) {
+    console.error("[github] create PR error:", err);
+    res.status(500).json({ message: `创建 PR 失败: ${(err as Error).message}` });
+  }
+});
 export default router;
