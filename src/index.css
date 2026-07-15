@@ -1,0 +1,165 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Yohaku 设计系统 · CSS 变量契约
+ * 浅色: 纸张本白 + 浅葱强调
+ * 深色: 暖灰夜色 + 桃强调
+ */
+
+:root {
+  /* 基础字号锚点 */
+  font-size: 14px;
+
+  /* 缓动 — 呼吸式 */
+  --ease-breathe: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* 浅色主题 (默认) */
+  --surface-paper: #fefefb;            /* 纸张本白 */
+  --color-accent: #33a6b8;             /* 浅葱 */
+  --color-accent-soft: rgba(51, 166, 184, 0.12);
+  --color-border: rgba(24, 24, 27, 0.1);
+
+  font-family: "Inter", system-ui, -apple-system, "PingFang SC",
+    "Microsoft YaHei", "Noto Sans SC", "Hiragino Sans GB", sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
+  line-height: 1.5;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+[data-theme="dark"] {
+  --surface-paper: rgb(28, 28, 30);    /* 暖灰夜色 */
+  --color-accent: #f596aa;             /* 桃 */
+  --color-accent-soft: rgba(245, 150, 170, 0.14);
+  --color-border: rgba(255, 255, 255, 0.1);
+
+  /* 深色模式中性灰自动反转为纯灰 */
+  --neutral-1: #1c1c1e;
+  --neutral-2: #242426;
+  --neutral-3: #2c2c2e;
+  --neutral-4: #3a3a3c;
+  --neutral-5: #545456;
+  --neutral-6: #787670;
+  --neutral-7: #9a9893;
+  --neutral-8: #c0bfb9;
+  --neutral-9: #e6e3dd;
+  --neutral-10: #f5f3ee;
+}
+
+@layer base {
+  html {
+    background-color: var(--surface-paper);
+    color: #24231f;
+    transition: background-color 0.4s var(--ease-breathe),
+      color 0.4s var(--ease-breathe);
+  }
+
+  [data-theme="dark"] html,
+  html[data-theme="dark"] {
+    color: #e6e3dd;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: var(--surface-paper);
+  }
+
+  ::selection {
+    background-color: var(--color-accent-soft);
+    color: var(--color-accent);
+  }
+
+  /* 滚动条 — 克制 */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(120, 118, 112, 0.25);
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 118, 112, 0.4);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+@layer components {
+  /* 呼吸式入场 — 用于活动流、卡片等 */
+  .reveal {
+    animation: fade-up 0.6s var(--ease-breathe) both;
+  }
+  .reveal-1 { animation-delay: 0.04s; }
+  .reveal-2 { animation-delay: 0.08s; }
+  .reveal-3 { animation-delay: 0.12s; }
+  .reveal-4 { animation-delay: 0.16s; }
+  .reveal-5 { animation-delay: 0.20s; }
+  .reveal-6 { animation-delay: 0.24s; }
+
+  /* 卡片基类 — Yohaku: ring 分层, 无硬阴影 */
+  .card {
+    @apply bg-neutral-2 dark:bg-[var(--neutral-2)] rounded-lg p-4 ring-1 ring-border;
+  }
+
+  /* 衬线标题 */
+  .heading-serif {
+    font-family: "Noto Serif SC", "Source Han Serif SC", Georgia, serif;
+  }
+
+  /* prose 排版 */
+  .prose-yohaku {
+    @apply text-copy-15 text-neutral-9 dark:text-[var(--neutral-9)] leading-relaxed;
+  }
+  .prose-yohaku h1 {
+    @apply font-serif text-title-28 font-medium text-neutral-10 dark:text-[var(--neutral-10)] mb-4;
+  }
+  .prose-yohaku h2 {
+    @apply font-serif text-title-24 font-medium text-neutral-10 dark:text-[var(--neutral-10)] mb-3 mt-8;
+  }
+  .prose-yohaku h3 {
+    @apply font-serif text-title-20 font-medium text-neutral-9 dark:text-[var(--neutral-9)] mb-2 mt-6;
+  }
+  .prose-yohaku p {
+    @apply mb-4;
+  }
+  .prose-yohaku code {
+    @apply font-mono text-copy-13 bg-neutral-3 dark:bg-[var(--neutral-3)] px-1.5 py-0.5 rounded;
+  }
+  .prose-yohaku pre {
+    @apply font-mono text-copy-13 bg-neutral-1 dark:bg-[var(--neutral-1)] ring-1 ring-border rounded-md p-4 overflow-x-auto mb-4;
+  }
+  .prose-yohaku pre code {
+    @apply bg-transparent p-0;
+  }
+  .prose-yohaku blockquote {
+    @apply border-l-2 pl-4 italic text-neutral-7 dark:text-[var(--neutral-7)] my-4;
+    border-color: var(--color-accent);
+  }
+  .prose-yohaku ul {
+    @apply list-disc pl-5 mb-4 space-y-1;
+  }
+  .prose-yohaku ol {
+    @apply list-decimal pl-5 mb-4 space-y-1;
+  }
+  .prose-yohaku a {
+    color: var(--color-accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}

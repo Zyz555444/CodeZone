@@ -1,0 +1,72 @@
+import { NavLink } from "react-router-dom";
+import {
+  LayoutDashboard, BookMarked, CircleDot, GitPullRequest,
+  MessagesSquare, Workflow, Users, Settings, Hash,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const navItems = [
+  { to: "/dashboard", label: "工作台", icon: LayoutDashboard },
+  { to: "/repos", label: "仓库", icon: BookMarked },
+  { to: "/issues", label: "议题", icon: CircleDot },
+  { to: "/pulls", label: "合并请求", icon: GitPullRequest },
+  { to: "/discussions", label: "讨论", icon: MessagesSquare },
+  { to: "/pipelines", label: "流水线", icon: Workflow },
+  { to: "/team", label: "团队", icon: Users },
+  { to: "/settings", label: "设置", icon: Settings },
+];
+
+export function Sidebar() {
+  return (
+    <aside className="hidden lg:flex w-56 shrink-0 flex-col border-r border-border bg-paper/60 backdrop-blur-sm">
+      {/* Logo */}
+      <div className="px-5 py-6">
+        <NavLink to="/dashboard" className="group flex items-center gap-2">
+          <span className="grid place-items-center w-7 h-7 rounded-md bg-[var(--color-accent)] text-white">
+            <Hash className="w-4 h-4" strokeWidth={2.5} />
+          </span>
+          <span className="font-logo text-title-20 font-medium tracking-tight text-neutral-10 dark:text-[var(--neutral-10)]">
+            CodeZone
+          </span>
+        </NavLink>
+      </div>
+
+      {/* 导航 */}
+      <nav className="flex-1 px-3 space-y-0.5">
+        <p className="px-3 pt-2 pb-1 text-caption-10 uppercase tracking-eyebrow text-neutral-5 dark:text-[var(--neutral-5)]">
+          导航
+        </p>
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-copy-14 transition-colors duration-300 ease-breathe",
+                  isActive
+                    ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)] font-medium"
+                    : "text-neutral-7 dark:text-[var(--neutral-7)] hover:bg-neutral-2 dark:hover:bg-[var(--neutral-2)] hover:text-neutral-9 dark:hover:text-[var(--neutral-9)]",
+                )
+              }
+            >
+              <Icon className="w-icon-md h-icon-md shrink-0" strokeWidth={1.75} />
+              <span>{item.label}</span>
+            </NavLink>
+          );
+        })}
+      </nav>
+
+      {/* 底部说明 */}
+      <div className="px-5 py-4 border-t border-border">
+        <p className="font-serif text-copy-13 italic text-neutral-6 dark:text-[var(--neutral-6)] leading-relaxed">
+          留白也是写作的一部分。
+        </p>
+        <p className="mt-1 text-caption-10 uppercase tracking-eyebrow text-neutral-5 dark:text-[var(--neutral-5)]">
+          Yohaku Design
+        </p>
+      </div>
+    </aside>
+  );
+}
