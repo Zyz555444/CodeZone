@@ -3,19 +3,28 @@ import Editor, { type OnMount, type BeforeMount } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
 import {
   Wifi, Users, Radio, Pause, Play, UserPlus, UserMinus,
+  Save, Check, Loader,
 } from "lucide-react";
 import { CRDTText, type TextOp } from "@/lib/crdt";
 import { Awareness, type Collaborator, type CursorState } from "@/lib/awareness";
 import { VirtualCollaboratorEngine, type VirtualCollaboratorConfig } from "@/lib/virtualCollaborators";
+import { useCollab } from "@/hooks/useCollab";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/Button";
 
 interface CollaborativeEditorProps {
-  initialCode: string;
+  docId: string | null;
+  initialContent?: string;
   language?: string;
   fileName?: string;
+  mode: "live" | "demo";
+  onSave?: (content: string) => Promise<void>;
+  /** 内容变化时回调（含远程操作引起的变化），用于实时同步最新内容到外部 ref */
+  onContentChange?: (content: string) => void;
 }
+
+type SaveState = "idle" | "pending" | "saving" | "saved";
 
 const collaboratorConfigs: VirtualCollaboratorConfig[] = [
   { id: 2, name: "陈砚秋", color: "#a64953", speed: 1200, pauseChance: 0.15 },
@@ -72,15 +81,39 @@ export function TodoList() {
 }
 `;
 
+function formatTime(ts: number): string {
+  const d = new Date(ts);
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
 export default function CollaborativeEditor({
-  initialCode: _initial,
+  docId,
+  initialContent,
   language = "typescript",
   fileName = "TodoList.tsx",
+  mode,
+  onSave,
+  onContentChange,
 }: CollaborativeEditorProps) {
+  const isLive = mode === "live";
+  const isDemo = mode === "demo";
+
   const { currentUser } = useAppStore();
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
-  const docRef = useRef<CRDTText>(new CRDTText(1, initialCode));
+
+  // demo 模式初始内容:优先 initialContent,否则使用 initialCode 默认示例
+  const demoInitial =
+    initialContent && initialContent.length > 0 ? initialContent : initialCode;
+
+  // CRDT 文档:demo 模式立即初始化;live 模式等待 onContentInit 用真实 clientId 重建
+  const docRef = useRef<CRDTText>(
+    isDemo ? new CRDTText(1, demoInitial) : new CRDTText(1, ""),
+  );
+
+  // Awareness:本地用户信息 (id=1 为本地占位,live 模式真实 clientId 由服务端分配)
   const awarenessRef = useRef<Awareness>(
     new Awareness({
       id: 1,
@@ -89,7 +122,18 @@ export default function CollaborativeEditor({
       avatarInitial: (currentUser?.name ?? "?").charAt(0),
     }),
   );
+
   const engineRef = useRef<VirtualCollaboratorEngine | null>(null);
+  const applyingRemote = useRef(false);
+  const pendingContent = useRef<{ content: string; clientId: number } | null>(null);
+  const decorationsRef = useRef<string[]>([]);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveDirtyRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
+  const onContentChangeRef = useRef(onContentChange);
+  onContentChangeRef.current = onContentChange;
 
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [running, setRunning] = useState(false);
@@ -97,45 +141,156 @@ export default function CollaborativeEditor({
   const [latency, setLatency] = useState(38);
   const [activeCollabIds, setActiveCollabIds] = useState<Set<number>>(new Set([2, 3, 4]));
   const [followId, setFollowId] = useState<number | null>(null);
-  const decorationsRef = useRef<string[]>([]);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [savedAt, setSavedAt] = useState<number | null>(null);
 
-  // 初始化感知
+  // 应用远程操作到 Monaco (不检查 op.client,调用方保证为远程操作)
+  const applyRemoteOp = useCallback((op: TextOp) => {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco) return;
+    const model = editor.getModel();
+    if (!model) return;
+
+    editor.pushUndoStop();
+    if (op.type === "insert") {
+      const pos = model.getPositionAt(op.offset);
+      const range = new monaco.Range(
+        pos.lineNumber, pos.column, pos.lineNumber, pos.column,
+      );
+      model.applyEdits([{ range, text: op.content ?? "" }]);
+    } else if (op.type === "delete") {
+      const startPos = model.getPositionAt(op.offset);
+      const endPos = model.getPositionAt(op.offset + (op.length ?? 0));
+      const range = new monaco.Range(
+        startPos.lineNumber, startPos.column, endPos.lineNumber, endPos.column,
+      );
+      model.applyEdits([{ range, text: "" }]);
+    }
+    editor.pushUndoStop();
+  }, []);
+
+  // live 模式:远程操作同时更新 CRDT 与 Monaco
+  const handleRemoteOp = useCallback((op: TextOp) => {
+    // try/finally 保护:applyEdits 抛异常时 applyingRemote 也能被正确重置
+    applyingRemote.current = true;
+    try {
+      docRef.current.applyOp(op);
+      applyRemoteOp(op);
+    } finally {
+      applyingRemote.current = false;
+    }
+    setOpCount((c) => c + 1);
+    setLatency(20 + Math.floor(Math.random() * 40));
+  }, [applyRemoteOp]);
+
+  // demo 模式:引擎已直接操作 CRDT,这里只同步 Monaco
+  const handleEngineOp = useCallback((op: TextOp) => {
+    applyingRemote.current = true;
+    try {
+      applyRemoteOp(op);
+    } finally {
+      applyingRemote.current = false;
+    }
+    setOpCount((c) => c + 1);
+    setLatency(20 + Math.floor(Math.random() * 40));
+  }, [applyRemoteOp]);
+
+  // live 模式:房间加入后用真实 clientId 重建 CRDT 并填充内容
+  const handleContentInit = useCallback((content: string, clientId: number) => {
+    docRef.current = new CRDTText(clientId, content);
+    const editor = editorRef.current;
+    if (editor) {
+      applyingRemote.current = true;
+      editor.setValue(content);
+      applyingRemote.current = false;
+    } else {
+      // 编辑器尚未挂载,缓存内容待挂载时应用
+      pendingContent.current = { content, clientId };
+    }
+  }, []);
+
+  // live 模式:远程光标感知
+  const handleAwareness = useCallback((collaborator: Collaborator) => {
+    awarenessRef.current.updateRemote(collaborator.id, collaborator);
+  }, []);
+
+  // 始终调用 useCollab (demo 模式传 docId=null,内部不连接房间)
+  const {
+    joined,
+    clientId,
+    collaborators: collabCollaborators,
+    sendOp,
+    sendCursor,
+  } = useCollab({
+    docId: isLive ? docId : null,
+    clientName: currentUser?.name ?? "访客",
+    onRemoteOp: handleRemoteOp,
+    onContentInit: handleContentInit,
+    onAwareness: handleAwareness,
+  });
+
+  // Awareness 心跳 + (demo 模式)虚拟协作者引擎初始化
   useEffect(() => {
     const awareness = awarenessRef.current;
-    const unsub = awareness.on(setCollaborators);
+    const unsubAwareness = awareness.on(setCollaborators);
     awareness.startHeartbeat();
     setCollaborators(awareness.getAll());
 
-    // 引擎
-    const engine = new VirtualCollaboratorEngine(docRef.current, awareness);
-    engineRef.current = engine;
-
-    // 监听远程操作,应用到编辑器
-    const unsubEngine = engine.on((event) => {
-      if (event.type === "op" && event.op) {
-        applyRemoteOp(event.op);
-        setOpCount((c) => c + 1);
-        setLatency(20 + Math.floor(Math.random() * 40));
-      }
-    });
+    let unsubEngine: (() => void) | null = null;
+    if (isDemo) {
+      const engine = new VirtualCollaboratorEngine(docRef.current, awareness);
+      engineRef.current = engine;
+      unsubEngine = engine.on((event) => {
+        if (event.type === "op" && event.op) {
+          handleEngineOp(event.op);
+        }
+      });
+    }
 
     return () => {
-      unsub();
-      unsubEngine();
-      engine.stop();
+      unsubAwareness();
+      if (unsubEngine) unsubEngine();
+      if (engineRef.current) {
+        engineRef.current.stop();
+        engineRef.current = null;
+      }
       awareness.stopHeartbeat();
     };
-  }, []);
+  }, [isDemo, handleEngineOp]);
 
-  // 启停引擎
+  // live 模式:同步 collab.collaborators (presence) 到 awareness (add/remove 远程协作者)
+  useEffect(() => {
+    if (!isLive) return;
+    const awareness = awarenessRef.current;
+    // 排除自己 (clientId 由服务端分配)
+    const incoming = collabCollaborators.filter((c) => c.id !== clientId);
+    const incomingIds = new Set(incoming.map((c) => c.id));
+
+    const existingRemote = new Set<number>();
+    for (const c of awareness.getAll()) {
+      if (!c.isLocal) existingRemote.add(c.id);
+    }
+
+    for (const c of incoming) {
+      awareness.updateRemote(c.id, c);
+    }
+    for (const id of existingRemote) {
+      if (!incomingIds.has(id)) {
+        awareness.removeRemote(id);
+      }
+    }
+  }, [collabCollaborators, clientId, isLive]);
+
+  // 启停虚拟协作者引擎 (demo 模式)
   const toggleEngine = useCallback(() => {
+    if (!isDemo) return;
     const engine = engineRef.current;
     if (!engine) return;
     if (running) {
       engine.stop();
       setRunning(false);
     } else {
-      // 确保活跃协作者已加入
       for (const id of activeCollabIds) {
         const cfg = collaboratorConfigs.find((c) => c.id === id);
         if (cfg) engine.addCollaborator(cfg);
@@ -143,10 +298,11 @@ export default function CollaborativeEditor({
       engine.start();
       setRunning(true);
     }
-  }, [running, activeCollabIds]);
+  }, [running, activeCollabIds, isDemo]);
 
-  // 切换协作者在线状态
+  // 切换虚拟协作者在线状态 (demo 模式)
   const toggleCollaborator = useCallback((id: number) => {
+    if (!isDemo) return;
     const engine = engineRef.current;
     setActiveCollabIds((prev) => {
       const next = new Set(prev);
@@ -162,40 +318,11 @@ export default function CollaborativeEditor({
       }
       return next;
     });
-  }, [running]);
+  }, [running, isDemo]);
 
-  // 应用远程操作到 Monaco
-  const applyRemoteOp = useCallback((op: TextOp) => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    const model = editor.getModel();
-    if (!model) return;
-
-    const isRemote = op.client !== 1;
-    if (!isRemote) return;
-
-    editor.pushUndoStop();
-    if (op.type === "insert") {
-      const pos = model.getPositionAt(op.offset);
-      const range = new monacoRef.current!.Range(
-        pos.lineNumber, pos.column, pos.lineNumber, pos.column,
-      );
-      model.applyEdits([{ range, text: op.content ?? "" }]);
-    } else if (op.type === "delete") {
-      const startPos = model.getPositionAt(op.offset);
-      const endPos = model.getPositionAt(op.offset + (op.length ?? 0));
-      const range = new monacoRef.current!.Range(
-        startPos.lineNumber, startPos.column, endPos.lineNumber, endPos.column,
-      );
-      model.applyEdits([{ range, text: "" }]);
-    }
-    editor.pushUndoStop();
-  }, []);
-
-  // Monaco 挂载
+  // Monaco beforeMount:定义协作主题
   const handleBeforeMount: BeforeMount = (monaco) => {
     monacoRef.current = monaco;
-    // 自定义协作主题
     monaco.editor.defineTheme("codezone-light", {
       base: "vs",
       inherit: true,
@@ -226,29 +353,72 @@ export default function CollaborativeEditor({
     });
   };
 
+  // Monaco mount:注册内容/光标监听
   const handleMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     const savedTheme = localStorage.getItem("cz-theme") || "light";
     monaco.editor.setTheme(savedTheme === "dark" ? "codezone-dark" : "codezone-light");
 
-    // 本地编辑 → 同步到 CRDT 文档
+    // 处理 room_joined 在编辑器挂载前到达的情况
+    if (pendingContent.current) {
+      editor.setValue(pendingContent.current.content);
+      pendingContent.current = null;
+    }
+
+    // 本地编辑 → 生成 ops (使用 e.changes 的精确范围)
     editor.onDidChangeModelContent((e) => {
+      // 始终同步最新内容到外部 ref（用于版本快照读取最新值）
+      // 放在 applyingRemote 检查之前,确保远程操作引起的内容变化也被捕获
+      if (onContentChangeRef.current) {
+        onContentChangeRef.current(editor.getValue());
+      }
+      // 远程操作应用期间不生成本地 ops,避免循环
+      if (applyingRemote.current) return;
       const model = editor.getModel();
       if (!model) return;
-      const newText = model.getValue();
-      const oldText = docRef.current.toString();
 
-      // 计算差异操作
-      const ops = CRDTText.diff(oldText, newText, 1, docRef.current.getClock());
-      for (const op of ops) {
-        docRef.current.applyOp(op);
+      for (const change of e.changes) {
+        const offset = change.rangeOffset;
+        if (change.rangeLength > 0) {
+          const op = docRef.current.deleteLocal(offset, change.rangeLength);
+          if (isLive) sendOp(op);
+        }
+        if (change.text.length > 0) {
+          const op = docRef.current.insertLocal(offset, change.text);
+          if (isLive) sendOp(op);
+        }
+      }
+
+      // 自动保存 (仅 live 模式,内容变化后 2s 防抖)
+      if (isLive && onSaveRef.current) {
+        saveDirtyRef.current = true;
+        setSaveState("pending");
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(async () => {
+          // 卸载后不再 setState,避免无效更新
+          if (!isMountedRef.current) return;
+          const ed = editorRef.current;
+          if (!ed || !saveDirtyRef.current || !onSaveRef.current) return;
+          saveDirtyRef.current = false;
+          setSaveState("saving");
+          try {
+            await onSaveRef.current(ed.getValue());
+            if (!isMountedRef.current) return;
+            setSaveState("saved");
+            setSavedAt(Date.now());
+          } catch {
+            if (!isMountedRef.current) return;
+            saveDirtyRef.current = true;
+            setSaveState("pending");
+          }
+        }, 2000);
       }
 
       // 更新本地光标感知
       const pos = editor.getPosition();
       if (pos) {
         const sel = editor.getSelection();
-        awarenessRef.current.setLocalCursor({
+        const cursor: CursorState = {
           lineNumber: pos.lineNumber,
           column: pos.column,
           selectionStart: sel && !sel.isEmpty()
@@ -257,14 +427,17 @@ export default function CollaborativeEditor({
           selectionEnd: sel && !sel.isEmpty()
             ? { lineNumber: sel.endLineNumber, column: sel.endColumn }
             : undefined,
-        });
+        };
+        awarenessRef.current.setLocalCursor(cursor);
+        if (isLive) sendCursor(cursor);
       }
     });
 
     // 光标移动 → 更新感知
     editor.onDidChangeCursorPosition((e) => {
+      if (applyingRemote.current) return;
       const sel = editor.getSelection();
-      awarenessRef.current.setLocalCursor({
+      const cursor: CursorState = {
         lineNumber: e.position.lineNumber,
         column: e.position.column,
         selectionStart: sel && !sel.isEmpty()
@@ -273,7 +446,9 @@ export default function CollaborativeEditor({
         selectionEnd: sel && !sel.isEmpty()
           ? { lineNumber: sel.endLineNumber, column: sel.endColumn }
           : undefined,
-      });
+      };
+      awarenessRef.current.setLocalCursor(cursor);
+      if (isLive) sendCursor(cursor);
     });
   };
 
@@ -317,7 +492,8 @@ export default function CollaborativeEditor({
     decorationsRef.current = editor.deltaDecorations(decorationsRef.current, decorations);
   }, [collaborators]);
 
-  // 注入远程光标 CSS (每个协作者独立颜色)
+  // 注入远程光标 CSS (基于实际在线协作者颜色动态生成)
+  // 安全:对协作者名称进行 CSS 转义,颜色用正则校验,防止 CSS 注入
   useEffect(() => {
     const styleId = "collaborative-cursor-styles";
     let style = document.getElementById(styleId) as HTMLStyleElement | null;
@@ -326,10 +502,20 @@ export default function CollaborativeEditor({
       style.id = styleId;
       document.head.appendChild(style);
     }
-    const css = collaboratorConfigs
-      .map((c) => `
+    // 校验颜色为合法 hex 值,否则用回退色
+    const safeColor = (color: string): string =>
+      /^#[0-9a-fA-F]{3,8}$/.test(color) ? color : "#787670";
+    // CSS 字符串转义:移除能跳出字符串上下文的字符
+    const escapeCssStr = (s: string): string =>
+      s.replace(/["\\{}<>]/g, "").slice(0, 32);
+    const css = collaborators
+      .filter((c) => !c.isLocal)
+      .map((c) => {
+        const color = safeColor(c.color);
+        const name = escapeCssStr(c.name);
+        return `
         .remote-cursor-line-${c.id} {
-          border-left: 2px solid ${c.color};
+          border-left: 2px solid ${color};
           margin-left: -1px;
           animation: cursor-blink-${c.id} 1.1s infinite;
         }
@@ -338,14 +524,14 @@ export default function CollaborativeEditor({
           50%, 100% { opacity: 0.3; }
         }
         .remote-selection-${c.id} {
-          background-color: ${c.color}26;
+          background-color: ${color}26;
         }
         .remote-cursor-${c.id}::after {
-          content: "${c.name}";
+          content: "${name}";
           position: absolute;
           top: -18px;
           left: 0;
-          background: ${c.color};
+          background: ${color};
           color: white;
           font-size: 10px;
           font-family: Inter, sans-serif;
@@ -355,10 +541,11 @@ export default function CollaborativeEditor({
           pointer-events: none;
           z-index: 10;
         }
-      `)
+      `;
+      })
       .join("\n");
     style.textContent = css;
-  }, []);
+  }, [collaborators]);
 
   // 跟随模式
   useEffect(() => {
@@ -367,6 +554,16 @@ export default function CollaborativeEditor({
     if (!target?.cursor) return;
     editorRef.current?.revealLineInCenter(target.cursor.lineNumber);
   }, [followId, collaborators]);
+
+  // 卸载时清理保存定时器和编辑器引用
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      editorRef.current = null;
+    };
+  }, []);
 
   const onlineCount = collaborators.filter((c) => c.online).length;
 
@@ -410,55 +607,102 @@ export default function CollaborativeEditor({
         </div>
 
         <div className="flex items-center gap-3">
-          {/* 实时指标 */}
-          <span className="hidden sm:flex items-center gap-1.5 text-label-12 text-neutral-5 dark:text-[var(--neutral-5)] font-mono">
-            <Wifi className="w-3.5 h-3.5 text-success" /> {latency}ms
-          </span>
-          <span className="hidden sm:flex items-center gap-1.5 text-label-12 text-neutral-5 dark:text-[var(--neutral-5)] font-mono">
-            {opCount} ops
-          </span>
-          <Button
-            variant={running ? "danger" : "primary"}
-            size="sm"
-            onClick={toggleEngine}
-          >
-            {running ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-            {running ? "暂停协作" : "启动协作"}
-          </Button>
+          {/* live 模式:连接状态 */}
+          {isLive && (
+            <span
+              className={cn(
+                "flex items-center gap-1.5 text-label-12 font-mono",
+                joined ? "text-success" : "text-[var(--color-warning)]",
+              )}
+            >
+              {joined ? (
+                <Wifi className="w-3.5 h-3.5" />
+              ) : (
+                <Loader className="w-3.5 h-3.5 animate-spin" />
+              )}
+              {joined ? "已连接" : "连接中…"}
+            </span>
+          )}
+
+          {/* live 模式:保存状态 */}
+          {isLive && onSave && (
+            <span className="flex items-center gap-1.5 text-label-12 text-neutral-5 dark:text-[var(--neutral-5)] font-mono">
+              {saveState === "saving" && (
+                <>
+                  <Loader className="w-3.5 h-3.5 animate-spin" />
+                  保存中…
+                </>
+              )}
+              {saveState === "saved" && (
+                <>
+                  <Check className="w-3.5 h-3.5 text-success" />
+                  已保存 {savedAt ? formatTime(savedAt) : ""}
+                </>
+              )}
+              {saveState === "pending" && (
+                <>
+                  <Save className="w-3.5 h-3.5" />
+                  待保存
+                </>
+              )}
+            </span>
+          )}
+
+          {/* demo 模式:实时指标 + 启停按钮 */}
+          {isDemo && (
+            <>
+              <span className="hidden sm:flex items-center gap-1.5 text-label-12 text-neutral-5 dark:text-[var(--neutral-5)] font-mono">
+                <Wifi className="w-3.5 h-3.5 text-success" /> {latency}ms
+              </span>
+              <span className="hidden sm:flex items-center gap-1.5 text-label-12 text-neutral-5 dark:text-[var(--neutral-5)] font-mono">
+                {opCount} ops
+              </span>
+              <Button
+                variant={running ? "danger" : "primary"}
+                size="sm"
+                onClick={toggleEngine}
+              >
+                {running ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                {running ? "暂停协作" : "启动协作"}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* 协作者开关 */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-neutral-1 dark:bg-[var(--neutral-1)]">
-        <span className="text-caption-10 uppercase tracking-eyebrow text-neutral-5 dark:text-[var(--neutral-5)] mr-1">
-          虚拟协作者
-        </span>
-        {collaboratorConfigs.map((c) => {
-          const active = activeCollabIds.has(c.id);
-          return (
-            <button
-              key={c.id}
-              onClick={() => toggleCollaborator(c.id)}
-              className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-label-12 transition-all duration-300 ease-breathe",
-                active
-                  ? "bg-paper ring-1 ring-border text-neutral-8 dark:text-[var(--neutral-8)]"
-                  : "text-neutral-5 dark:text-[var(--neutral-5)] hover:text-neutral-7 dark:hover:text-[var(--neutral-7)]",
-              )}
-            >
-              {active ? <UserPlus className="w-3 h-3" style={{ color: c.color }} /> : <UserMinus className="w-3 h-3" />}
-              {c.name}
-            </button>
-          );
-        })}
-      </div>
+      {/* demo 模式:虚拟协作者开关 */}
+      {isDemo && (
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-neutral-1 dark:bg-[var(--neutral-1)]">
+          <span className="text-caption-10 uppercase tracking-eyebrow text-neutral-5 dark:text-[var(--neutral-5)] mr-1">
+            虚拟协作者
+          </span>
+          {collaboratorConfigs.map((c) => {
+            const active = activeCollabIds.has(c.id);
+            return (
+              <button
+                key={c.id}
+                onClick={() => toggleCollaborator(c.id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-label-12 transition-all duration-300 ease-breathe",
+                  active
+                    ? "bg-paper ring-1 ring-border text-neutral-8 dark:text-[var(--neutral-8)]"
+                    : "text-neutral-5 dark:text-[var(--neutral-5)] hover:text-neutral-7 dark:hover:text-[var(--neutral-7)]",
+                )}
+              >
+                {active ? <UserPlus className="w-3 h-3" style={{ color: c.color }} /> : <UserMinus className="w-3 h-3" />}
+                {c.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Monaco 编辑器 */}
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 relative">
         <Editor
           height="100%"
           defaultLanguage={language}
-          defaultValue={initialCode}
+          defaultValue={isDemo ? demoInitial : ""}
           beforeMount={handleBeforeMount}
           onMount={handleMount}
           loading={<div className="grid place-items-center h-full text-copy-13 text-neutral-5 dark:text-[var(--neutral-5)]">加载编辑器…</div>}
@@ -477,8 +721,19 @@ export default function CollaborativeEditor({
             automaticLayout: true,
             tabSize: 2,
             wordWrap: "on",
+            // live 模式:未加入房间前只读,避免用户输入被 room_joined 覆盖导致数据丢失
+            readOnly: isLive && !joined,
           }}
         />
+        {/* live 模式:连接中遮罩 */}
+        {isLive && !joined && (
+          <div className="absolute inset-0 grid place-items-center bg-paper/60 backdrop-blur-[1px] pointer-events-none">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-paper ring-1 ring-border text-label-12 text-neutral-7 dark:text-[var(--neutral-7)] shadow-sm">
+              <Loader className="w-3.5 h-3.5 animate-spin text-[var(--color-accent)]" />
+              正在加入协作房间…
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

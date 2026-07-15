@@ -175,7 +175,7 @@ router.delete("/invite-codes/:id", authMiddleware, async (req: Request<{ id: str
     res.status(403).json({ message: "仅团队所有者或管理员可删除邀请码" });
     return;
   }
-  const ic = await inviteCodeRepo.getByCode(req.params.id);
+  const ic = await inviteCodeRepo.getById(req.params.id);
   if (!ic || ic.teamId !== membership.teamId) {
     res.status(404).json({ message: "邀请码不存在" });
     return;

@@ -193,13 +193,16 @@ export class VirtualCollaboratorEngine {
       if (nextSnippet) {
         // 在文本末尾追加该行 (带换行)
         const offset = text.length;
-        state.clock += 1;
+        const content = (text.length > 0 ? "\n" : "") + nextSnippet;
+        // 多字符插入:时钟需按字符数推进,避免后续 op 与本次插入的字符 ID 冲突
+        const charCount = Array.from(content).length;
+        state.clock += charCount;
         const op: TextOp = {
           type: "insert",
           client: config.id,
-          clock: state.clock,
+          clock: state.clock - charCount + 1, // 首字符时钟
           offset,
-          content: (text.length > 0 ? "\n" : "") + nextSnippet,
+          content,
           timestamp: Date.now(),
         };
         this.doc.applyInsert(op);

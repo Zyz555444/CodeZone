@@ -211,12 +211,52 @@ export const inviteCodes = pgTable("invite_codes", {
   maxUses: integer("max_uses").notNull().default(0), // 0 = 无限制
   usedCount: integer("used_count").notNull().default(0),
   expiresAt: bigint("expires_at", { mode: "number" }),
-    githubToken: varchar("github_token", { length: 128 }),
-  githubUsername: varchar("github_username", { length: 64 }),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
 }, (t) => ({
   teamIdx: index("ic_team_idx").on(t.teamId),
   codeIdx: index("ic_code_idx").on(t.code),
+}));
+
+// ───────────────────────────── 协作文档 ─────────────────────────────
+export const documents = pgTable("documents", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  teamId: varchar("team_id", { length: 32 }).notNull().references(() => teams.id),
+  title: varchar("title", { length: 255 }).notNull(),
+  content: text("content").notNull().default(""),
+  language: varchar("language", { length: 32 }).notNull().default("typescript"),
+  createdBy: varchar("created_by", { length: 32 }).notNull().references(() => users.id),
+  lastEditedBy: varchar("last_edited_by", { length: 32 }),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
+}, (t) => ({
+  teamIdx: index("docs_team_idx").on(t.teamId),
+  updatedIdx: index("docs_updated_idx").on(t.updatedAt),
+}));
+
+// ───────────────────────────── 文档版本快照 ─────────────────────────────
+export const documentVersions = pgTable("document_versions", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  docId: varchar("doc_id", { length: 32 }).notNull().references(() => documents.id),
+  content: text("content").notNull(),
+  authorId: varchar("author_id", { length: 32 }).notNull().references(() => users.id),
+  message: varchar("message", { length: 255 }).notNull().default(""),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+}, (t) => ({
+  docIdx: index("docver_doc_idx").on(t.docId),
+  createdIdx: index("docver_created_idx").on(t.createdAt),
+}));
+
+// ───────────────────────────── 文档行内评论 ─────────────────────────────
+export const documentComments = pgTable("document_comments", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  docId: varchar("doc_id", { length: 32 }).notNull().references(() => documents.id),
+  authorId: varchar("author_id", { length: 32 }).notNull().references(() => users.id),
+  body: text("body").notNull(),
+  lineNumber: integer("line_number"),
+  resolved: boolean("resolved").notNull().default(false),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+}, (t) => ({
+  docIdx: index("doccom_doc_idx").on(t.docId),
 }));
 
 // ───────────────────────────── 通知 ─────────────────────────────

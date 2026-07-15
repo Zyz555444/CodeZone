@@ -74,9 +74,20 @@ export class Awareness {
     this.emit();
   }
 
-  /** 更新远程协作者状态 (来自模拟网络) */
+  /**
+   * 更新远程协作者状态 (来自网络)
+   * H6: 使用 lastActive 作为逻辑时钟,拒绝乱序的过期更新,防止光标回跳。
+   * 仅当 patch 携带 lastActive 且比现有值更新时才接受。
+   */
   updateRemote(id: number, patch: Partial<Collaborator>): void {
     const existing = this.remote.get(id);
+    const incomingTime = patch.lastActive ?? Date.now();
+
+    // 时钟冲突解决:若 patch 显式携带 lastActive 且比现有值旧,拒绝(乱序消息)
+    if (existing && patch.lastActive !== undefined && incomingTime < existing.lastActive) {
+      return;
+    }
+
     const updated: Collaborator = {
       ...(existing ?? {
         id,
@@ -89,7 +100,8 @@ export class Awareness {
         lastActive: Date.now(),
       }),
       ...patch,
-      lastActive: Date.now(),
+      // 保留传入的时间戳(而非用本地 Date.now()),以便接收方也能正确判定顺序
+      lastActive: incomingTime,
     };
     this.remote.set(id, updated);
     this.emit();

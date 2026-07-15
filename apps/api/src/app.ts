@@ -21,6 +21,7 @@ import gitRoutes from "./routes/git.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import milestoneRoutes from "./routes/milestones.js";
 import notificationRoutes from "./routes/notifications.js";
+import docRoutes from "./routes/docs.js";
 
 export function createApp() {
   const app = express();
@@ -51,6 +52,9 @@ export function createApp() {
   app.use("/api/dashboard", dashboardRoutes);
   app.use("/api/milestones", milestoneRoutes);
   app.use("/api/notifications", notificationRoutes);
+  app.use("/api/github", githubRoutes);
+  app.use("/api/git", gitRoutes);
+  app.use("/api/docs", docRoutes);
 
   // 404
   app.use((_req: Request, res: Response) => {

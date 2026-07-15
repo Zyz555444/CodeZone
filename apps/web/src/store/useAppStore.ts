@@ -1,6 +1,6 @@
 // CodeZone · 全局状态 (Zustand)
 import { create } from "zustand";
-import type { User, Team, TeamRole } from "@/lib/types";
+import type { User, Team, TeamRole, MeResponse } from "@/lib/types";
 import { api, tokenStore } from "@/lib/api";
 
 interface AppState {
@@ -38,10 +38,11 @@ export const useAppStore = create<AppState>((set) => ({
     }
     try {
       const data = await api.me();
+      const { team, teamRole, ...user } = data as MeResponse;
       set({
-        currentUser: data as User,
-        team: (data as any).team ?? null,
-        teamRole: (data as any).teamRole ?? null,
+        currentUser: user,
+        team: team ?? null,
+        teamRole: teamRole ?? null,
         initialized: true,
       });
     } catch {
@@ -51,8 +52,14 @@ export const useAppStore = create<AppState>((set) => ({
   },
   setCurrentUser: (u) => set({ currentUser: u }),
   setTeam: (t, role) => set({ team: t, teamRole: role ?? null }),
-  setOnlineCount: (total, teamOnline) => set({ onlineCount: total, teamOnlineCount: teamOnline }),
-  setWsConnected: (connected) => set({ wsConnected: connected }),
+  setOnlineCount: (total, teamOnline) =>
+    set((s) =>
+      s.onlineCount === total && s.teamOnlineCount === teamOnline
+        ? s
+        : { onlineCount: total, teamOnlineCount: teamOnline },
+    ),
+  setWsConnected: (connected) =>
+    set((s) => (s.wsConnected === connected ? s : { wsConnected: connected })),
   logout: async () => {
     await api.logout();
     set({ currentUser: null, team: null, teamRole: null, onlineCount: 0, teamOnlineCount: 0, wsConnected: false });

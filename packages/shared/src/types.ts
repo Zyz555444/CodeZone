@@ -251,3 +251,145 @@ export interface InviteCode {
   expiresAt: number | null;
   createdAt: number;
 }
+
+// ───────────────────────────── 协作文档 ─────────────────────────────
+export interface Document {
+  id: string;
+  teamId: string;
+  title: string;
+  content: string;
+  language: string;
+  createdBy: string;
+  lastEditedBy: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface DocumentVersion {
+  id: string;
+  docId: string;
+  content: string;
+  authorId: string;
+  message: string;
+  createdAt: number;
+}
+
+export interface DocumentComment {
+  id: string;
+  docId: string;
+  authorId: string;
+  body: string;
+  lineNumber: number | null;
+  resolved: boolean;
+  createdAt: number;
+}
+
+/** /auth/me 响应 — User 附带团队信息 */
+export interface MeResponse extends User {
+  team: Team | null;
+  teamRole: TeamRole | null;
+}
+
+// ───────────────────────────── 协作 CRDT 类型 ─────────────────────────────
+export interface CharId {
+  client: number;
+  clock: number;
+}
+
+export interface TextOp {
+  type: "insert" | "delete";
+  client: number;
+  clock: number;
+  offset: number;
+  content?: string;
+  length?: number;
+  timestamp: number;
+}
+
+export interface CursorState {
+  lineNumber: number;
+  column: number;
+  selectionStart?: { lineNumber: number; column: number };
+  selectionEnd?: { lineNumber: number; column: number };
+}
+
+export interface Collaborator {
+  id: number;
+  name: string;
+  color: string;
+  avatarInitial: string;
+  isLocal: boolean;
+  online: boolean;
+  cursor: CursorState | null;
+  lastActive: number;
+}
+
+// ───────────────────────────── WebSocket 消息协议 ─────────────────────────────
+export interface WSOnlineCountMessage {
+  type: "online_count";
+  total: number;
+  teamOnline: number;
+  teamId: string | null;
+}
+
+export interface WSUserStatusMessage {
+  type: "user_status";
+  userId: string;
+  name: string;
+  status: "online" | "offline";
+}
+
+export interface WSJoinRoomMessage {
+  type: "join_room";
+  docId: string;
+}
+
+export interface WSLeaveRoomMessage {
+  type: "leave_room";
+  docId: string;
+}
+
+export interface WSDocOpMessage {
+  type: "doc_op";
+  docId: string;
+  op: TextOp;
+  client: number;
+  clientName: string;
+}
+
+export interface WSAwarenessMessage {
+  type: "awareness";
+  docId: string;
+  collaborator: Collaborator;
+}
+
+export interface WSPresenceMessage {
+  type: "presence";
+  docId: string;
+  collaborators: Collaborator[];
+}
+
+export interface WSRoomJoinedMessage {
+  type: "room_joined";
+  docId: string;
+  content: string;
+  collaborators: Collaborator[];
+  clientId: number;
+}
+
+export interface WSErrorMessage {
+  type: "error";
+  message: string;
+  code?: number;
+}
+
+export type WSMessage =
+  | WSOnlineCountMessage
+  | WSUserStatusMessage
+  | WSJoinRoomMessage
+  | WSLeaveRoomMessage
+  | WSDocOpMessage
+  | WSAwarenessMessage
+  | WSPresenceMessage
+  | WSRoomJoinedMessage
+  | WSErrorMessage;

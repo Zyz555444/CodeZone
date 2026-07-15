@@ -11,6 +11,7 @@ import type {
   Pipeline, Discussion, Activity, FileNode, Milestone,
   AppNotification, DashboardStats, Label, IssueStatus, PRStatus,
   Team, TeamMember, InviteCode, TeamRole,
+  Document, DocumentVersion, DocumentComment,
 } from "@codezone/shared";
 
 const now = () => Date.now();
@@ -303,6 +304,11 @@ export const inviteCodeRepo = {
       .where(eq(schema.inviteCodes.code, code)).limit(1);
     return (rows[0] as InviteCode) ?? null;
   },
+  async getById(id: string): Promise<InviteCode | null> {
+    const rows = await db.select().from(schema.inviteCodes)
+      .where(eq(schema.inviteCodes.id, id)).limit(1);
+    return (rows[0] as InviteCode) ?? null;
+  },
   async listByTeam(teamId: string): Promise<InviteCode[]> {
     const rows = await db.select().from(schema.inviteCodes)
       .where(eq(schema.inviteCodes.teamId, teamId))
@@ -331,5 +337,115 @@ export const inviteCodeRepo = {
   },
   async delete(id: string): Promise<void> {
     await db.delete(schema.inviteCodes).where(eq(schema.inviteCodes.id, id));
+  },
+};
+
+// ───────────────────────────── 协作文档 ─────────────────────────────
+export const docRepo = {
+  async listByTeam(teamId: string): Promise<Document[]> {
+    const rows = await db.select().from(schema.documents)
+      .where(eq(schema.documents.teamId, teamId))
+      .orderBy(desc(schema.documents.updatedAt));
+    return rows as Document[];
+  },
+  async getById(id: string): Promise<Document | null> {
+    const rows = await db.select().from(schema.documents)
+      .where(eq(schema.documents.id, id)).limit(1);
+    return (rows[0] as Document) ?? null;
+  },
+  async create(data: { teamId: string; title: string; content?: string; language?: string; createdBy: string }): Promise<Document> {
+    const id = `doc${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const ts = now();
+    const row = {
+      id,
+      teamId: data.teamId,
+      title: data.title,
+      content: data.content ?? "",
+      language: data.language ?? "typescript",
+      createdBy: data.createdBy,
+      lastEditedBy: data.createdBy,
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    await db.insert(schema.documents).values(row);
+    return row as Document;
+  },
+  async updateContent(id: string, content: string, editorId: string): Promise<void> {
+    await db.update(schema.documents)
+      .set({ content, lastEditedBy: editorId, updatedAt: now() })
+      .where(eq(schema.documents.id, id));
+  },
+  async updateTitle(id: string, title: string): Promise<void> {
+    await db.update(schema.documents)
+      .set({ title, updatedAt: now() })
+      .where(eq(schema.documents.id, id));
+  },
+  async delete(id: string): Promise<void> {
+    await db.delete(schema.documents).where(eq(schema.documents.id, id));
+  },
+};
+
+// ───────────────────────────── 文档版本 ─────────────────────────────
+export const docVersionRepo = {
+  async listByDoc(docId: string, limit = 30): Promise<DocumentVersion[]> {
+    const rows = await db.select().from(schema.documentVersions)
+      .where(eq(schema.documentVersions.docId, docId))
+      .orderBy(desc(schema.documentVersions.createdAt))
+      .limit(limit);
+    return rows as DocumentVersion[];
+  },
+  async create(data: { docId: string; content: string; authorId: string; message?: string }): Promise<DocumentVersion> {
+    const id = `ver${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const row = {
+      id,
+      docId: data.docId,
+      content: data.content,
+      authorId: data.authorId,
+      message: data.message ?? "",
+      createdAt: now(),
+    };
+    await db.insert(schema.documentVersions).values(row);
+    return row as DocumentVersion;
+  },
+  async getById(id: string): Promise<DocumentVersion | null> {
+    const rows = await db.select().from(schema.documentVersions)
+      .where(eq(schema.documentVersions.id, id)).limit(1);
+    return (rows[0] as DocumentVersion) ?? null;
+  },
+};
+
+// ───────────────────────────── 文档评论 ─────────────────────────────
+export const docCommentRepo = {
+  async listByDoc(docId: string): Promise<(DocumentComment & { author?: User })[]> {
+    const rows = await db.select().from(schema.documentComments)
+      .where(eq(schema.documentComments.docId, docId))
+      .orderBy(asc(schema.documentComments.createdAt));
+    const comments = rows as DocumentComment[];
+    const authors = await Promise.all(
+      comments.map((c) => userRepo.getById(c.authorId)),
+    );
+    return comments.map((c, i) => ({ ...c, author: authors[i] ?? undefined }));
+  },
+  async create(data: { docId: string; authorId: string; body: string; lineNumber?: number | null }): Promise<DocumentComment> {
+    const id = `dc${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const row = {
+      id,
+      docId: data.docId,
+      authorId: data.authorId,
+      body: data.body,
+      lineNumber: data.lineNumber ?? null,
+      resolved: false,
+      createdAt: now(),
+    };
+    await db.insert(schema.documentComments).values(row);
+    return row as DocumentComment;
+  },
+  async resolve(id: string, resolved: boolean): Promise<void> {
+    await db.update(schema.documentComments)
+      .set({ resolved })
+      .where(eq(schema.documentComments.id, id));
+  },
+  async delete(id: string): Promise<void> {
+    await db.delete(schema.documentComments).where(eq(schema.documentComments.id, id));
   },
 };

@@ -3,6 +3,7 @@ import type {
   User, Repo, Issue, PullRequest, Commit, Comment,
   Pipeline, Discussion, Activity, DashboardStats, IssueStatus,
   Milestone, AppNotification, Team, TeamMember, InviteCode, TeamRole,
+  Document, DocumentVersion, DocumentComment, MeResponse,
 } from "./types";
 
 const BASE = "/api";
@@ -51,7 +52,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ name, email, password, inviteCode }),
     }),
-  me: () => request<User>("/auth/me"),
+  me: () => request<MeResponse>("/auth/me"),
   logout: () => {
     tokenStore.clear();
     return Promise.resolve();
@@ -174,4 +175,41 @@ export const api = {
     request<{ success: boolean }>(`/notifications/${id}/read`, { method: "POST" }),
   markAllNotificationsRead: () =>
     request<{ success: boolean }>("/notifications/read-all", { method: "POST" }),
+
+  // ─────────── 协作文档 ───────────
+  getDocs: () => request<Document[]>("/docs"),
+  getDoc: (id: string) => request<Document>(`/docs/${id}`),
+  createDoc: (data: { title: string; content?: string; language?: string }) =>
+    request<Document>("/docs", { method: "POST", body: JSON.stringify(data) }),
+  updateDocTitle: (id: string, title: string) =>
+    request<Document>(`/docs/${id}`, { method: "PATCH", body: JSON.stringify({ title }) }),
+  deleteDoc: (id: string) =>
+    request<{ success: boolean }>(`/docs/${id}`, { method: "DELETE" }),
+  saveDoc: (id: string, content: string) =>
+    request<Document>(`/docs/${id}/save`, { method: "POST", body: JSON.stringify({ content }) }),
+  getDocVersions: (id: string, limit = 30) =>
+    request<DocumentVersion[]>(`/docs/${id}/versions?limit=${limit}`),
+  getDocVersion: (docId: string, vid: string) =>
+    request<DocumentVersion>(`/docs/${docId}/versions/${vid}`),
+  createDocVersion: (id: string, content: string, message?: string) =>
+    request<DocumentVersion>(`/docs/${id}/versions`, {
+      method: "POST",
+      body: JSON.stringify({ content, message }),
+    }),
+  getDocComments: (id: string) =>
+    request<(DocumentComment & { author?: User })[]>(`/docs/${id}/comments`),
+  createDocComment: (id: string, body: string, lineNumber?: number) =>
+    request<DocumentComment>(`/docs/${id}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ body, lineNumber }),
+    }),
+  resolveDocComment: (docId: string, commentId: string, resolved: boolean) =>
+    request<{ success: boolean }>(`/docs/${docId}/comments/${commentId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ resolved }),
+    }),
+  deleteDocComment: (docId: string, commentId: string) =>
+    request<{ success: boolean }>(`/docs/${docId}/comments/${commentId}`, { method: "DELETE" }),
+  getDocPresence: (id: string) =>
+    request<{ onlineCount: number }>(`/docs/${id}/presence`),
 };
