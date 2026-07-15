@@ -29,13 +29,13 @@ export const userRepo = {
     const rows = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
     return (rows[0] as User & { passwordHash: string | null }) ?? null;
   },
-  async create(data: { id: string; name: string; email: string; passwordHash: string; role?: string }): Promise<User> {
+  async create(data: { id: string; name: string; email: string; passwordHash: string | null; role?: string; avatar?: string }): Promise<User> {
     const row = {
       id: data.id,
       name: data.name,
       email: data.email,
       passwordHash: data.passwordHash,
-      avatar: "",
+      avatar: data.avatar ?? "",
       role: data.role ?? "member",
       createdAt: now(),
     };

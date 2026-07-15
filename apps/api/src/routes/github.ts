@@ -56,22 +56,18 @@ router.get("/auth/github/callback", async (req: Request, res: Response) => {
     const primaryEmail = emails.find((e) => e.primary)?.email ?? emails[0]?.email ?? `${ghUser.login}@github.com`;
 
     // 查找或创建用户
-    let user = await userRepo.getByEmail(primaryEmail);
-    if (!user) {
-      const id = `u${Date.now()}`;
-      user = await userRepo.create({
-        id,
-        name: ghUser.name ?? ghUser.login,
-        email: primaryEmail,
-        passwordHash: null as unknown as string,
-        avatar: ghUser.avatar_url,
-      });
-    }
+    const user = await userRepo.getByEmail(primaryEmail) ?? await userRepo.create({
+      id: `u${Date.now()}`,
+      name: ghUser.login,
+      email: primaryEmail,
+      passwordHash: null,
+      avatar: ghUser.avatar_url,
+    });
 
     // 更新 GitHub token
     const { db, schema } = await import("@codezone/database");
     const { eq } = await import("drizzle-orm");
-    await db.update(schema.users)
+    await (db.update(schema.users) as any)
       .set({ githubToken: tokenData.access_token, githubUsername: ghUser.login, avatar: ghUser.avatar_url })
       .where(eq(schema.users.id, user.id));
 

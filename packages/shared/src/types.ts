@@ -9,6 +9,8 @@ export interface User {
   name: string;
   email: string;
   avatar: string;
+  githubToken?: string | null;
+  githubUsername?: string | null;
   role: UserRole;
   createdAt: number;
 }

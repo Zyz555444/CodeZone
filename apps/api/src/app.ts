@@ -18,8 +18,6 @@ import pipelineRoutes from "./routes/pipelines.js";
 import teamRoutes from "./routes/team.js";
 import githubRoutes from "./routes/github.js";
 import gitRoutes from "./routes/git.js";
-import gitRoutes from "./routes/git.js";
-import gitRoutes from "./routes/git.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import milestoneRoutes from "./routes/milestones.js";
 import notificationRoutes from "./routes/notifications.js";
