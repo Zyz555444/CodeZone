@@ -1,0 +1,26 @@
+# CodeZone · 本地开发数据库
+# 启动: docker compose up -d
+# 停止: docker compose down
+# 清除数据: docker compose down -v
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: codezone-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: codezone
+      POSTGRES_PASSWORD: codezone
+      POSTGRES_DB: codezone
+    ports:
+      - "5432:5432"
+    volumes:
+      - codezone-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U codezone -d codezone"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  codezone-pgdata:
+    driver: local

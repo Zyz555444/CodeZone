@@ -1,0 +1,44 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [".env"],
+  "globalEnv": [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "JWT_SECRET",
+    "JWT_EXPIRES_IN",
+    "PORT",
+    "API_PORT",
+    "CORS_ORIGIN"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "build/**"],
+      "env": ["NODE_ENV"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "check": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "db:generate": {
+      "cache": false,
+      "outputs": ["drizzle/**"]
+    },
+    "db:migrate": {
+      "cache": false,
+      "persistent": false
+    },
+    "db:seed": {
+      "cache": false,
+      "persistent": false
+    }
+  }
+}
