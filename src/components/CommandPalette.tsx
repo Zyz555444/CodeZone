@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Search, ArrowRight, CornerDownLeft, Esc,
+  Search, ArrowRight, CornerDownLeft, X,
 } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { searchCommands, type CommandItem } from "@/lib/commandIndex";
@@ -128,7 +128,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             className="flex-1 bg-transparent text-copy-15 text-neutral-9 dark:text-[var(--neutral-9)] placeholder:text-neutral-5 dark:placeholder:text-[var(--neutral-5)] outline-none"
           />
           <kbd className="flex items-center gap-0.5 text-caption-10 text-neutral-5 dark:text-[var(--neutral-5)] ring-1 ring-border rounded px-1.5 py-0.5">
-            <Esc className="w-2.5 h-2.5" /> 关闭
+            <X className="w-2.5 h-2.5" /> 关闭
           </kbd>
         </div>
 

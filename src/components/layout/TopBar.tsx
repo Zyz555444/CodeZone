@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Search, Sun, Moon, Bell } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { Avatar } from "@/components/ui/Avatar";
@@ -27,21 +28,25 @@ export function TopBar({ title, subtitle }: TopBarProps) {
         )}
       </div>
 
-      {/* 搜索 */}
-      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md ring-1 ring-border bg-neutral-2 dark:bg-[var(--neutral-2)] w-56">
+      {/* 搜索 — 唤起命令面板 */}
+      <button
+        onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+        className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md ring-1 ring-border bg-neutral-2 dark:bg-[var(--neutral-2)] w-56 hover:ring-[var(--color-accent)] transition-shadow duration-300 ease-breathe"
+      >
         <Search className="w-icon-sm h-icon-sm text-neutral-5 dark:text-[var(--neutral-5)]" />
-        <input
-          type="text"
-          placeholder="搜索代码、议题、PR…"
-          className="bg-transparent text-copy-13 text-neutral-9 dark:text-[var(--neutral-9)] placeholder:text-neutral-5 dark:placeholder:text-[var(--neutral-5)] outline-none w-full"
-        />
+        <span className="text-copy-13 text-neutral-5 dark:text-[var(--neutral-5)] flex-1 text-left">
+          搜索代码、议题、PR…
+        </span>
         <kbd className="text-caption-10 text-neutral-5 dark:text-[var(--neutral-5)] border border-border rounded px-1">
           ⌘K
         </kbd>
-      </div>
+      </button>
 
       {/* 通知 */}
-      <button className="grid place-items-center w-8 h-8 rounded-md text-neutral-6 dark:text-[var(--neutral-6)] hover:bg-neutral-2 dark:hover:bg-[var(--neutral-2)] hover:text-neutral-9 dark:hover:text-[var(--neutral-9)] transition-colors duration-300 ease-breathe relative">
+      <button
+        onClick={() => (window.location.href = "/notifications")}
+        className="grid place-items-center w-8 h-8 rounded-md text-neutral-6 dark:text-[var(--neutral-6)] hover:bg-neutral-2 dark:hover:bg-[var(--neutral-2)] hover:text-neutral-9 dark:hover:text-[var(--neutral-9)] transition-colors duration-300 ease-breathe relative"
+      >
         <Bell className="w-icon-md h-icon-md" strokeWidth={1.75} />
         <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[var(--color-accent)]" />
       </button>
@@ -60,12 +65,12 @@ export function TopBar({ title, subtitle }: TopBarProps) {
       </button>
 
       {/* 用户 */}
-      <div className="flex items-center gap-2 pl-2 border-l border-border">
+      <Link to="/profile/u1" className="flex items-center gap-2 pl-2 border-l border-border hover:opacity-80 transition-opacity duration-300 ease-breathe">
         <Avatar user={currentUser} size="sm" />
         <span className="hidden sm:block text-copy-13 text-neutral-8 dark:text-[var(--neutral-8)]">
           {currentUser.name}
         </span>
-      </div>
+      </Link>
     </header>
   );
 }

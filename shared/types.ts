@@ -189,6 +189,19 @@ export interface DashboardStats {
   activeRepos: number;
 }
 
+export interface Milestone {
+  id: string;
+  repoId: string;
+  title: string;
+  description: string;
+  dueDate: number;
+  status: "open" | "closed";
+  progress: number; // 0-100
+  openIssues: number;
+  closedIssues: number;
+  totalIssues: number;
+}
+
 export interface ApiResponse<T> {
   data: T;
   message?: string;

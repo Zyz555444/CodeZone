@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, BookMarked, CircleDot, GitPullRequest,
   MessagesSquare, Workflow, Users, Settings, Hash,
+  Bell, Map, Activity as ActivityIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +13,13 @@ const navItems = [
   { to: "/pulls", label: "合并请求", icon: GitPullRequest },
   { to: "/discussions", label: "讨论", icon: MessagesSquare },
   { to: "/pipelines", label: "流水线", icon: Workflow },
+  { to: "/milestones", label: "里程碑", icon: Map },
+  { to: "/activity", label: "活动", icon: ActivityIcon },
   { to: "/team", label: "团队", icon: Users },
+];
+
+const bottomItems = [
+  { to: "/notifications", label: "通知", icon: Bell },
   { to: "/settings", label: "设置", icon: Settings },
 ];
 
@@ -32,7 +39,7 @@ export function Sidebar() {
       </div>
 
       {/* 导航 */}
-      <nav className="flex-1 px-3 space-y-0.5">
+      <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
         <p className="px-3 pt-2 pb-1 text-caption-10 uppercase tracking-eyebrow text-neutral-5 dark:text-[var(--neutral-5)]">
           导航
         </p>
@@ -56,6 +63,33 @@ export function Sidebar() {
             </NavLink>
           );
         })}
+
+        <p className="px-3 pt-4 pb-1 text-caption-10 uppercase tracking-eyebrow text-neutral-5 dark:text-[var(--neutral-5)]">
+          个人
+        </p>
+        {bottomItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-copy-14 transition-colors duration-300 ease-breathe",
+                  isActive
+                    ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)] font-medium"
+                    : "text-neutral-7 dark:text-[var(--neutral-7)] hover:bg-neutral-2 dark:hover:bg-[var(--neutral-2)] hover:text-neutral-9 dark:hover:text-[var(--neutral-9)]",
+                )
+              }
+            >
+              <Icon className="w-icon-md h-icon-md shrink-0" strokeWidth={1.75} />
+              <span>{item.label}</span>
+              {item.to === "/notifications" && (
+                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[var(--color-accent)]" />
+              )}
+            </NavLink>
+          );
+        })}
       </nav>
 
       {/* 底部说明 */}
@@ -64,7 +98,7 @@ export function Sidebar() {
           留白也是写作的一部分。
         </p>
         <p className="mt-1 text-caption-10 uppercase tracking-eyebrow text-neutral-5 dark:text-[var(--neutral-5)]">
-          Yohaku Design
+          Yohaku Design · 按 ⌘K 唤起命令面板
         </p>
       </div>
     </aside>

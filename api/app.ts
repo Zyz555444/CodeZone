@@ -17,6 +17,7 @@ import discussionRoutes from './routes/discussions.js'
 import pipelineRoutes from './routes/pipelines.js'
 import teamRoutes from './routes/team.js'
 import dashboardRoutes from './routes/dashboard.js'
+import milestoneRoutes from './routes/milestones.js'
 
 // load env
 dotenv.config()
@@ -38,6 +39,7 @@ app.use('/api/repos/:repoId/discussions', discussionRoutes)
 app.use('/api/pipelines', pipelineRoutes)
 app.use('/api/team', teamRoutes)
 app.use('/api/dashboard', dashboardRoutes)
+app.use('/api/milestones', milestoneRoutes)
 
 /**
  * health

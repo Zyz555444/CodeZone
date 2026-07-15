@@ -1,7 +1,10 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { RepoLayout } from "@/components/layout/RepoLayout";
+import { CommandPalette } from "@/components/CommandPalette";
 import Dashboard from "@/pages/Dashboard";
+import Login from "@/pages/Login";
 import ReposList from "@/pages/ReposList";
 import CodeBrowser from "@/pages/CodeBrowser";
 import Commits from "@/pages/Commits";
@@ -18,11 +21,44 @@ import Team from "@/pages/Team";
 import Settings from "@/pages/Settings";
 import GlobalIssues from "@/pages/GlobalIssues";
 import GlobalPulls from "@/pages/GlobalPulls";
+import Milestones from "@/pages/Milestones";
+import Profile from "@/pages/Profile";
+import Notifications from "@/pages/Notifications";
+import Activity from "@/pages/Activity";
+
+function CommandPaletteShortcut() {
+  const [open, setOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setOpen((v) => !v);
+      } else if (e.key === "Escape") {
+        setOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  // 路由切换时关闭
+  useEffect(() => {
+    setOpen(false);
+  }, [location.pathname]);
+
+  return <CommandPalette open={open} onClose={() => setOpen(false)} />;
+}
 
 export default function App() {
   return (
     <Router>
+      <CommandPaletteShortcut />
       <Routes>
+        {/* 登录页 (无布局) */}
+        <Route path="/login" element={<Login />} />
+
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
@@ -32,6 +68,11 @@ export default function App() {
           <Route path="/pulls" element={<GlobalPulls />} />
           <Route path="/discussions" element={<Discussions repoId="r1" />} />
           <Route path="/pipelines" element={<PipelinesList repoId="r1" />} />
+          <Route path="/activity" element={<Activity />} />
+          <Route path="/milestones" element={<Milestones />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/profile" element={<Navigate to="/profile/u1" replace />} />
+          <Route path="/profile/:userId" element={<Profile />} />
 
           {/* 仓库列表 */}
           <Route path="/repos" element={<ReposList />} />
