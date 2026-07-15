@@ -1,10 +1,12 @@
 // 讨论路由
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { store } from "../db/store";
 
 const router = Router({ mergeParams: true });
 
-router.get("/", (req, res) => {
+type RepoParams = { repoId: string };
+
+router.get("/", (req: Request<RepoParams>, res: Response) => {
   res.json({ data: store.listDiscussions(req.params.repoId) });
 });
 

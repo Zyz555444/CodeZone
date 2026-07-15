@@ -22,7 +22,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   // 工作台
   getActivities: (limit = 15) =>
-    request<(Activity & { actor: User; repo: Repo })[]>("/dashboard/activities", limit),
+    request<(Activity & { actor: User; repo: Repo })[]>(`/dashboard/activities?limit=${limit}`),
   getStats: () => request<DashboardStats>("/dashboard/stats"),
 
   // 仓库
