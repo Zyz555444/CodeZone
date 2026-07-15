@@ -35,8 +35,11 @@ function connect(token: string): void {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
 
   currentToken = token;
-  const protocol = location.protocol === "https:" ? "wss" : "ws";
-  ws = new WebSocket(`${protocol}://${location.host}/ws?token=${encodeURIComponent(token)}`);
+  // 拆分部署:VITE_WS_BASE 指定后端 WS 地址 (如 wss://api.example.com/ws);
+  // 未设置则用同源 location.host (本地开发或同域部署)
+  const wsBase: string = import.meta.env.VITE_WS_BASE ??
+    `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
+  ws = new WebSocket(`${wsBase}?token=${encodeURIComponent(token)}`);
 
   ws.onopen = () => {
     reconnectAttempt = 0;

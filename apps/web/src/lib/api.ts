@@ -6,7 +6,9 @@ import type {
   Document, DocumentVersion, DocumentComment, MeResponse,
 } from "./types";
 
-const BASE = "/api";
+// 拆分部署时,前端(Vercel)与后端(Railway)不同源;
+// 通过 VITE_API_BASE 注入后端地址,未设置则回退到同源 /api (本地开发或同域部署)
+const BASE = import.meta.env.VITE_API_BASE ?? "/api";
 const TOKEN_KEY = "codezone_token";
 
 // 令牌存取
