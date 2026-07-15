@@ -1,19 +1,13 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import tsconfigPaths from "vite-tsconfig-paths";
 
 // https://vite.dev/config/
+// Vite 8: Rolldown + Oxc 统一工具链; resolve.tsconfigPaths 内置, 无需 vite-tsconfig-paths
 export default defineConfig({
-  plugins: [
-    react({
-      babel: {
-        plugins: [
-          'react-dev-locator',
-        ],
-      },
-    }),
-    tsconfigPaths(),
-  ],
+  plugins: [react()],
+  resolve: {
+    tsconfigPaths: true,
+  },
   server: {
     proxy: {
       '/api': {

@@ -12,7 +12,7 @@ router.get("/", async (_req: Request, res: Response) => {
 });
 
 // 按仓库列出里程碑
-router.get("/repo/:repoId", async (req: Request, res: Response) => {
+router.get("/repo/:repoId", async (req: Request<{ repoId: string }>, res: Response) => {
   const milestones = await milestoneRepo.listByRepo(req.params.repoId);
   res.json({ data: milestones });
 });

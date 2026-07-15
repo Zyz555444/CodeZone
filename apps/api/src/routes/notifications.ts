@@ -20,7 +20,7 @@ router.get("/unread-count", authMiddleware, async (req: Request, res: Response) 
 });
 
 // 标记单条已读
-router.post("/:id/read", authMiddleware, async (req: Request, res: Response) => {
+router.post("/:id/read", authMiddleware, async (req: Request<{ id: string }>, res: Response) => {
   await notificationRepo.markRead(req.params.id);
   res.json({ data: { success: true } });
 });

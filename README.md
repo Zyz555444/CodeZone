@@ -30,8 +30,8 @@
 | 层级 | 技术 |
 |------|------|
 | Monorepo | Turborepo · pnpm workspaces |
-| 前端 | React 18 · TypeScript · Vite · Tailwind CSS · React Router · Zustand |
-| 后端 | Express 4 · TypeScript（ESM） |
+| 前端 | React 19 · TypeScript 7 · Vite 8（Rolldown + Oxc） · Tailwind CSS · React Router · Zustand |
+| 后端 | Express 5 · TypeScript 7（ESM） |
 | 数据库 | PostgreSQL · Drizzle ORM · drizzle-kit 迁移 |
 | 认证 | JWT (jsonwebtoken) · bcryptjs |
 | 设计系统 | Yohaku Design System（色彩 / 字体 / 间距 / 动效令牌） |
@@ -203,7 +203,7 @@ codezone/
 | GET | `/api/dashboard/stats` | 统计概览（实时聚合） |
 | GET | `/api/repos` | 仓库列表 |
 | GET | `/api/repos/:repoId` | 仓库详情 |
-| GET | `/api/repos/:repoId/contents/*` | 文件树 / 文件内容 |
+| GET | `/api/repos/:repoId/contents/*splat` | 文件树 / 文件内容 |
 | GET | `/api/repos/:repoId/commits` | 提交历史 |
 | GET | `/api/repos/:repoId/labels` | 仓库标签 |
 | GET | `/api/repos/:repoId/issues` | 议题列表（支持 `?status=`） |
