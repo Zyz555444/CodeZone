@@ -17,6 +17,8 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash"),
   avatar: text("avatar"),
   role: varchar("role", { length: 16 }).notNull().default("member"), // member | maintainer | admin
+    githubToken: varchar("github_token", { length: 128 }),
+  githubUsername: varchar("github_username", { length: 64 }),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });
 
@@ -209,6 +211,8 @@ export const inviteCodes = pgTable("invite_codes", {
   maxUses: integer("max_uses").notNull().default(0), // 0 = 无限制
   usedCount: integer("used_count").notNull().default(0),
   expiresAt: bigint("expires_at", { mode: "number" }),
+    githubToken: varchar("github_token", { length: 128 }),
+  githubUsername: varchar("github_username", { length: 64 }),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
 }, (t) => ({
   teamIdx: index("ic_team_idx").on(t.teamId),
