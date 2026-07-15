@@ -69,6 +69,21 @@ export const api = {
     request<any>(`/repos/${repoId}/contents/${path}`),
   getCommits: (repoId: string) => request<Commit[]>(`/repos/${repoId}/commits`),
 
+  // ─────────── GitHub 集成 ───────────
+  githubConnected: () => request<{ connected: boolean; githubUsername: string | null }>("/github/connected"),
+  githubDisconnect: () => request<{ success: boolean }>("/github/disconnect", { method: "POST" }),
+  githubRepos: () => request<{ id: number; name: string; fullName: string; description: string; language: string; stars: number; defaultBranch: string; private: boolean; updatedAt: number; cloneUrl: string; htmlUrl: string }[]>("/github/repos"),
+  githubImport: (fullName: string) => request<Repo>("/github/import", { method: "POST", body: JSON.stringify({ fullName }) }),
+  // ─────────── Git 操作 ───────────
+  gitBranches: (repoId: string) => request<{ branches: string[]; current: string }>(`/git/${repoId}/branches`),
+  gitCreateBranch: (repoId: string, name: string, from?: string) => request<{ name: string; from: string }>(`/git/${repoId}/branch`, { method: "POST", body: JSON.stringify({ name, from }) }),
+  gitDeleteBranch: (repoId: string, name: string) => request<{ success: boolean }>(`/git/${repoId}/branch/${name}`, { method: "DELETE" }),
+  gitMerge: (repoId: string, from: string, target?: string) => request<{ merged: string; into: string }>(`/git/${repoId}/merge`, { method: "POST", body: JSON.stringify({ from, target }) }),
+  gitStatus: (repoId: string) => request<{ cloned: boolean; status: string; branch: string; ahead: number; behind: number; dirty: boolean }>(`/git/${repoId}/status`),
+  gitClone: (repoId: string, url?: string) => request<{ message: string; path: string }>(`/git/${repoId}/clone`, { method: "POST", body: JSON.stringify({ url }) }),
+  gitPull: (repoId: string) => request<{ output: string }>(`/git/${repoId}/pull`, { method: "POST" }),
+  gitCommit: (repoId: string, message: string, files: { path: string; content: string }[]) => request<{ message: string }>(`/git/${repoId}/commit`, { method: "POST", body: JSON.stringify({ message, files }) }),
+
   // ─────────── 议题 ───────────
   getIssues: (repoId: string, status = "all") =>
     request<Issue[]>(`/repos/${repoId}/issues${status !== "all" ? `?status=${status}` : ""}`),

@@ -1,18 +1,20 @@
-import { useState } from "react";
-import { User as UserIcon, Palette, Bell, Shield, Plus, Key } from "lucide-react";
+import { useEffect, useState } from "react";
+import { User as UserIcon, Palette, Bell, Shield, Plus, Key, Github, Unlink, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
 import { useAppStore } from "@/store/useAppStore";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
+import { api } from "@/lib/api";
 
-type Section = "profile" | "appearance" | "notifications" | "security";
+type Section = "profile" | "appearance" | "notifications" | "security" | "github";
 
 const navItems: { key: Section; label: string; icon: typeof UserIcon }[] = [
   { key: "profile", label: "个人资料", icon: UserIcon },
   { key: "appearance", label: "外观", icon: Palette },
   { key: "notifications", label: "通知", icon: Bell },
   { key: "security", label: "安全", icon: Shield },
+  { key: "github", label: "GitHub", icon: Github },
 ];
 
 function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
@@ -58,6 +60,23 @@ export default function Settings() {
     review: false,
     issue: true,
   });
+
+  // GitHub 集成
+  const [githubConnected, setGithubConnected] = useState(false);
+  const [githubUsername, setGithubUsername] = useState<string | null>(null);
+  const [githubLoading, setGithubLoading] = useState(false);
+
+  useEffect(() => {
+    if (section === "github") {
+      setGithubLoading(true);
+      api.githubConnected()
+        .then((res) => {
+          setGithubConnected(res.connected);
+          setGithubUsername(res.githubUsername);
+        })
+        .finally(() => setGithubLoading(false));
+    }
+  }, [section]);
 
   return (
     <div className="space-y-6">
@@ -315,6 +334,62 @@ export default function Settings() {
                   ))}
                 </ul>
               </div>
+            </div>
+          )}
+
+          {section === "github" && (
+            <div className="reveal reveal-2 card space-y-5">
+              <h3 className="font-serif text-title-20 font-medium text-neutral-10 dark:text-[var(--neutral-10)]">
+                GitHub 集成
+              </h3>
+              {githubLoading ? (
+                <p className="text-copy-14 text-neutral-5 dark:text-[var(--neutral-5)]">加载中…</p>
+              ) : githubConnected ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 rounded-lg px-4 py-3 ring-1 ring-border bg-neutral-1 dark:bg-[var(--neutral-2)]">
+                    <div className="grid place-items-center w-10 h-10 rounded-full bg-[var(--color-accent-soft)]">
+                      <Github className="w-icon-md h-icon-md text-[var(--color-accent)]" strokeWidth={1.75} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-copy-14 font-medium text-neutral-9 dark:text-[var(--neutral-9)]">
+                        已连接 GitHub
+                      </p>
+                      <p className="text-label-12 text-neutral-5 dark:text-[var(--neutral-5)]">
+                        用户名: {githubUsername}
+                      </p>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          await api.githubDisconnect();
+                          setGithubConnected(false);
+                          setGithubUsername(null);
+                        } catch { /* 断开失败 */ }
+                      }}
+                    >
+                      <Unlink className="w-icon-sm h-icon-sm" strokeWidth={1.75} />
+                      断开连接
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 space-y-4">
+                  <Github className="w-icon-lg h-icon-lg text-neutral-5 dark:text-[var(--neutral-5)] mx-auto" strokeWidth={1.75} />
+                  <p className="text-copy-14 text-neutral-6 dark:text-[var(--neutral-6)]">
+                    连接 GitHub 账户以导入仓库、同步代码
+                  </p>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => window.location.href = "/api/auth/github"}
+                  >
+                    <ExternalLink className="w-icon-sm h-icon-sm" strokeWidth={1.75} />
+                    连接 GitHub
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>

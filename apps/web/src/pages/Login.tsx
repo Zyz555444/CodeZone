@@ -1,17 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Hash, Sun, Moon, Github, Mail, Lock, User, ArrowRight, AlertCircle } from "lucide-react";
+import { Hash, Sun, Moon, Github, Mail, Lock, User, ArrowRight, AlertCircle, Building2, Key } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { Button } from "@/components/ui/Button";
 import { api, tokenStore } from "@/lib/api";
+import type { User as UserType, Team, TeamRole } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
 
 export default function Login() {
   const navigate = useNavigate();
   const { isDark, toggleTheme } = useTheme();
-  const { setCurrentUser } = useAppStore();
-  const [mode, setMode] = useState<"login" | "register">("login");
-  const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
+  const { setCurrentUser, setTeam } = useAppStore();
+  const [mode, setMode] = useState<"login" | "register" | "register-admin" | "join-invite">("login");
+  const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "", teamName: "", inviteCode: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -19,18 +20,27 @@ export default function Login() {
     e.preventDefault();
     setError("");
 
-    if (mode === "register" && form.password !== form.confirm) {
+    if (mode !== "login" && form.password !== form.confirm) {
       setError("两次输入的密码不一致");
       return;
     }
 
     setLoading(true);
     try {
-      const { user, token } = mode === "login"
-        ? await api.login(form.email, form.password)
-        : await api.register(form.name, form.email, form.password);
+      let result: { user: UserType; token: string; team?: Team; teamRole?: TeamRole | null };
+      if (mode === "login") {
+        result = await api.login(form.email, form.password);
+      } else if (mode === "register") {
+        result = await api.register(form.name, form.email, form.password);
+      } else if (mode === "register-admin") {
+        result = await api.registerAdmin(form.name, form.email, form.password, form.teamName);
+      } else {
+        result = await api.joinByInvite(form.name, form.email, form.password, form.inviteCode);
+      }
+      const { user, token, team, teamRole } = result as { user: UserType; token: string; team?: Team; teamRole?: TeamRole | null };
       tokenStore.set(token);
       setCurrentUser(user);
+      if (team) setTeam(team, teamRole);
       navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "操作失败，请重试");
@@ -41,6 +51,16 @@ export default function Login() {
 
   const inputCls =
     "w-full bg-neutral-2 dark:bg-[var(--neutral-2)] ring-1 ring-border rounded-md pl-9 pr-3 py-2 text-copy-14 text-neutral-9 dark:text-[var(--neutral-9)] placeholder:text-neutral-5 dark:placeholder:text-[var(--neutral-5)] focus:ring-2 focus:ring-[var(--color-accent)] outline-none transition-shadow duration-300 ease-breathe";
+
+  // OAuth 回调：从 URL 中读取 token
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    if (token) {
+      tokenStore.set(token);
+      window.location.href = "/dashboard";
+    }
+  }, []);
 
   return (
     <div className="min-h-screen flex bg-paper">
@@ -104,26 +124,26 @@ export default function Login() {
 
           {/* tab 切换 */}
           <div className="flex gap-1 p-1 rounded-md bg-neutral-2 dark:bg-[var(--neutral-2)] mb-6">
-            {(["login", "register"] as const).map((m) => (
+            {(["login", "register", "register-admin", "join-invite"] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => { setMode(m); setError(""); }}
-                className={`flex-1 py-1.5 rounded text-copy-14 font-medium transition-colors duration-300 ease-breathe ${
+                className={`flex-1 py-1.5 rounded text-copy-13 font-medium transition-colors duration-300 ease-breathe ${
                   mode === m
                     ? "bg-paper text-neutral-10 dark:text-[var(--neutral-10)] ring-1 ring-border"
                     : "text-neutral-6 dark:text-[var(--neutral-6)] hover:text-neutral-8 dark:hover:text-[var(--neutral-8)]"
                 }`}
               >
-                {m === "login" ? "登录" : "注册"}
+                {m === "login" ? "登录" : m === "register" ? "注册" : m === "register-admin" ? "创建团队" : "加入团队"}
               </button>
             ))}
           </div>
 
           <h2 className="font-serif text-title-24 font-medium text-neutral-10 dark:text-[var(--neutral-10)] mb-1">
-            {mode === "login" ? "欢迎回来" : "创建账户"}
+            {mode === "login" ? "欢迎回来" : mode === "register-admin" ? "创建团队" : mode === "join-invite" ? "加入团队" : "创建账户"}
           </h2>
           <p className="text-copy-13 text-neutral-6 dark:text-[var(--neutral-6)] mb-6">
-            {mode === "login" ? "登录以回到你的工作空间" : "加入团队，开始协作"}
+            {mode === "login" ? "登录以回到你的工作空间" : mode === "register-admin" ? "创建你的团队并开始协作" : mode === "join-invite" ? "使用邀请码加入团队" : "加入团队，开始协作"}
           </p>
 
           {error && (
@@ -134,7 +154,7 @@ export default function Login() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-3">
-            {mode === "register" && (
+            {mode !== "login" && (
               <div className="relative">
                 <User className="absolute left-3 top-2.5 w-icon-sm h-icon-sm text-neutral-5 dark:text-[var(--neutral-5)]" strokeWidth={1.75} />
                 <input
@@ -143,6 +163,32 @@ export default function Login() {
                   placeholder="姓名"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className={inputCls}
+                />
+              </div>
+            )}
+            {mode === "register-admin" && (
+              <div className="relative">
+                <Building2 className="absolute left-3 top-2.5 w-icon-sm h-icon-sm text-neutral-5 dark:text-[var(--neutral-5)]" strokeWidth={1.75} />
+                <input
+                  type="text"
+                  required
+                  placeholder="团队名称"
+                  value={form.teamName}
+                  onChange={(e) => setForm({ ...form, teamName: e.target.value })}
+                  className={inputCls}
+                />
+              </div>
+            )}
+            {mode === "join-invite" && (
+              <div className="relative">
+                <Key className="absolute left-3 top-2.5 w-icon-sm h-icon-sm text-neutral-5 dark:text-[var(--neutral-5)]" strokeWidth={1.75} />
+                <input
+                  type="text"
+                  required
+                  placeholder="邀请码"
+                  value={form.inviteCode}
+                  onChange={(e) => setForm({ ...form, inviteCode: e.target.value })}
                   className={inputCls}
                 />
               </div>
@@ -169,7 +215,7 @@ export default function Login() {
                 className={inputCls}
               />
             </div>
-            {mode === "register" && (
+            {mode !== "login" && (
               <div className="relative">
                 <Lock className="absolute left-3 top-2.5 w-icon-sm h-icon-sm text-neutral-5 dark:text-[var(--neutral-5)]" strokeWidth={1.75} />
                 <input
@@ -194,7 +240,7 @@ export default function Login() {
             )}
 
             <Button type="submit" variant="primary" size="lg" className="w-full mt-2" disabled={loading}>
-              {loading ? "处理中…" : (mode === "login" ? "登录" : "注册")}
+              {loading ? "处理中…" : (mode === "login" ? "登录" : mode === "register-admin" ? "创建团队" : mode === "join-invite" ? "加入团队" : "注册")}
               {!loading && <ArrowRight className="w-icon-sm h-icon-sm" />}
             </Button>
           </form>
@@ -208,7 +254,7 @@ export default function Login() {
 
           {/* 第三方登录 */}
           <div className="space-y-2">
-            <Button variant="secondary" size="md" className="w-full">
+            <Button variant="secondary" size="md" className="w-full" onClick={() => window.location.href = "/api/auth/github"}>
               <Github className="w-icon-sm h-icon-sm" />
               使用 GitHub 继续
             </Button>
