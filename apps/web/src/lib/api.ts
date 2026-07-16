@@ -72,6 +72,14 @@ export const api = {
     request<any>(`/repos/${repoId}/contents/${path}`),
   getCommits: (repoId: string) => request<Commit[]>(`/repos/${repoId}/commits`),
 
+  // ─────────── 第三方登录 ───────────
+  githubLogin: () => {
+    window.location.href = `${BASE}/auth/github`;
+  },
+  googleLogin: () => {
+    window.location.href = `${BASE}/auth/google`;
+  },
+
   // ─────────── GitHub 集成 ───────────
   githubConnected: () => request<{ connected: boolean; githubUsername: string | null }>("/github/connected"),
   githubDisconnect: () => request<{ success: boolean }>("/github/disconnect", { method: "POST" }),
@@ -183,6 +191,11 @@ export const api = {
   getMilestones: () => request<Milestone[]>("/milestones"),
   getMilestonesByRepo: (repoId: string) =>
     request<Milestone[]>(`/milestones/repo/${repoId}`),
+  createMilestone: (data: { repoId: string; title: string; description: string; dueDate: number }) =>
+    request<Milestone>("/milestones", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 
   // ─────────── 通知 ───────────
   getNotifications: (filter = "all") =>

@@ -135,10 +135,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       {/* 底部说明 */}
       <div className="px-5 py-4 border-t border-border">
         <p className="font-serif text-copy-13 italic text-neutral-6 dark:text-[var(--neutral-6)] leading-relaxed">
-          留白也是写作的一部分。
+          专注，是高效协作的开始。
         </p>
         <p className="mt-1 text-caption-10 uppercase tracking-eyebrow text-neutral-5 dark:text-[var(--neutral-5)]">
-          Yohaku Design · 按 ⌘K 唤起命令面板
+          CodeZone · 按 ⌘K 唤起命令面板
         </p>
       </div>
     </>

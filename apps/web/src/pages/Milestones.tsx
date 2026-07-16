@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Map, Plus, Calendar, CheckCircle2, Circle, AlertCircle } from "lucide-react";
+import { Map, Plus, Calendar, CheckCircle2, Circle, AlertCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
@@ -12,19 +12,61 @@ import type { Milestone, Repo } from "@/lib/types";
 export default function Milestones() {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [repoMap, setRepoMap] = useState<Record<string, Repo>>({});
+  const [repos, setRepos] = useState<Repo[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"board" | "roadmap">("board");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ repoId: "", title: "", description: "", dueDate: "" });
+  const [formError, setFormError] = useState("");
 
   useEffect(() => {
     Promise.all([api.getMilestones(), api.getRepos()])
       .then(([list, repos]) => {
         setMilestones(list);
+        setRepos(repos);
         const map: Record<string, Repo> = {};
         repos.forEach((r) => (map[r.id] = r));
         setRepoMap(map);
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const openModal = () => {
+    setForm({
+      repoId: repos[0]?.id ?? "",
+      title: "",
+      description: "",
+      dueDate: "",
+    });
+    setFormError("");
+    setModalOpen(true);
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError("");
+    if (!form.repoId || !form.title || !form.dueDate) {
+      setFormError("请填写仓库、标题与截止日期");
+      return;
+    }
+    setSaving(true);
+    try {
+      const due = new Date(form.dueDate).getTime();
+      const created = await api.createMilestone({
+        repoId: form.repoId,
+        title: form.title,
+        description: form.description,
+        dueDate: due,
+      });
+      setMilestones((prev) => [...prev, created]);
+      setModalOpen(false);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "创建失败");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -39,7 +81,7 @@ export default function Milestones() {
             团队的交付节奏与版本规划，一眼看清进度与截止。
           </p>
         </div>
-        <Button variant="primary" size="md">
+        <Button variant="primary" size="md" onClick={openModal}>
           <Plus className="w-icon-sm h-icon-sm" /> 新建里程碑
         </Button>
       </div>
@@ -72,6 +114,102 @@ export default function Milestones() {
         <BoardView milestones={milestones} repoMap={repoMap} />
       ) : (
         <RoadmapView milestones={milestones} repoMap={repoMap} />
+      )}
+
+      {modalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          onClick={() => setModalOpen(false)}
+        >
+          <div className="absolute inset-0 bg-neutral-10/30 dark:bg-black/50 backdrop-blur-thin" />
+          <div
+            className="relative w-full max-w-md bg-paper rounded-xl ring-1 ring-border shadow-lg p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-serif text-title-20 font-medium text-neutral-10 dark:text-[var(--neutral-10)]">
+                新建里程碑
+              </h2>
+              <button
+                onClick={() => setModalOpen(false)}
+                className="grid place-items-center w-8 h-8 rounded-md text-neutral-6 dark:text-[var(--neutral-6)] hover:bg-neutral-2 dark:hover:bg-[var(--neutral-2)]"
+                aria-label="关闭"
+              >
+                <X className="w-icon-sm h-icon-sm" strokeWidth={1.75} />
+              </button>
+            </div>
+            {formError && (
+              <div className="mb-4 flex items-start gap-2 p-3 rounded-md bg-error/10 text-error text-copy-13">
+                <AlertCircle className="w-icon-sm h-icon-sm shrink-0 mt-0.5" strokeWidth={1.75} />
+                <span>{formError}</span>
+              </div>
+            )}
+            <form onSubmit={handleCreate} className="space-y-3">
+              <div>
+                <label htmlFor="milestone-repo" className="block text-label-12 text-neutral-6 dark:text-[var(--neutral-6)] mb-1">
+                  所属仓库
+                </label>
+                <select
+                  id="milestone-repo"
+                  value={form.repoId}
+                  onChange={(e) => setForm({ ...form, repoId: e.target.value })}
+                  className="w-full bg-neutral-2 dark:bg-[var(--neutral-2)] ring-1 ring-border rounded-md px-3 py-2 text-copy-14 text-neutral-9 dark:text-[var(--neutral-9)] outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+                >
+                  {repos.map((r) => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="milestone-title" className="block text-label-12 text-neutral-6 dark:text-[var(--neutral-6)] mb-1">
+                  标题
+                </label>
+                <input
+                  id="milestone-title"
+                  type="text"
+                  required
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  className="w-full bg-neutral-2 dark:bg-[var(--neutral-2)] ring-1 ring-border rounded-md px-3 py-2 text-copy-14 text-neutral-9 dark:text-[var(--neutral-9)] outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+                  placeholder="例如：v1.0 发布"
+                />
+              </div>
+              <div>
+                <label htmlFor="milestone-desc" className="block text-label-12 text-neutral-6 dark:text-[var(--neutral-6)] mb-1">
+                  描述
+                </label>
+                <textarea
+                  id="milestone-desc"
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  className="w-full bg-neutral-2 dark:bg-[var(--neutral-2)] ring-1 ring-border rounded-md px-3 py-2 text-copy-14 text-neutral-9 dark:text-[var(--neutral-9)] outline-none focus:ring-2 focus:ring-[var(--color-accent)] min-h-[80px]"
+                  placeholder="描述该里程碑的目标与范围"
+                />
+              </div>
+              <div>
+                <label htmlFor="milestone-due" className="block text-label-12 text-neutral-6 dark:text-[var(--neutral-6)] mb-1">
+                  截止日期
+                </label>
+                <input
+                  id="milestone-due"
+                  type="date"
+                  required
+                  value={form.dueDate}
+                  onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+                  className="w-full bg-neutral-2 dark:bg-[var(--neutral-2)] ring-1 ring-border rounded-md px-3 py-2 text-copy-14 text-neutral-9 dark:text-[var(--neutral-9)] outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+                />
+              </div>
+              <div className="pt-2 flex gap-2">
+                <Button type="button" variant="secondary" size="md" className="flex-1" onClick={() => setModalOpen(false)}>
+                  取消
+                </Button>
+                <Button type="submit" variant="primary" size="md" className="flex-1" disabled={saving}>
+                  {saving ? "保存中…" : "创建"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -5,6 +5,13 @@ import { RepoLayout } from "@/components/layout/RepoLayout";
 import { CommandPalette } from "@/components/CommandPalette";
 import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
+import ForgotPassword from "@/pages/ForgotPassword";
+import Terms from "@/pages/Terms";
+import Privacy from "@/pages/Privacy";
+import About from "@/pages/About";
+import Docs from "@/pages/Docs";
+import ApiDocs from "@/pages/ApiDocs";
+import NotFound from "@/pages/NotFound";
 import ReposList from "@/pages/ReposList";
 import CodeBrowser from "@/pages/CodeBrowser";
 import Commits from "@/pages/Commits";
@@ -15,8 +22,10 @@ import IssueNew from "@/pages/IssueNew";
 import PullsList from "@/pages/PullsList";
 import PullDetail from "@/pages/PullDetail";
 import Discussions from "@/pages/Discussions";
+import GlobalDiscussions from "@/pages/GlobalDiscussions";
 import Wiki from "@/pages/Wiki";
 import PipelinesList from "@/pages/PipelinesList";
+import GlobalPipelines from "@/pages/GlobalPipelines";
 import PipelineDetail from "@/pages/PipelineDetail";
 import Team from "@/pages/Team";
 import Settings from "@/pages/Settings";
@@ -75,8 +84,15 @@ export default function App() {
     <Router>
       <CommandPaletteShortcut />
       <Routes>
-        {/* 登录页 (无布局) */}
+        {/* 公开页 (无布局) */}
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Navigate to="/login" replace />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/docs" element={<Docs />} />
+        <Route path="/api" element={<ApiDocs />} />
 
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -85,8 +101,8 @@ export default function App() {
           {/* 全局跨仓库视图 */}
           <Route path="/issues" element={<GlobalIssues />} />
           <Route path="/pulls" element={<GlobalPulls />} />
-          <Route path="/discussions" element={<Navigate to="/repos" replace />} />
-          <Route path="/pipelines" element={<Navigate to="/repos" replace />} />
+          <Route path="/discussions" element={<GlobalDiscussions />} />
+          <Route path="/pipelines" element={<GlobalPipelines />} />
           <Route path="/activity" element={<Activity />} />
           <Route path="/milestones" element={<Milestones />} />
           <Route path="/collaborate" element={<Collaborate />} />
@@ -115,8 +131,12 @@ export default function App() {
 
           <Route path="/pipelines/:runId" element={<PipelineDetail />} />
           <Route path="/team" element={<Team />} />
+          <Route path="/teams" element={<Navigate to="/team" replace />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
+
+        {/* 404 */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
   );

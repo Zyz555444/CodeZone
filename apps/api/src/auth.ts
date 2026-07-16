@@ -10,8 +10,8 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "./config.js";
-import { teamMemberRepo } from "./repository.js";
-import type { TeamRole } from "@codezone/shared";
+import { teamMemberRepo, userRepo } from "./repository.js";
+import type { TeamRole, User } from "@codezone/shared";
 
 export interface AuthUser {
   id: string;
@@ -111,4 +111,23 @@ export function requireTeamRole(...roles: TeamRole[]) {
     req.teamId = teamId;
     next();
   };
+}
+
+// ─────────── OAuth 辅助函数 ───────────
+
+export async function findOrCreateOAuthUser(email: string, name: string, avatar?: string | null): Promise<User> {
+  const existing = await userRepo.getByEmail(email);
+  if (existing) return existing;
+  return await userRepo.create({
+    id: `u${Date.now()}`,
+    name,
+    email,
+    passwordHash: null,
+    avatar: avatar ?? undefined,
+  });
+}
+
+export function oauthCallbackRedirect(res: Response, token: string) {
+  const frontendUrl = `${config.corsOrigin}/login?token=${token}`;
+  res.redirect(frontendUrl);
 }

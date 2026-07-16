@@ -1,11 +1,19 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Hash, Sun, Moon, Github, Mail, Lock, User, ArrowRight, AlertCircle, Building2, Key } from "lucide-react";
+import {
+  Hash, Sun, Moon, Github, Mail, Lock, User, ArrowRight, AlertCircle,
+  Building2, Key, ChevronDown,
+} from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { Button } from "@/components/ui/Button";
 import { api, tokenStore } from "@/lib/api";
 import type { User as UserType, Team, TeamRole } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
+
+const modules = [
+  "代码仓库", "议题跟踪", "合并请求", "代码评审",
+  "讨论区", "Wiki 文档", "流水线", "里程碑", "团队协作",
+];
 
 export default function Login() {
   const navigate = useNavigate();
@@ -15,6 +23,7 @@ export default function Login() {
   const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "", teamName: "", inviteCode: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [modulesOpen, setModulesOpen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,18 +101,38 @@ export default function Login() {
 
         <div className="relative reveal reveal-2">
           <p className="text-caption-10 uppercase tracking-eyebrow text-[var(--color-accent)] mb-4">
-            留白即专注
+            专注即效率
           </p>
           <h1 className="font-serif text-display-48 font-medium text-neutral-10 dark:text-[var(--neutral-10)] leading-[1.1] max-w-md">
-            留白也是写作的一部分。
+            把协作收进一个克制的工作空间。
           </h1>
           <p className="mt-6 text-copy-16 text-neutral-6 dark:text-[var(--neutral-6)] leading-relaxed max-w-sm">
-            一体化协作开发平台。把代码仓库、议题、评审、文档与流水线收进同一个克制的工作空间。
+            一体化协作开发平台。代码仓库、议题、评审、文档与流水线，在同一个上下文里高效推进。
           </p>
         </div>
 
         <div className="relative reveal reveal-3 flex items-center gap-6 text-label-12 text-neutral-5 dark:text-[var(--neutral-5)]">
-          <span>9 大模块</span>
+          <button
+            type="button"
+            onClick={() => setModulesOpen((v) => !v)}
+            className="flex items-center gap-1 hover:text-[var(--color-accent)] transition-colors"
+            aria-expanded={modulesOpen}
+          >
+            9 大模块
+            <ChevronDown className={`w-3 h-3 transition-transform ${modulesOpen ? "rotate-180" : ""}`} strokeWidth={2} />
+          </button>
+          {modulesOpen && (
+            <div className="absolute bottom-full left-0 mb-2 w-56 p-3 rounded-lg bg-paper dark:bg-[var(--neutral-1)] ring-1 ring-border shadow-lg">
+              <ul className="grid grid-cols-2 gap-1.5 text-label-12 text-neutral-7 dark:text-[var(--neutral-7)]">
+                {modules.map((m) => (
+                  <li key={m} className="flex items-center gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-[var(--color-accent)]" />
+                    {m}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <span className="w-1 h-1 rounded-full bg-neutral-4 dark:bg-[var(--neutral-4)]" />
           <span>Yohaku 设计系统</span>
           <span className="w-1 h-1 rounded-full bg-neutral-4 dark:bg-[var(--neutral-4)]" />
@@ -112,7 +141,7 @@ export default function Login() {
       </div>
 
       {/* 右侧表单 */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
+      <main className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm reveal reveal-2">
           {/* 移动端 logo */}
           <Link to="/dashboard" className="lg:hidden flex items-center gap-2 mb-8">
@@ -123,7 +152,7 @@ export default function Login() {
           </Link>
 
           {/* tab 切换 */}
-          <div className="flex gap-1 p-1 rounded-md bg-neutral-2 dark:bg-[var(--neutral-2)] mb-6">
+          <nav className="flex gap-1 p-1 rounded-md bg-neutral-2 dark:bg-[var(--neutral-2)] mb-6" aria-label="登录注册模式">
             {(["login", "register", "register-admin", "join-invite"] as const).map((m) => (
               <button
                 key={m}
@@ -133,11 +162,12 @@ export default function Login() {
                     ? "bg-paper text-neutral-10 dark:text-[var(--neutral-10)] ring-1 ring-border"
                     : "text-neutral-6 dark:text-[var(--neutral-6)] hover:text-neutral-8 dark:hover:text-[var(--neutral-8)]"
                 }`}
+                aria-pressed={mode === m}
               >
                 {m === "login" ? "登录" : m === "register" ? "注册" : m === "register-admin" ? "创建团队" : "加入团队"}
               </button>
             ))}
-          </div>
+          </nav>
 
           <h2 className="font-serif text-title-24 font-medium text-neutral-10 dark:text-[var(--neutral-10)] mb-1">
             {mode === "login" ? "欢迎回来" : mode === "register-admin" ? "创建团队" : mode === "join-invite" ? "加入团队" : "创建账户"}
@@ -157,74 +187,92 @@ export default function Login() {
             {mode !== "login" && (
               <div className="relative">
                 <User className="absolute left-3 top-2.5 w-icon-sm h-icon-sm text-neutral-5 dark:text-[var(--neutral-5)]" strokeWidth={1.75} />
+                <label htmlFor="name" className="sr-only">姓名</label>
                 <input
+                  id="name"
                   type="text"
                   required
                   placeholder="姓名"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   className={inputCls}
+                  aria-label="姓名"
                 />
               </div>
             )}
             {mode === "register-admin" && (
               <div className="relative">
                 <Building2 className="absolute left-3 top-2.5 w-icon-sm h-icon-sm text-neutral-5 dark:text-[var(--neutral-5)]" strokeWidth={1.75} />
+                <label htmlFor="teamName" className="sr-only">团队名称</label>
                 <input
+                  id="teamName"
                   type="text"
                   required
                   placeholder="团队名称"
                   value={form.teamName}
                   onChange={(e) => setForm({ ...form, teamName: e.target.value })}
                   className={inputCls}
+                  aria-label="团队名称"
                 />
               </div>
             )}
             {mode === "join-invite" && (
               <div className="relative">
                 <Key className="absolute left-3 top-2.5 w-icon-sm h-icon-sm text-neutral-5 dark:text-[var(--neutral-5)]" strokeWidth={1.75} />
+                <label htmlFor="inviteCode" className="sr-only">邀请码</label>
                 <input
+                  id="inviteCode"
                   type="text"
                   required
                   placeholder="邀请码"
                   value={form.inviteCode}
                   onChange={(e) => setForm({ ...form, inviteCode: e.target.value })}
                   className={inputCls}
+                  aria-label="邀请码"
                 />
               </div>
             )}
             <div className="relative">
               <Mail className="absolute left-3 top-2.5 w-icon-sm h-icon-sm text-neutral-5 dark:text-[var(--neutral-5)]" strokeWidth={1.75} />
+              <label htmlFor="email" className="sr-only">邮箱地址</label>
               <input
+                id="email"
                 type="email"
                 required
                 placeholder="邮箱地址"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className={inputCls}
+                aria-label="邮箱地址"
               />
             </div>
             <div className="relative">
               <Lock className="absolute left-3 top-2.5 w-icon-sm h-icon-sm text-neutral-5 dark:text-[var(--neutral-5)]" strokeWidth={1.75} />
+              <label htmlFor="password" className="sr-only">密码</label>
               <input
+                id="password"
                 type="password"
                 required
                 placeholder="密码"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 className={inputCls}
+                aria-label="密码"
               />
             </div>
             {mode !== "login" && (
               <div className="relative">
                 <Lock className="absolute left-3 top-2.5 w-icon-sm h-icon-sm text-neutral-5 dark:text-[var(--neutral-5)]" strokeWidth={1.75} />
+                <label htmlFor="confirm" className="sr-only">确认密码</label>
                 <input
+                  id="confirm"
                   type="password"
                   required
                   placeholder="确认密码"
                   value={form.confirm}
                   onChange={(e) => setForm({ ...form, confirm: e.target.value })}
                   className={inputCls}
+                  aria-label="确认密码"
                 />
               </div>
             )}
@@ -235,7 +283,7 @@ export default function Login() {
                   <input type="checkbox" className="accent-[var(--color-accent)] w-3.5 h-3.5" />
                   记住我
                 </label>
-                <a href="#" className="text-[var(--color-accent)] hover:underline">忘记密码?</a>
+                <Link to="/forgot-password" className="text-[var(--color-accent)] hover:underline">忘记密码?</Link>
               </div>
             )}
 
@@ -254,21 +302,21 @@ export default function Login() {
 
           {/* 第三方登录 */}
           <div className="space-y-2">
-            <Button variant="secondary" size="md" className="w-full" onClick={() => window.location.href = "/api/auth/github"}>
+            <Button variant="secondary" size="md" className="w-full" onClick={() => api.githubLogin()}>
               <Github className="w-icon-sm h-icon-sm" />
               使用 GitHub 继续
             </Button>
-            <Button variant="secondary" size="md" className="w-full">
+            <Button variant="secondary" size="md" className="w-full" onClick={() => api.googleLogin()}>
               <Mail className="w-icon-sm h-icon-sm" />
               使用 Google 继续
             </Button>
           </div>
 
           <p className="mt-6 text-center text-label-12 text-neutral-5 dark:text-[var(--neutral-5)]">
-            继续即表示同意 <a href="#" className="text-[var(--color-accent)] hover:underline">服务条款</a> 与 <a href="#" className="text-[var(--color-accent)] hover:underline">隐私政策</a>
+            继续即表示同意 <Link to="/terms" className="text-[var(--color-accent)] hover:underline">服务条款</Link> 与 <Link to="/privacy" className="text-[var(--color-accent)] hover:underline">隐私政策</Link>
           </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

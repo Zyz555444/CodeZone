@@ -6,8 +6,10 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import bcryptjs from "bcryptjs";
+import { Octokit } from "octokit";
 import { userRepo, teamRepo, teamMemberRepo, inviteCodeRepo } from "../repository.js";
-import { signToken, authMiddleware, type AuthUser } from "../auth.js";
+import { signToken, authMiddleware, findOrCreateOAuthUser, oauthCallbackRedirect, type AuthUser } from "../auth.js";
+import { config } from "../config.js";
 
 const router = Router();
 
@@ -134,6 +136,137 @@ router.get("/me", authMiddleware, async (req: Request, res: Response) => {
 // 登出 (JWT 无状态,前端丢弃 token 即可)
 router.post("/logout", (_req: Request, res: Response) => {
   res.json({ data: { success: true } });
+});
+
+// ─────────── GitHub OAuth ───────────
+
+// GET /auth/github — 重定向到 GitHub 授权页
+router.get("/github", (_req: Request, res: Response) => {
+  if (!config.githubClientId) {
+    res.status(503).json({ message: "GitHub 登录未配置" });
+    return;
+  }
+  const url = `https://github.com/login/oauth/authorize?client_id=${config.githubClientId}&redirect_uri=${encodeURIComponent(config.githubRedirectUri)}&scope=repo,user`;
+  res.redirect(url);
+});
+
+// GET /auth/github/callback — OAuth 回调
+router.get("/github/callback", async (req: Request, res: Response) => {
+  const { code } = req.query as { code?: string };
+  if (!code) {
+    res.status(400).json({ message: "缺少授权码" });
+    return;
+  }
+  if (!config.githubClientId || !config.githubClientSecret) {
+    res.status(503).json({ message: "GitHub 登录未配置" });
+    return;
+  }
+
+  try {
+    const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({
+        client_id: config.githubClientId,
+        client_secret: config.githubClientSecret,
+        code,
+      }),
+    });
+    const tokenData = await tokenRes.json() as { access_token?: string; error?: string };
+    if (!tokenData.access_token) {
+      res.status(400).json({ message: tokenData.error ?? "获取 token 失败" });
+      return;
+    }
+
+    const octokit = new Octokit({ auth: tokenData.access_token });
+    const { data: ghUser } = await octokit.rest.users.getAuthenticated();
+    const { data: emails } = await octokit.rest.users.listEmailsForAuthenticatedUser();
+    const primaryEmail = emails.find((e) => e.primary)?.email ?? emails[0]?.email ?? `${ghUser.login}@github.com`;
+
+    const user = await findOrCreateOAuthUser(primaryEmail, ghUser.login, ghUser.avatar_url);
+
+    // 更新 GitHub token
+    const { db, schema } = await import("@codezone/database");
+    const { eq } = await import("drizzle-orm");
+    await (db.update(schema.users) as any)
+      .set({ githubToken: tokenData.access_token, githubUsername: ghUser.login, avatar: ghUser.avatar_url })
+      .where(eq(schema.users.id, user.id));
+
+    const authUser: AuthUser = { id: user.id, email: user.email, name: user.name, role: user.role };
+    const token = signToken(authUser);
+    oauthCallbackRedirect(res, token);
+  } catch (err) {
+    console.error("[auth/github] OAuth callback error:", err);
+    res.status(500).json({ message: "GitHub 授权失败" });
+  }
+});
+
+// ─────────── Google OAuth ───────────
+
+// GET /auth/google — 重定向到 Google 授权页
+router.get("/google", (_req: Request, res: Response) => {
+  if (!config.googleClientId) {
+    res.status(503).json({ message: "Google 登录未配置" });
+    return;
+  }
+  const params = new URLSearchParams({
+    client_id: config.googleClientId,
+    redirect_uri: config.googleRedirectUri,
+    response_type: "code",
+    scope: "openid email profile",
+    access_type: "offline",
+    prompt: "consent",
+  });
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+});
+
+// GET /auth/google/callback — OAuth 回调
+router.get("/google/callback", async (req: Request, res: Response) => {
+  const { code } = req.query as { code?: string };
+  if (!code) {
+    res.status(400).json({ message: "缺少授权码" });
+    return;
+  }
+  if (!config.googleClientId || !config.googleClientSecret) {
+    res.status(503).json({ message: "Google 登录未配置" });
+    return;
+  }
+
+  try {
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: config.googleClientId,
+        client_secret: config.googleClientSecret,
+        redirect_uri: config.googleRedirectUri,
+        grant_type: "authorization_code",
+      }),
+    });
+    const tokenData = await tokenRes.json() as { access_token?: string; id_token?: string; error?: string };
+    if (!tokenData.access_token) {
+      res.status(400).json({ message: tokenData.error ?? "获取 token 失败" });
+      return;
+    }
+
+    const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+    const googleUser = await userRes.json() as { email?: string; name?: string; picture?: string; error?: { message: string } };
+    if (!googleUser.email) {
+      res.status(400).json({ message: googleUser.error?.message ?? "获取 Google 用户信息失败" });
+      return;
+    }
+
+    const user = await findOrCreateOAuthUser(googleUser.email, googleUser.name ?? googleUser.email.split("@")[0], googleUser.picture ?? null);
+    const authUser: AuthUser = { id: user.id, email: user.email, name: user.name, role: user.role };
+    const token = signToken(authUser);
+    oauthCallbackRedirect(res, token);
+  } catch (err) {
+    console.error("[auth/google] OAuth callback error:", err);
+    res.status(500).json({ message: "Google 授权失败" });
+  }
 });
 
 export default router;

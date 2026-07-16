@@ -236,6 +236,23 @@ export const milestoneRepo = {
     const rows = await db.select().from(schema.milestones).where(eq(schema.milestones.repoId, repoId));
     return rows as Milestone[];
   },
+  async create(data: { repoId: string; title: string; description?: string; dueDate: number }): Promise<Milestone> {
+    const id = `ms${Date.now()}`;
+    const row = {
+      id,
+      repoId: data.repoId,
+      title: data.title,
+      description: data.description ?? "",
+      dueDate: data.dueDate,
+      status: "open" as const,
+      progress: 0,
+      openIssues: 0,
+      closedIssues: 0,
+      totalIssues: 0,
+    };
+    await db.insert(schema.milestones).values(row as any);
+    return row as Milestone;
+  },
 };
 
 // ───────────────────────────── 通知 ─────────────────────────────

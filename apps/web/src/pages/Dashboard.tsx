@@ -95,7 +95,7 @@ export default function Dashboard() {
               活动流
             </h3>
             <Link
-              to="/pulls"
+              to="/activity"
               className="text-label-12 text-[var(--color-accent)] hover:underline flex items-center gap-0.5"
             >
               查看全部 <ArrowUpRight className="w-3 h-3" />

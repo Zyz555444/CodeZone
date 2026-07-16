@@ -41,14 +41,17 @@ let cache: { repos: Repo[]; users: User[]; ts: number } | null = null;
 async function loadIndex(): Promise<{ repos: Repo[]; users: User[] }> {
   const now = Date.now();
   if (cache && now - cache.ts < 60_000) return { repos: cache.repos, users: cache.users };
-  const [repos, users] = await Promise.all([api.getRepos(), api.getTeam()]);
+  const [repos, users] = await Promise.all([
+    api.getRepos().catch(() => [] as Repo[]),
+    api.getTeam().catch(() => [] as User[]),
+  ]);
   cache = { repos, users, ts: now };
   return { repos, users };
 }
 
 export async function searchCommands(query: string): Promise<CommandItem[]> {
   const q = query.trim().toLowerCase();
-  const { repos, users } = await loadIndex();
+  const { repos, users } = await loadIndex().catch(() => ({ repos: [] as Repo[], users: [] as User[] }));
 
   const repoItems: CommandItem[] = repos.map((r) => ({
     id: `repo-${r.id}`,

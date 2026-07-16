@@ -126,6 +126,10 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="搜索页面、仓库、成员，或输入命令…"
             className="flex-1 bg-transparent text-copy-15 text-neutral-9 dark:text-[var(--neutral-9)] placeholder:text-neutral-5 dark:placeholder:text-[var(--neutral-5)] outline-none"
+            aria-label="搜索"
+            role="combobox"
+            aria-expanded={items.length > 0}
+            aria-controls="command-results"
           />
           <kbd className="flex items-center gap-0.5 text-caption-10 text-neutral-5 dark:text-[var(--neutral-5)] ring-1 ring-border rounded px-1.5 py-0.5">
             <X className="w-2.5 h-2.5" /> 关闭
@@ -133,10 +137,10 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         </div>
 
         {/* 结果 */}
-        <div ref={listRef} className="max-h-[52vh] overflow-y-auto py-2">
+        <div ref={listRef} id="command-results" className="max-h-[52vh] overflow-y-auto py-2">
           {loading ? (
             <div className="px-4 py-8 text-center text-copy-13 text-neutral-5 dark:text-[var(--neutral-5)]">
-              索引中…
+              加载中…
             </div>
           ) : items.length === 0 ? (
             <div className="px-4 py-8 text-center text-copy-13 text-neutral-5 dark:text-[var(--neutral-5)]">

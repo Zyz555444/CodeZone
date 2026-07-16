@@ -22,5 +22,8 @@ export const config = {
   githubClientId: process.env.GITHUB_CLIENT_ID ?? "",
   githubClientSecret: process.env.GITHUB_CLIENT_SECRET ?? "",
   githubRedirectUri: process.env.GITHUB_REDIRECT_URI ?? "http://localhost:3001/api/auth/github/callback",
+  googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+  googleRedirectUri: process.env.GOOGLE_REDIRECT_URI ?? "http://localhost:3001/api/auth/google/callback",
   apiBaseUrl: process.env.API_BASE_URL ?? "http://localhost:3001",
 } as const;

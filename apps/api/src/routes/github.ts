@@ -12,77 +12,12 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import { config } from "../config.js";
 import { userRepo, repoRepo } from "../repository.js";
-import { signToken, authMiddleware, type AuthUser } from "../auth.js";
+import { authMiddleware } from "../auth.js";
 import { Octokit } from "octokit";
 
 const router = Router();
 
-// ─────────── GET /auth/github — 重定向到 GitHub OAuth ───────────
-router.get("/auth/github", (_req: Request, res: Response) => {
-  const url = `https://github.com/login/oauth/authorize?client_id=${config.githubClientId}&redirect_uri=${encodeURIComponent(config.githubRedirectUri)}&scope=repo,user`;
-  res.redirect(url);
-});
-
-// ─────────── GET /auth/github/callback — OAuth 回调 ───────────
-router.get("/auth/github/callback", async (req: Request, res: Response) => {
-  const { code } = req.query as { code?: string };
-  if (!code) {
-    res.status(400).json({ message: "缺少授权码" });
-    return;
-  }
-
-  try {
-    // 用 code 换取 access_token
-    const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify({
-        client_id: config.githubClientId,
-        client_secret: config.githubClientSecret,
-        code,
-      }),
-    });
-    const tokenData = await tokenRes.json() as { access_token?: string; error?: string };
-    if (!tokenData.access_token) {
-      res.status(400).json({ message: tokenData.error ?? "获取 token 失败" });
-      return;
-    }
-
-    // 获取 GitHub 用户信息
-    const octokit = new Octokit({ auth: tokenData.access_token });
-    const { data: ghUser } = await octokit.rest.users.getAuthenticated();
-    // 获取邮箱
-    const { data: emails } = await octokit.rest.users.listEmailsForAuthenticatedUser();
-    const primaryEmail = emails.find((e) => e.primary)?.email ?? emails[0]?.email ?? `${ghUser.login}@github.com`;
-
-    // 查找或创建用户
-    const user = await userRepo.getByEmail(primaryEmail) ?? await userRepo.create({
-      id: `u${Date.now()}`,
-      name: ghUser.login,
-      email: primaryEmail,
-      passwordHash: null,
-      avatar: ghUser.avatar_url,
-    });
-
-    // 更新 GitHub token
-    const { db, schema } = await import("@codezone/database");
-    const { eq } = await import("drizzle-orm");
-    await (db.update(schema.users) as any)
-      .set({ githubToken: tokenData.access_token, githubUsername: ghUser.login, avatar: ghUser.avatar_url })
-      .where(eq(schema.users.id, user.id));
-
-    // 签发 JWT
-    const authUser: AuthUser = { id: user.id, email: user.email, name: user.name, role: user.role };
-    const token = signToken(authUser);
-
-    // 重定向到前端, 附带 token
-    const frontendUrl = `${config.corsOrigin}/login?token=${token}`;
-    res.redirect(frontendUrl);
-  } catch (err) {
-    console.error("[github] OAuth callback error:", err);
-    res.status(500).json({ message: "GitHub 授权失败" });
-  }
-});
+// 注：GitHub OAuth 登录入口已迁移至 /api/auth/github，由 routes/auth.ts 统一处理。
 
 // ─────────── GET /github/connected — 检查连接状态 ───────────
 router.get("/github/connected", authMiddleware, async (req: Request, res: Response) => {

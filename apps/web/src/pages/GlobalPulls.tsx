@@ -80,7 +80,7 @@ export default function GlobalPulls() {
           </h2>
         </div>
         <span className="text-label-12 text-neutral-5 dark:text-[var(--neutral-5)] tabular-nums">
-          {loading ? "··" : `${items.length} 个`}
+          {loading ? "加载中…" : `${items.length} 个`}
         </span>
       </div>
 
