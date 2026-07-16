@@ -86,7 +86,7 @@ router.get("/auth/github/callback", async (req: Request, res: Response) => {
 
 // ─────────── GET /github/connected — 检查连接状态 ───────────
 router.get("/github/connected", authMiddleware, async (req: Request, res: Response) => {
-  const user = await userRepo.getById(req.user!.id);
+  const user = await userRepo.getByIdWithCredentials(req.user!.id);
   res.json({ data: { connected: !!user?.githubToken, githubUsername: user?.githubUsername ?? null } });
 });
 
@@ -102,7 +102,7 @@ router.post("/github/disconnect", authMiddleware, async (req: Request, res: Resp
 
 // ─────────── GET /github/repos — 获取用户 GitHub 仓库列表 ───────────
 router.get("/github/repos", authMiddleware, async (req: Request, res: Response) => {
-  const user = await userRepo.getById(req.user!.id);
+  const user = await userRepo.getByIdWithCredentials(req.user!.id);
   if (!user?.githubToken) {
     res.status(400).json({ message: "请先连接 GitHub 账号" });
     return;
@@ -136,7 +136,7 @@ router.get("/github/repos", authMiddleware, async (req: Request, res: Response) 
 
 // ─────────── POST /github/import — 导入 GitHub 仓库 ───────────
 router.post("/github/import", authMiddleware, async (req: Request, res: Response) => {
-  const user = await userRepo.getById(req.user!.id);
+  const user = await userRepo.getByIdWithCredentials(req.user!.id);
   if (!user?.githubToken) {
     res.status(400).json({ message: "请先连接 GitHub 账号" });
     return;
@@ -222,7 +222,7 @@ function getLanguageColor(lang: string): string {
 
 // ─────────── POST /github/sync-issues — 同步 GitHub Issues 到 CodeZone ───────────
 router.post("/github/sync-issues", authMiddleware, async (req: Request, res: Response) => {
-  const user = await userRepo.getById(req.user!.id);
+  const user = await userRepo.getByIdWithCredentials(req.user!.id);
   if (!user?.githubToken) {
     res.status(400).json({ message: "请先连接 GitHub 账号" });
     return;
@@ -276,7 +276,7 @@ router.post("/github/sync-issues", authMiddleware, async (req: Request, res: Res
 
 // ─────────── POST /github/sync-pulls — 同步 GitHub PRs 到 CodeZone ───────────
 router.post("/github/sync-pulls", authMiddleware, async (req: Request, res: Response) => {
-  const user = await userRepo.getById(req.user!.id);
+  const user = await userRepo.getByIdWithCredentials(req.user!.id);
   if (!user?.githubToken) {
     res.status(400).json({ message: "请先连接 GitHub 账号" });
     return;
@@ -330,7 +330,7 @@ router.post("/github/sync-pulls", authMiddleware, async (req: Request, res: Resp
 
 // ─────────── POST /github/sync-commits — 同步 GitHub Commits 到 CodeZone ───────────
 router.post("/github/sync-commits", authMiddleware, async (req: Request, res: Response) => {
-  const user = await userRepo.getById(req.user!.id);
+  const user = await userRepo.getByIdWithCredentials(req.user!.id);
   if (!user?.githubToken) {
     res.status(400).json({ message: "请先连接 GitHub 账号" });
     return;
@@ -381,7 +381,7 @@ router.post("/github/sync-commits", authMiddleware, async (req: Request, res: Re
 
 // ─────────── POST /github/create-pr — 创建 GitHub PR ───────────
 router.post("/github/create-pr", authMiddleware, async (req: Request, res: Response) => {
-  const user = await userRepo.getById(req.user!.id);
+  const user = await userRepo.getByIdWithCredentials(req.user!.id);
   if (!user?.githubToken) {
     res.status(400).json({ message: "请先连接 GitHub 账号" });
     return;

@@ -19,9 +19,13 @@ router.get("/unread-count", authMiddleware, async (req: Request, res: Response) 
   res.json({ data: { count } });
 });
 
-// 标记单条已读
+// 标记单条已读 (校验归属,防横向越权)
 router.post("/:id/read", authMiddleware, async (req: Request<{ id: string }>, res: Response) => {
-  await notificationRepo.markRead(req.params.id);
+  const ok = await notificationRepo.markRead(req.params.id, req.user!.id);
+  if (!ok) {
+    res.status(404).json({ message: "通知不存在或无权操作" });
+    return;
+  }
   res.json({ data: { success: true } });
 });
 

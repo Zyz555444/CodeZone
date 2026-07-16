@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Search, Sun, Moon, Bell, LogOut } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Search, Sun, Moon, Bell, LogOut, Menu } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { Avatar } from "@/components/ui/Avatar";
 import { useAppStore } from "@/store/useAppStore";
@@ -9,13 +9,39 @@ import { api } from "@/lib/api";
 interface TopBarProps {
   title?: string;
   subtitle?: string;
+  onOpenMobileNav?: () => void;
 }
 
-export function TopBar({ title, subtitle }: TopBarProps) {
+// 根据当前路由推导顶栏标题 — AppLayout 未显式传入 title/subtitle 时的回退
+function useRouteMeta(): { title?: string; subtitle?: string } {
+  const { pathname } = useLocation();
+  const exact: Record<string, { title: string; subtitle?: string }> = {
+    "/dashboard": { title: "工作台", subtitle: "团队的协作节奏一览" },
+    "/repos": { title: "仓库", subtitle: "团队代码资产" },
+    "/issues": { title: "议题", subtitle: "跨仓库议题汇总" },
+    "/pulls": { title: "合并请求", subtitle: "待评审与近期合并" },
+    "/team": { title: "团队", subtitle: "成员与权限" },
+    "/settings": { title: "设置", subtitle: "偏好与集成" },
+    "/notifications": { title: "通知" },
+    "/activity": { title: "活动", subtitle: "团队动态时间线" },
+    "/milestones": { title: "里程碑" },
+    "/collaborate": { title: "协作文档", subtitle: "实时多人编辑" },
+  };
+  if (pathname in exact) return exact[pathname];
+  if (pathname.startsWith("/repos/")) return { title: "仓库" };
+  if (pathname.startsWith("/profile")) return { title: "个人主页" };
+  if (pathname.startsWith("/pipelines")) return { title: "流水线" };
+  return {};
+}
+
+export function TopBar({ title: propTitle, subtitle: propSubtitle, onOpenMobileNav }: TopBarProps) {
   const { isDark, toggleTheme } = useTheme();
   const { currentUser, logout } = useAppStore();
   const navigate = useNavigate();
   const [unread, setUnread] = useState(0);
+  const routeMeta = useRouteMeta();
+  const title = propTitle ?? routeMeta.title;
+  const subtitle = propSubtitle ?? routeMeta.subtitle;
 
   useEffect(() => {
     let active = true;
@@ -35,7 +61,14 @@ export function TopBar({ title, subtitle }: TopBarProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-4 px-6 lg:px-8 py-3.5 border-b border-border bg-paper/80 backdrop-blur-sm">
+    <header className="sticky top-0 z-30 flex items-center gap-3 px-4 sm:px-6 lg:px-8 py-3.5 border-b border-border bg-paper/80 backdrop-blur-sm">
+      <button
+        onClick={onOpenMobileNav}
+        className="lg:hidden grid place-items-center w-8 h-8 rounded-md text-neutral-7 dark:text-[var(--neutral-7)] hover:bg-neutral-2 dark:hover:bg-[var(--neutral-2)] hover:text-neutral-9 dark:hover:text-[var(--neutral-9)] transition-colors duration-300 ease-breathe shrink-0"
+        aria-label="打开菜单"
+      >
+        <Menu className="w-icon-md h-icon-md" strokeWidth={1.75} />
+      </button>
       <div className="flex-1 min-w-0">
         {title && (
           <h1 className="font-serif text-title-24 font-medium text-neutral-10 dark:text-[var(--neutral-10)] truncate">

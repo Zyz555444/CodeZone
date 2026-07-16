@@ -57,6 +57,8 @@ export default function PullDetail() {
   const [treeOpen, setTreeOpen] = useState(true);
   const [strategy, setStrategy] = useState<(typeof STRATEGIES)[number]["key"]>("merge");
   const [strategyOpen, setStrategyOpen] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const [mergeError, setMergeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!prId) return;
@@ -68,6 +70,22 @@ export default function PullDetail() {
       })
       .finally(() => setLoading(false));
   }, [repo.id, prId]);
+
+  const handleMerge = async () => {
+    if (!prId || merging || pr?.status !== "open") return;
+    if (pr.checks.some((c) => c.status === "failed")) return;
+    setMerging(true);
+    setMergeError(null);
+    try {
+      const { pr: updated } = await api.mergePR(repo.id, prId, strategy);
+      setPR((prev) => (prev ? { ...prev, ...updated } : prev));
+      setStrategyOpen(false);
+    } catch (err) {
+      setMergeError(err instanceof Error ? err.message : "合并失败");
+    } finally {
+      setMerging(false);
+    }
+  };
 
   const userMap = useMemo(() => {
     const m = new Map<string, User>();
@@ -338,55 +356,73 @@ export default function PullDetail() {
       {/* 合并操作栏 */}
       <div className="sticky bottom-0 z-10 rounded-lg ring-1 ring-border bg-neutral-2 dark:bg-[var(--neutral-2)] px-4 py-3">
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-2 text-copy-14">
-            {hasFailed ? (
+          <div className="flex items-center gap-2 text-copy-14 min-w-0">
+            {pr.status === "merged" ? (
               <>
-                <AlertCircle className="w-icon-sm h-icon-sm text-error" strokeWidth={1.75} />
+                <Check className="w-icon-sm h-icon-sm text-success shrink-0" strokeWidth={1.75} />
+                <span className="text-success">该合并请求已合并</span>
+              </>
+            ) : pr.status === "closed" ? (
+              <>
+                <X className="w-icon-sm h-icon-sm text-neutral-5 shrink-0" strokeWidth={1.75} />
+                <span className="text-neutral-6 dark:text-[var(--neutral-6)]">该合并请求已关闭</span>
+              </>
+            ) : mergeError ? (
+              <>
+                <AlertCircle className="w-icon-sm h-icon-sm text-error shrink-0" strokeWidth={1.75} />
+                <span className="text-error truncate">{mergeError}</span>
+              </>
+            ) : hasFailed ? (
+              <>
+                <AlertCircle className="w-icon-sm h-icon-sm text-error shrink-0" strokeWidth={1.75} />
                 <span className="text-error">存在失败的检查，暂时无法合并</span>
               </>
             ) : (
               <>
-                <Check className="w-icon-sm h-icon-sm text-success" strokeWidth={1.75} />
+                <Check className="w-icon-sm h-icon-sm text-success shrink-0" strokeWidth={1.75} />
                 <span className="text-success">分支无冲突，可以合并</span>
               </>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            {/* 合并策略下拉 (纯 UI) */}
-            <div className="relative">
-              <button
-                onClick={() => setStrategyOpen((o) => !o)}
-                className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-copy-14 text-neutral-7 dark:text-[var(--neutral-7)] ring-1 ring-border hover:bg-neutral-3 dark:hover:bg-[var(--neutral-3)] transition-colors duration-300 ease-breathe"
-              >
-                {strategyLabel}
-                <ChevronDown className="w-3.5 h-3.5" strokeWidth={1.75} />
-              </button>
-              {strategyOpen && (
-                <div className="absolute right-0 bottom-full mb-1 w-44 rounded-md ring-1 ring-border bg-neutral-2 dark:bg-[var(--neutral-2)] py-1 z-20">
-                  {STRATEGIES.map((s) => (
-                    <button
-                      key={s.key}
-                      onClick={() => {
-                        setStrategy(s.key);
-                        setStrategyOpen(false);
-                      }}
-                      className={cn(
-                        "block w-full text-left px-3 py-1.5 text-copy-14 transition-colors duration-300 ease-breathe",
-                        s.key === strategy
-                          ? "text-[var(--color-accent)] bg-[var(--color-accent-soft)]"
-                          : "text-neutral-7 dark:text-[var(--neutral-7)] hover:bg-neutral-3 dark:hover:bg-[var(--neutral-3)]",
-                      )}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+          {pr.status === "open" && (
+            <div className="flex items-center gap-2">
+              {/* 合并策略下拉 */}
+              <div className="relative">
+                <button
+                  onClick={() => setStrategyOpen((o) => !o)}
+                  disabled={merging}
+                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-copy-14 text-neutral-7 dark:text-[var(--neutral-7)] ring-1 ring-border hover:bg-neutral-3 dark:hover:bg-[var(--neutral-3)] transition-colors duration-300 ease-breathe disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  {strategyLabel}
+                  <ChevronDown className="w-3.5 h-3.5" strokeWidth={1.75} />
+                </button>
+                {strategyOpen && (
+                  <div className="absolute right-0 bottom-full mb-1 w-44 rounded-md ring-1 ring-border bg-neutral-2 dark:bg-[var(--neutral-2)] py-1 z-20">
+                    {STRATEGIES.map((s) => (
+                      <button
+                        key={s.key}
+                        onClick={() => {
+                          setStrategy(s.key);
+                          setStrategyOpen(false);
+                        }}
+                        className={cn(
+                          "block w-full text-left px-3 py-1.5 text-copy-14 transition-colors duration-300 ease-breathe",
+                          s.key === strategy
+                            ? "text-[var(--color-accent)] bg-[var(--color-accent-soft)]"
+                            : "text-neutral-7 dark:text-[var(--neutral-7)] hover:bg-neutral-3 dark:hover:bg-[var(--neutral-3)]",
+                        )}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Button variant="primary" disabled={hasFailed || merging} onClick={handleMerge}>
+                {merging ? "合并中…" : "合并"}
+              </Button>
             </div>
-            <Button variant="primary" disabled={hasFailed}>
-              合并
-            </Button>
-          </div>
+          )}
         </div>
       </div>
     </div>

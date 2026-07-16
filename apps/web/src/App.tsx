@@ -11,6 +11,7 @@ import Commits from "@/pages/Commits";
 import IssuesList from "@/pages/IssuesList";
 import IssueBoard from "@/pages/IssueBoard";
 import IssueDetail from "@/pages/IssueDetail";
+import IssueNew from "@/pages/IssueNew";
 import PullsList from "@/pages/PullsList";
 import PullDetail from "@/pages/PullDetail";
 import Discussions from "@/pages/Discussions";
@@ -103,6 +104,7 @@ export default function App() {
             <Route path="commits" element={<Commits />} />
             <Route path="issues" element={<IssuesList />} />
             <Route path="issues/board" element={<IssueBoard />} />
+            <Route path="issues/new" element={<IssueNew />} />
             <Route path="issues/:issueId" element={<IssueDetail />} />
             <Route path="pulls" element={<PullsList />} />
             <Route path="pulls/:prId" element={<PullDetail />} />

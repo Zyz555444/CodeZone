@@ -80,6 +80,7 @@ export const api = {
   // ─────────── Git 操作 ───────────
   gitBranches: (repoId: string) => request<{ branches: string[]; current: string }>(`/git/${repoId}/branches`),
   gitCreateBranch: (repoId: string, name: string, from?: string) => request<{ name: string; from: string }>(`/git/${repoId}/branch`, { method: "POST", body: JSON.stringify({ name, from }) }),
+  gitCheckout: (repoId: string, branch: string) => request<{ branch: string }>(`/git/${repoId}/checkout`, { method: "POST", body: JSON.stringify({ branch }) }),
   gitDeleteBranch: (repoId: string, name: string) => request<{ success: boolean }>(`/git/${repoId}/branch/${name}`, { method: "DELETE" }),
   gitMerge: (repoId: string, from: string, target?: string) => request<{ merged: string; into: string }>(`/git/${repoId}/merge`, { method: "POST", body: JSON.stringify({ from, target }) }),
   gitStatus: (repoId: string) => request<{ cloned: boolean; status: string; branch: string; ahead: number; behind: number; dirty: boolean }>(`/git/${repoId}/status`),
@@ -118,6 +119,11 @@ export const api = {
     request<PullRequest[]>(`/repos/${repoId}/pulls${status !== "all" ? `?status=${status}` : ""}`),
   getPR: (repoId: string, prId: string) =>
     request<PullRequest & { comments: Comment[] }>(`/repos/${repoId}/pulls/${prId}`),
+  mergePR: (repoId: string, prId: string, strategy: "merge" | "squash" | "rebase" = "merge") =>
+    request<{ pr: PullRequest; strategy: string }>(`/repos/${repoId}/pulls/${prId}/merge`, {
+      method: "POST",
+      body: JSON.stringify({ strategy }),
+    }),
 
   // ─────────── 讨论 ───────────
   getDiscussions: (repoId: string) =>
@@ -128,6 +134,15 @@ export const api = {
     request<Pipeline[]>(`/pipelines/${repoId}/pipelines`),
   getPipeline: (runId: string) =>
     request<Pipeline>(`/pipelines/run/${runId}`),
+  triggerPipeline: (repoId: string, branch?: string) =>
+    request<Pipeline>(`/pipelines/${repoId}/pipelines`, {
+      method: "POST",
+      body: JSON.stringify({ branch }),
+    }),
+  retryPipeline: (runId: string) =>
+    request<Pipeline>(`/pipelines/run/${runId}/retry`, { method: "POST" }),
+  cancelPipeline: (runId: string) =>
+    request<Pipeline>(`/pipelines/run/${runId}/cancel`, { method: "POST" }),
 
   // ─────────── 团队 ───────────
   getTeam: () => request<User[]>("/team"),

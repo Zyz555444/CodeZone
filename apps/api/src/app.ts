@@ -7,7 +7,7 @@
 import express, { type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import { config } from "./config.js";
-import { optionalAuth } from "./auth.js";
+import { authMiddleware } from "./auth.js";
 
 import authRoutes from "./routes/auth.js";
 import repoRoutes from "./routes/repos.js";
@@ -34,20 +34,24 @@ export function createApp() {
     }),
   );
   app.use(express.json({ limit: "1mb" }));
-  app.use(optionalAuth);
 
-  // 健康检查
+  // 健康检查 (公开)
   app.get("/health", (_req, res) => {
     res.json({ status: "ok", env: config.nodeEnv, time: Date.now() });
   });
 
-  // API 路由挂载
+  // 公开路由 (登录/注册/OAuth 回调)
   app.use("/api/auth", authRoutes);
+
+  // 以下所有路由强制登录认证
+  app.use("/api", authMiddleware);
+
+  // API 路由挂载
   app.use("/api/repos", repoRoutes);
   app.use("/api/repos/:repoId/issues", issueRoutes);
   app.use("/api/repos/:repoId/pulls", pullRoutes);
   app.use("/api/repos/:repoId/discussions", discussionRoutes);
-  app.use("/api/repos", pipelineRoutes);
+  app.use("/api/pipelines", pipelineRoutes);
   app.use("/api/team", teamRoutes);
   app.use("/api/dashboard", dashboardRoutes);
   app.use("/api/milestones", milestoneRoutes);

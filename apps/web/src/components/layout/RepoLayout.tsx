@@ -36,6 +36,8 @@ export function RepoLayout() {
   const [currentBranch, setCurrentBranch] = useState("");
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
   const [branchMenuOpen, setBranchMenuOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (repoId) {
@@ -51,12 +53,23 @@ export function RepoLayout() {
   }, [repoId]);
 
   const handleBranchSwitch = async (branch: string) => {
-    // 通过 merge 切换到目标分支（简化：checkout 到目标分支）
+    if (!repoId || branch === currentBranch) {
+      setBranchMenuOpen(false);
+      return;
+    }
+    setSwitching(true);
+    setSwitchError(null);
     try {
-      // 使用 git 操作的 clone 重设分支（简化处理）
+      await api.gitCheckout(repoId, branch);
       setCurrentBranch(branch);
       setBranchMenuOpen(false);
-    } catch {}
+      const status = await api.gitStatus(repoId);
+      setGitStatus(status);
+    } catch (err) {
+      setSwitchError(err instanceof Error ? err.message : "切换分支失败");
+    } finally {
+      setSwitching(false);
+    }
   };
 
   const handlePull = async () => {
@@ -128,8 +141,9 @@ export function RepoLayout() {
                       <button
                         key={b}
                         onClick={() => handleBranchSwitch(b)}
+                        disabled={switching}
                         className={cn(
-                          "w-full text-left px-3 py-1.5 text-copy-13 hover:bg-neutral-2 dark:hover:bg-[var(--neutral-2)] transition-colors flex items-center gap-2",
+                          "w-full text-left px-3 py-1.5 text-copy-13 hover:bg-neutral-2 dark:hover:bg-[var(--neutral-2)] transition-colors flex items-center gap-2 disabled:opacity-40 disabled:pointer-events-none",
                           (b === currentBranch || b === gitStatus.branch) && "text-[var(--color-accent)] font-medium",
                         )}
                       >
@@ -141,6 +155,11 @@ export function RepoLayout() {
                       </button>
                     ))}
                   </div>
+                  {switchError && (
+                    <p className="px-3 py-2 text-label-12 text-error border-t border-border">
+                      {switchError}
+                    </p>
+                  )}
                 </div>
               )}
             </div>

@@ -2,7 +2,7 @@ import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, BookMarked, CircleDot, GitPullRequest,
   MessagesSquare, Workflow, Users, Settings, Hash,
-  Bell, Map, Activity as ActivityIcon, Radio,
+  Bell, Map, Activity as ActivityIcon, Radio, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,12 +24,49 @@ const bottomItems = [
   { to: "/settings", label: "设置", icon: Settings },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+export function Sidebar({ open, onClose }: SidebarProps) {
   return (
-    <aside className="hidden lg:flex w-56 shrink-0 flex-col border-r border-border bg-paper/60 backdrop-blur-sm">
+    <>
+      {/* 桌面: 固定侧栏 */}
+      <aside className="hidden lg:flex w-56 shrink-0 flex-col border-r border-border bg-paper/60 backdrop-blur-sm">
+        <SidebarContent />
+      </aside>
+
+      {/* 移动端: 抽屉 */}
+      {open && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={onClose}
+            aria-hidden
+          />
+          <aside className="relative h-full w-64 flex flex-col bg-paper dark:bg-[var(--neutral-1)] border-r border-border shadow-2xl">
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-3 grid place-items-center w-8 h-8 rounded-md text-neutral-6 dark:text-[var(--neutral-6)] hover:bg-neutral-2 dark:hover:bg-[var(--neutral-2)] transition-colors duration-300 ease-breathe"
+              aria-label="关闭菜单"
+            >
+              <X className="w-icon-md h-icon-md" strokeWidth={1.75} />
+            </button>
+            <SidebarContent onNavigate={onClose} />
+          </aside>
+        </div>
+      )}
+    </>
+  );
+}
+
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+  return (
+    <>
       {/* Logo */}
       <div className="px-5 py-6">
-        <NavLink to="/dashboard" className="group flex items-center gap-2">
+        <NavLink to="/dashboard" onClick={onNavigate} className="group flex items-center gap-2">
           <span className="grid place-items-center w-7 h-7 rounded-md bg-[var(--color-accent)] text-white">
             <Hash className="w-4 h-4" strokeWidth={2.5} />
           </span>
@@ -50,6 +87,7 @@ export function Sidebar() {
             <NavLink
               key={item.to}
               to={item.to}
+              onClick={onNavigate}
               className={({ isActive }) =>
                 cn(
                   "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-copy-14 transition-colors duration-300 ease-breathe",
@@ -74,6 +112,7 @@ export function Sidebar() {
             <NavLink
               key={item.to}
               to={item.to}
+              onClick={onNavigate}
               className={({ isActive }) =>
                 cn(
                   "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-copy-14 transition-colors duration-300 ease-breathe",
@@ -102,6 +141,6 @@ export function Sidebar() {
           Yohaku Design · 按 ⌘K 唤起命令面板
         </p>
       </div>
-    </aside>
+    </>
   );
 }

@@ -25,6 +25,8 @@ export default function PipelinesList({ repoId }: { repoId?: string }) {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [triggering, setTriggering] = useState(false);
+  const [triggerError, setTriggerError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -33,6 +35,21 @@ export default function PipelinesList({ repoId }: { repoId?: string }) {
       .then(setPipelines)
       .finally(() => setLoading(false));
   }, [rid]);
+
+  const handleTrigger = async () => {
+    if (triggering) return;
+    setTriggering(true);
+    setTriggerError(null);
+    try {
+      await api.triggerPipeline(rid);
+      const list = await api.getPipelines(rid);
+      setPipelines(list);
+    } catch (err) {
+      setTriggerError(err instanceof Error ? err.message : "触发失败");
+    } finally {
+      setTriggering(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -44,10 +61,13 @@ export default function PipelinesList({ repoId }: { repoId?: string }) {
           <p className="mt-1 text-copy-14 text-neutral-6 dark:text-[var(--neutral-6)]">
             持续集成与交付的运行节奏
           </p>
+          {triggerError && (
+            <p className="mt-1 text-label-12 text-error">{triggerError}</p>
+          )}
         </div>
-        <Button variant="primary" size="md">
+        <Button variant="primary" size="md" onClick={handleTrigger} disabled={triggering}>
           <Play className="w-icon-sm h-icon-sm" strokeWidth={1.75} />
-          触发运行
+          {triggering ? "触发中…" : "触发运行"}
         </Button>
       </div>
 

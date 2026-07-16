@@ -24,13 +24,15 @@ export default function Dashboard() {
   const { currentUser } = useAppStore();
   const [activities, setActivities] = useState<(Activity & { actor: User; repo: Repo })[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [repos, setRepos] = useState<Repo[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([api.getActivities(12), api.getStats()])
-      .then(([acts, s]) => {
+    Promise.all([api.getActivities(12), api.getStats(), api.getRepos()])
+      .then(([acts, s, r]) => {
         setActivities(acts);
         setStats(s);
+        setRepos(r);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -154,9 +156,7 @@ export default function Dashboard() {
             <div className="space-y-2.5">
               {[
                 { label: "待评审 PR", value: stats?.pendingReviews ?? 0, to: "/pulls", accent: true },
-                { label: "指派给我的议题", value: 3, to: "/issues" },
-                { label: "@提及", value: 5, to: "/discussions" },
-                { label: "失败流水线", value: 1, to: "/pipelines" },
+                { label: "开放议题", value: stats?.openIssues ?? 0, to: "/issues" },
               ].map((t) => (
                 <Link
                   key={t.label}
@@ -178,23 +178,25 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div>
-            <h3 className="font-serif text-title-20 font-medium text-neutral-9 dark:text-[var(--neutral-9)] mb-4">
-              活跃仓库
-            </h3>
-            <div className="space-y-1">
-              {["codezone-core", "codezone-web", "codezone-cli", "design-tokens"].map((r, i) => (
-                <Link
-                  key={r}
-                  to={`/repos/r${i + 1}`}
-                  className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-neutral-2 dark:hover:bg-[var(--neutral-2)] transition-colors duration-300 ease-breathe"
-                >
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: ["#3178c6", "#3178c6", "#00ADD8", "#563d7c"][i] }} />
-                  <span className="text-copy-13 font-mono text-neutral-8 dark:text-[var(--neutral-8)]">{r}</span>
-                </Link>
-              ))}
+          {repos.length > 0 && (
+            <div>
+              <h3 className="font-serif text-title-20 font-medium text-neutral-9 dark:text-[var(--neutral-9)] mb-4">
+                活跃仓库
+              </h3>
+              <div className="space-y-1">
+                {repos.slice(0, 5).map((r) => (
+                  <Link
+                    key={r.id}
+                    to={`/repos/${r.id}`}
+                    className="flex items-center gap-2 rounded-md px-3 py-2 hover:bg-neutral-2 dark:hover:bg-[var(--neutral-2)] transition-colors duration-300 ease-breathe"
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.languageColor }} />
+                    <span className="text-copy-13 font-mono text-neutral-8 dark:text-[var(--neutral-8)] truncate">{r.name}</span>
+                  </Link>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </aside>
       </div>
     </div>

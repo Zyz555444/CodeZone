@@ -23,8 +23,31 @@ export const userRepo = {
     return rows as User[];
   },
   async getById(id: string): Promise<User | null> {
-    const rows = await db.select().from(schema.users).where(eq(schema.users.id, id)).limit(1);
+    // 显式列选择 — 永不返回 passwordHash / githubToken,防止敏感字段泄露到响应体
+    const rows = await db.select({
+      id: schema.users.id,
+      name: schema.users.name,
+      email: schema.users.email,
+      avatar: schema.users.avatar,
+      githubUsername: schema.users.githubUsername,
+      role: schema.users.role,
+      createdAt: schema.users.createdAt,
+    }).from(schema.users).where(eq(schema.users.id, id)).limit(1);
     return (rows[0] as User) ?? null;
+  },
+  /** 含 GitHub token 的完整记录 — 仅用于需要调用 GitHub API 的内部路由,不可直接回传客户端 */
+  async getByIdWithCredentials(id: string): Promise<(User & { githubToken: string | null }) | null> {
+    const rows = await db.select({
+      id: schema.users.id,
+      name: schema.users.name,
+      email: schema.users.email,
+      avatar: schema.users.avatar,
+      githubUsername: schema.users.githubUsername,
+      githubToken: schema.users.githubToken,
+      role: schema.users.role,
+      createdAt: schema.users.createdAt,
+    }).from(schema.users).where(eq(schema.users.id, id)).limit(1);
+    return (rows[0] as User & { githubToken: string | null }) ?? null;
   },
   async getByEmail(email: string): Promise<(User & { passwordHash: string | null }) | null> {
     const rows = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
@@ -117,6 +140,11 @@ export const prRepo = {
       .where(and(eq(schema.pullRequests.repoId, repoId), eq(schema.pullRequests.id, prId))).limit(1);
     return (rows[0] as PullRequest) ?? null;
   },
+  async updateStatus(repoId: string, prId: string, status: PRStatus): Promise<PullRequest | null> {
+    await db.update(schema.pullRequests).set({ status, updatedAt: now() })
+      .where(and(eq(schema.pullRequests.repoId, repoId), eq(schema.pullRequests.id, prId)));
+    return this.getById(repoId, prId);
+  },
 };
 
 // ───────────────────────────── 提交 ─────────────────────────────
@@ -152,6 +180,32 @@ export const pipelineRepo = {
   async getById(runId: string): Promise<Pipeline | null> {
     const rows = await db.select().from(schema.pipelines).where(eq(schema.pipelines.id, runId)).limit(1);
     return (rows[0] as Pipeline) ?? null;
+  },
+  async create(data: {
+    repoId: string; commitSha: string; commitMessage: string;
+    status: Pipeline["status"]; trigger: Pipeline["trigger"];
+    authorId: string; branch: string; stages: Pipeline["stages"]; durationMs?: number;
+  }): Promise<Pipeline> {
+    const id = `pl${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const row = {
+      id,
+      repoId: data.repoId,
+      commitSha: data.commitSha,
+      commitMessage: data.commitMessage,
+      status: data.status,
+      trigger: data.trigger,
+      authorId: data.authorId,
+      branch: data.branch,
+      stages: data.stages,
+      durationMs: data.durationMs ?? 0,
+      createdAt: now(),
+    };
+    await db.insert(schema.pipelines).values(row);
+    return row as Pipeline;
+  },
+  async updateStatus(id: string, status: Pipeline["status"]): Promise<Pipeline | null> {
+    await db.update(schema.pipelines).set({ status }).where(eq(schema.pipelines.id, id));
+    return this.getById(id);
   },
 };
 
@@ -196,8 +250,13 @@ export const notificationRepo = {
     const rows = await db.select().from(schema.notifications).where(cond).orderBy(desc(schema.notifications.createdAt));
     return rows as AppNotification[];
   },
-  async markRead(id: string): Promise<void> {
+  async markRead(id: string, userId: string): Promise<boolean> {
+    // 先校验通知归属该用户,再更新 — 避免 rowCount 在不同驱动上的类型差异
+    const existing = await db.select({ id: schema.notifications.id }).from(schema.notifications)
+      .where(and(eq(schema.notifications.id, id), eq(schema.notifications.userId, userId))).limit(1);
+    if (!existing.length) return false;
     await db.update(schema.notifications).set({ read: true }).where(eq(schema.notifications.id, id));
+    return true;
   },
   async markAllRead(userId: string): Promise<void> {
     await db.update(schema.notifications).set({ read: true })
@@ -426,6 +485,11 @@ export const docCommentRepo = {
     );
     return comments.map((c, i) => ({ ...c, author: authors[i] ?? undefined }));
   },
+  async getById(id: string): Promise<DocumentComment | null> {
+    const rows = await db.select().from(schema.documentComments)
+      .where(eq(schema.documentComments.id, id)).limit(1);
+    return (rows[0] as DocumentComment) ?? null;
+  },
   async create(data: { docId: string; authorId: string; body: string; lineNumber?: number | null }): Promise<DocumentComment> {
     const id = `dc${Date.now()}${Math.floor(Math.random() * 1000)}`;
     const row = {
@@ -440,12 +504,14 @@ export const docCommentRepo = {
     await db.insert(schema.documentComments).values(row);
     return row as DocumentComment;
   },
-  async resolve(id: string, resolved: boolean): Promise<void> {
+  async resolve(id: string, docId: string, resolved: boolean): Promise<void> {
+    // 仅当评论属于指定文档时才更新,防跨文档越权 (路由层已做 getById 归属校验,此处为纵深防御)
     await db.update(schema.documentComments)
       .set({ resolved })
-      .where(eq(schema.documentComments.id, id));
+      .where(and(eq(schema.documentComments.id, id), eq(schema.documentComments.docId, docId)));
   },
-  async delete(id: string): Promise<void> {
-    await db.delete(schema.documentComments).where(eq(schema.documentComments.id, id));
+  async delete(id: string, docId: string): Promise<void> {
+    await db.delete(schema.documentComments)
+      .where(and(eq(schema.documentComments.id, id), eq(schema.documentComments.docId, docId)));
   },
 };

@@ -15,6 +15,8 @@ export default function PipelineDetail() {
   const [pipeline, setPipeline] = useState<Pipeline | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedStage, setExpandedStage] = useState<string | null>(null);
+  const [acting, setActing] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!runId) return;
@@ -24,6 +26,34 @@ export default function PipelineDetail() {
       .then(setPipeline)
       .finally(() => setLoading(false));
   }, [runId]);
+
+  const handleRetry = async () => {
+    if (acting || !runId) return;
+    setActing(true);
+    setActionError(null);
+    try {
+      const updated = await api.retryPipeline(runId);
+      setPipeline(updated);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "重试失败");
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (acting || !runId) return;
+    setActing(true);
+    setActionError(null);
+    try {
+      const updated = await api.cancelPipeline(runId);
+      setPipeline(updated);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "取消失败");
+    } finally {
+      setActing(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -127,15 +157,20 @@ export default function PipelineDetail() {
       </div>
 
       {/* 底部操作 */}
+      {actionError && (
+        <p className="reveal reveal-4 text-label-12 text-error">{actionError}</p>
+      )}
       <div className="reveal reveal-4 flex items-center gap-2">
-        <Button variant="primary" size="md">
-          <RotateCcw className="w-icon-sm h-icon-sm" strokeWidth={1.75} />
-          重新运行
-        </Button>
+        {!isRunning && (
+          <Button variant="primary" size="md" onClick={handleRetry} disabled={acting}>
+            <RotateCcw className="w-icon-sm h-icon-sm" strokeWidth={1.75} />
+            {acting ? "处理中…" : "重新运行"}
+          </Button>
+        )}
         {isRunning && (
-          <Button variant="danger" size="md">
+          <Button variant="danger" size="md" onClick={handleCancel} disabled={acting}>
             <X className="w-icon-sm h-icon-sm" strokeWidth={1.75} />
-            取消
+            {acting ? "处理中…" : "取消"}
           </Button>
         )}
       </div>

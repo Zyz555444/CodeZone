@@ -224,7 +224,19 @@ router.patch("/:id/comments/:cid", authMiddleware, async (req: Request<{ id: str
     res.status(400).json({ message: "resolved 为必填" });
     return;
   }
-  await docCommentRepo.resolve(req.params.cid, resolved);
+  // 校验评论属于本文档,且操作者为评论作者或管理员,防跨文档越权
+  const comment = await docCommentRepo.getById(req.params.cid);
+  if (!comment || comment.docId !== access.doc.id) {
+    res.status(404).json({ message: "评论不存在" });
+    return;
+  }
+  const isAuthor = comment.authorId === req.user!.id;
+  const canManage = access.membership.role === "owner" || access.membership.role === "admin";
+  if (!isAuthor && !canManage) {
+    res.status(403).json({ message: "仅评论作者或管理员可操作" });
+    return;
+  }
+  await docCommentRepo.resolve(req.params.cid, access.doc.id, resolved);
   res.json({ data: { success: true } });
 });
 
@@ -235,7 +247,18 @@ router.delete("/:id/comments/:cid", authMiddleware, async (req: Request<{ id: st
     res.status(access.status).json({ message: access.error });
     return;
   }
-  await docCommentRepo.delete(req.params.cid);
+  const comment = await docCommentRepo.getById(req.params.cid);
+  if (!comment || comment.docId !== access.doc.id) {
+    res.status(404).json({ message: "评论不存在" });
+    return;
+  }
+  const isAuthor = comment.authorId === req.user!.id;
+  const canManage = access.membership.role === "owner" || access.membership.role === "admin";
+  if (!isAuthor && !canManage) {
+    res.status(403).json({ message: "仅评论作者或管理员可删除评论" });
+    return;
+  }
+  await docCommentRepo.delete(req.params.cid, access.doc.id);
   res.json({ data: { success: true } });
 });
 
