@@ -101,6 +101,40 @@ export default function CodeBrowser() {
   const [blameData, setBlameData] = useState<BlameLine[] | null>(null);
   const [blameLoading, setBlameLoading] = useState(false);
 
+  // 可拖拽侧栏宽度 — 持久化到 localStorage,刷新后保留
+  const DEFAULT_SIDEBAR_WIDTH = 260;
+  const MIN_SIDEBAR_WIDTH = 180;
+  const MAX_SIDEBAR_WIDTH = 480;
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    try {
+      const v = parseInt(localStorage.getItem("codezone.codebrowser.sidebar") ?? "", 10);
+      if (Number.isFinite(v) && v >= MIN_SIDEBAR_WIDTH && v <= MAX_SIDEBAR_WIDTH) return v;
+    } catch { /* 忽略 */ }
+    return DEFAULT_SIDEBAR_WIDTH;
+  });
+  const dragStartXRef = useRef<number | null>(null);
+  const dragStartWidthRef = useRef<number>(sidebarWidth);
+  const startDrag = (e: React.MouseEvent) => {
+    dragStartXRef.current = e.clientX;
+    dragStartWidthRef.current = sidebarWidth;
+    const onMove = (ev: MouseEvent) => {
+      if (dragStartXRef.current == null) return;
+      const next = Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, dragStartWidthRef.current + (ev.clientX - dragStartXRef.current)));
+      setSidebarWidth(next);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      try { localStorage.setItem("codezone.codebrowser.sidebar", String(sidebarWidthRef.current)); } catch { /* 忽略 */ }
+      dragStartXRef.current = null;
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+  // 在拖拽过程中用 ref 读取最新值,避免闭包旧值
+  const sidebarWidthRef = useRef(sidebarWidth);
+  useEffect(() => { sidebarWidthRef.current = sidebarWidth; }, [sidebarWidth]);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -289,9 +323,16 @@ export default function CodeBrowser() {
   }
 
   return (
-    <div className="reveal grid lg:grid-cols-[260px_1fr] gap-6">
-      {/* 文件树 */}
-      <aside className="card p-2 max-h-[75vh] overflow-y-auto">
+    <div
+      className="reveal flex gap-0 relative"
+      style={{ gridTemplateColumns: "auto 1fr" }}
+    >
+      {/* 文件树 — 宽度可拖拽 */}
+      <aside
+        className="card p-2 max-h-[75vh] overflow-y-auto shrink-0"
+        style={{ width: sidebarWidth }}
+        ref={sidebarRef}
+      >
         <div className="flex items-center justify-between px-2 py-1.5">
           <p className="text-caption-10 uppercase tracking-eyebrow text-neutral-5 dark:text-[var(--neutral-5)]">
             文件
@@ -319,6 +360,22 @@ export default function CodeBrowser() {
           ))}
         </div>
       </aside>
+
+      {/* 拖拽分隔条 */}
+      <div
+        onMouseDown={startDrag}
+        className={cn(
+          "hidden lg:flex shrink-0 w-1.5 mx-2 cursor-col-resize items-center justify-center group",
+          "hover:bg-[var(--color-accent-soft)] transition-colors",
+        )}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="调整侧栏宽度,双击重置"
+        onDoubleClick={() => setSidebarWidth(DEFAULT_SIDEBAR_WIDTH)}
+        title="拖拽调整宽度,双击重置"
+      >
+        <span className="w-px h-8 bg-border group-hover:bg-[var(--color-accent)] transition-colors" />
+      </div>
 
       {/* 代码阅读器 */}
       <section className="min-w-0">

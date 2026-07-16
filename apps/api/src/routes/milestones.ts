@@ -2,8 +2,10 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { milestoneRepo, repoRepo } from "../repository.js";
+import { authMiddleware } from "../auth.js";
 
 const router = Router();
+router.use(authMiddleware);
 
 // 全部里程碑
 router.get("/", async (_req: Request, res: Response) => {

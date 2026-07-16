@@ -1,11 +1,13 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Search, ArrowRight, CornerDownLeft, X,
+  Search, CornerDownLeft, X,
 } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { searchCommands, type CommandItem } from "@/lib/commandIndex";
 import { useTheme } from "@/hooks/useTheme";
+import { useAppStore } from "@/store/useAppStore";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 interface CommandPaletteProps {
@@ -20,19 +22,22 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const [items, setItems] = useState<CommandItem[]>([]);
   const [active, setActive] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [actionError, setActionError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { toggleTheme } = useTheme();
+  const { team } = useAppStore();
 
   // 加载 / 搜索
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setLoading(true);
+    setActionError("");
     setActive(0);
     const t = setTimeout(() => {
-      searchCommands(query)
+      searchCommands(query, team?.id ?? null)
         .then((res) => {
           if (!cancelled) {
             setItems(res);
@@ -45,7 +50,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [query, open]);
+  }, [query, open, team?.id]);
 
   // 聚焦输入框
   useEffect(() => {
@@ -77,11 +82,27 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   );
 
   const executeItem = useCallback(
-    (item: CommandItem) => {
-      if (item.action === "toggle-theme") {
-        toggleTheme();
-      } else if (item.href) {
-        navigate(item.href);
+    async (item: CommandItem) => {
+      setActionError("");
+      try {
+        if (item.action === "toggle-theme") {
+          toggleTheme();
+        } else if (item.action === "new-issue") {
+          // 跳到第一个仓库的「新建议题」流程;无仓库时回退到仓库列表
+          const repos = await api.getRepos().catch(() => [] as { id: string }[]);
+          if (repos.length > 0) {
+            navigate(`/repos/${repos[0].id}?new=issue`);
+          } else {
+            navigate("/repos");
+          }
+        } else if (item.action === "new-pr") {
+          navigate("/pulls?new=pr");
+        } else if (item.href) {
+          navigate(item.href);
+        }
+      } catch (err) {
+        setActionError(err instanceof Error ? err.message : "操作失败");
+        return;
       }
       onClose();
     },
@@ -124,7 +145,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="搜索页面、仓库、成员，或输入命令…"
+            placeholder="搜索页面、仓库、成员,或输入命令…"
             className="flex-1 bg-transparent text-copy-15 text-neutral-9 dark:text-[var(--neutral-9)] placeholder:text-neutral-5 dark:placeholder:text-[var(--neutral-5)] outline-none"
             aria-label="搜索"
             role="combobox"
@@ -138,6 +159,11 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
         {/* 结果 */}
         <div ref={listRef} id="command-results" className="max-h-[52vh] overflow-y-auto py-2">
+          {actionError && (
+            <div className="mx-4 mb-2 px-3 py-1.5 rounded text-copy-13 text-error bg-error/10">
+              {actionError}
+            </div>
+          )}
           {loading ? (
             <div className="px-4 py-8 text-center text-copy-13 text-neutral-5 dark:text-[var(--neutral-5)]">
               加载中…
@@ -209,21 +235,20 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           )}
         </div>
 
-        {/* 底栏 */}
-        <div className="flex items-center justify-between px-4 py-2 border-t border-border text-caption-10 text-neutral-5 dark:text-[var(--neutral-5)]">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1">
-              <kbd className="ring-1 ring-border rounded px-1">↑↓</kbd> 导航
-            </span>
-            <span className="flex items-center gap-1">
-              <kbd className="ring-1 ring-border rounded px-1">↵</kbd> 选择
-            </span>
-          </div>
-          <span className="flex items-center gap-1 font-logo italic">
-            CodeZone <ArrowRight className="w-2.5 h-2.5" /> 留白即专注
+        {/* 底栏 — 只显示键盘提示,不再放无关文案 */}
+        <div className="flex items-center gap-3 px-4 py-2 border-t border-border text-caption-10 text-neutral-5 dark:text-[var(--neutral-5)]">
+          <span className="flex items-center gap-1">
+            <kbd className="ring-1 ring-border rounded px-1">↑↓</kbd> 导航
+          </span>
+          <span className="flex items-center gap-1">
+            <kbd className="ring-1 ring-border rounded px-1">↵</kbd> 选择
+          </span>
+          <span className="flex items-center gap-1">
+            <kbd className="ring-1 ring-border rounded px-1">esc</kbd> 关闭
           </span>
         </div>
       </div>
     </div>
   );
 }
+

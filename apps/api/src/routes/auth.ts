@@ -13,6 +13,19 @@ import { config } from "../config.js";
 
 const router = Router();
 
+// bcrypt 工作因子:12 在 2024+ 硬件下是 OWASP 推荐的下限
+const BCRYPT_ROUNDS = 12;
+
+// 公共配置 — 不需要 token,前端用于决定是否显示 OAuth 按钮
+router.get("/providers", async (_req: Request, res: Response) => {
+  res.json({
+    data: {
+      github: Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
+      google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    },
+  });
+});
+
 // 注册
 router.post("/register", async (req: Request, res: Response) => {
   const { name, email, password } = req.body as { name: string; email: string; password: string };
@@ -25,7 +38,7 @@ router.post("/register", async (req: Request, res: Response) => {
     res.status(409).json({ message: "该邮箱已注册" });
     return;
   }
-  const passwordHash = bcryptjs.hashSync(password, 10);
+  const passwordHash = await bcryptjs.hash(password, BCRYPT_ROUNDS);
   const id = `u${Date.now()}`;
   const user = await userRepo.create({ id, name, email, passwordHash });
   const authUser: AuthUser = { id: user.id, email: user.email, name: user.name, role: user.role };
@@ -47,7 +60,7 @@ router.post("/register-admin", async (req: Request, res: Response) => {
     res.status(409).json({ message: "该邮箱已注册" });
     return;
   }
-  const passwordHash = bcryptjs.hashSync(password, 10);
+  const passwordHash = await bcryptjs.hash(password, BCRYPT_ROUNDS);
   const userId = `u${Date.now()}`;
   const user = await userRepo.create({ id: userId, name, email, passwordHash, role: "admin" });
   const team = await teamRepo.create({ name: teamName, ownerId: userId });
@@ -84,7 +97,7 @@ router.post("/join-by-invite", async (req: Request, res: Response) => {
     res.status(409).json({ message: "该邮箱已注册" });
     return;
   }
-  const passwordHash = bcryptjs.hashSync(password, 10);
+  const passwordHash = await bcryptjs.hash(password, BCRYPT_ROUNDS);
   const userId = `u${Date.now()}`;
   const user = await userRepo.create({ id: userId, name, email, passwordHash });
   await teamMemberRepo.add({ teamId: ic.teamId, userId, role: "member" });
@@ -107,7 +120,7 @@ router.post("/login", async (req: Request, res: Response) => {
     res.status(401).json({ message: "邮箱或密码错误" });
     return;
   }
-  const valid = bcryptjs.compareSync(password, user.passwordHash);
+  const valid = await bcryptjs.compare(password, user.passwordHash);
   if (!valid) {
     res.status(401).json({ message: "邮箱或密码错误" });
     return;

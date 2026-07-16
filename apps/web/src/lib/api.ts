@@ -9,13 +9,50 @@ import type {
 // 拆分部署时,前端(Vercel)与后端(Railway)不同源;
 // 通过 VITE_API_BASE 注入后端地址,未设置则回退到同源 /api (本地开发或同域部署)
 const BASE = import.meta.env.VITE_API_BASE ?? "/api";
+
+// ─────────── 令牌存储 ───────────
+// 优先使用 sessionStorage (页面级作用域,XSS 持久化盗取风险更低),
+// 兼容旧版 localStorage 迁移:启动时若 localStorage 仍有 token 则一次性搬入。
 const TOKEN_KEY = "codezone_token";
 
-// 令牌存取
+function readTokenFromAnyStore(): string | null {
+  try {
+    return sessionStorage.getItem(TOKEN_KEY) ?? localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export const tokenStore = {
-  get: () => localStorage.getItem(TOKEN_KEY),
-  set: (t: string) => localStorage.setItem(TOKEN_KEY, t),
-  clear: () => localStorage.removeItem(TOKEN_KEY),
+  get: () => {
+    const t = readTokenFromAnyStore();
+    // 读时迁移:从 localStorage 读出后立即写入 sessionStorage 并清理
+    if (t && !sessionStorage.getItem(TOKEN_KEY)) {
+      try {
+        sessionStorage.setItem(TOKEN_KEY, t);
+        localStorage.removeItem(TOKEN_KEY);
+      } catch {
+        /* 忽略 */
+      }
+    }
+    return t;
+  },
+  set: (t: string) => {
+    try {
+      sessionStorage.setItem(TOKEN_KEY, t);
+      localStorage.removeItem(TOKEN_KEY);
+    } catch {
+      /* 忽略 */
+    }
+  },
+  clear: () => {
+    try {
+      sessionStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(TOKEN_KEY);
+    } catch {
+      /* 忽略 */
+    }
+  },
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -28,8 +65,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const err = await res.json().catch(() => ({ message: res.statusText }));
     throw new Error(err.message || `请求失败 (${res.status})`);
   }
-  const json = await res.json();
-  return json.data as T;
+  // 204 / 205 / 空 body:返回 undefined,由调用方按需使用
+  if (res.status === 204 || res.status === 205) return undefined as T;
+  const text = await res.text();
+  if (!text) return undefined as T;
+  try {
+    return (JSON.parse(text) as { data: T }).data;
+  } catch {
+    throw new Error("服务器返回了非 JSON 响应");
+  }
 }
 
 export const api = {
@@ -73,6 +117,7 @@ export const api = {
   getCommits: (repoId: string) => request<Commit[]>(`/repos/${repoId}/commits`),
 
   // ─────────── 第三方登录 ───────────
+  getAuthProviders: () => request<{ github: boolean; google: boolean }>("/auth/providers"),
   githubLogin: () => {
     window.location.href = `${BASE}/auth/github`;
   },
@@ -83,6 +128,12 @@ export const api = {
   // ─────────── GitHub 集成 ───────────
   githubConnected: () => request<{ connected: boolean; githubUsername: string | null }>("/github/connected"),
   githubDisconnect: () => request<{ success: boolean }>("/github/disconnect", { method: "POST" }),
+
+  // ─────────── 仓库 ───────────
+  getRepos: () => request<Repo[]>("/repos"),
+  getRepo: (id: string) => request<Repo>(`/repos/${id}`),
+  createRepo: (data: { name: string; description?: string; visibility?: "public" | "private" }) =>
+    request<Repo>("/repos", { method: "POST", body: JSON.stringify(data) }),
   githubRepos: () => request<{ id: number; name: string; fullName: string; description: string; language: string; stars: number; defaultBranch: string; private: boolean; updatedAt: number; cloneUrl: string; htmlUrl: string }[]>("/github/repos"),
   githubImport: (fullName: string) => request<Repo>("/github/import", { method: "POST", body: JSON.stringify({ fullName }) }),
   // ─────────── Git 操作 ───────────
@@ -185,6 +236,7 @@ export const api = {
     }),
   removeMember: (userId: string) =>
     request<{ success: boolean }>(`/team/members/${userId}`, { method: "DELETE" }),
+  leaveTeam: () => request<{ success: boolean }>("/team/leave", { method: "POST" }),
   getOnlineCount: () => request<{ total: number; teamOnline: number }>("/team/online"),
 
   // ─────────── 里程碑 ───────────

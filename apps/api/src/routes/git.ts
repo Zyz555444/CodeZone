@@ -14,11 +14,15 @@
  */
 import { Router } from "express";
 import type { Request, Response } from "express";
-import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { execFile, execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve, relative } from "node:path";
+import { promisify } from "node:util";
 import { authMiddleware } from "../auth.js";
 import { repoRepo, userRepo } from "../repository.js";
+
+const execFileAsync = promisify(execFile);
 
 const router = Router();
 
@@ -43,8 +47,14 @@ function safePath(dir: string, p: string): string {
 
 // ─────────── 工具函数 ───────────
 // 使用 execFileSync + 数组参数,不经过 shell,杜绝命令注入
-function git(cwd: string, args: string[]): string {
-  return execFileSync("git", args, { cwd, encoding: "utf-8", timeout: 30000, shell: false }).trim();
+function git(cwd: string, args: string[], opts: { timeout?: number; env?: NodeJS.ProcessEnv } = {}): string {
+  return execFileSync("git", args, {
+    cwd,
+    encoding: "utf-8",
+    timeout: opts.timeout ?? 30000,
+    shell: false,
+    env: opts.env ?? process.env,
+  }).trim();
 }
 
 function gitSafe(cwd: string, args: string[]): string | null {
@@ -57,6 +67,47 @@ function gitSafe(cwd: string, args: string[]): string | null {
 
 function repoDir(repoId: string): string {
   return join(REPO_BASE, repoId);
+}
+
+/**
+ * 为带认证的 Git 操作准备环境变量与临时凭据文件。
+ * 通过 `GIT_ASKPASS` + `GIT_CONFIG_COUNT/GIT_CONFIG_KEY_*/GIT_CONFIG_VALUE_*`
+ * 让 token 走 Git 凭据机制,而不是出现在 URL / 命令行参数 / 进程列表里。
+ * 返回的 cleanup() 在使用完毕后必须调用,以清理临时文件。
+ */
+interface AuthHandle {
+  env: NodeJS.ProcessEnv;
+  cleanup: () => void;
+}
+
+function buildAuthEnv(token: string | undefined): AuthHandle {
+  const env: NodeJS.ProcessEnv = { ...process.env, GIT_TERMINAL_PROMPT: "0" };
+  if (!token) {
+    return { env, cleanup: () => {} };
+  }
+
+  // 临时 askpass 脚本,仅 echo 用户名/token,避免明文落盘到进程列表
+  const dir = mkdtempSync(join(tmpdir(), "cz-git-"));
+  const helperPath = join(dir, "askpass.sh");
+  // 用 printf %s 避免 echo 在带特殊字符时出问题
+  writeFileSync(
+    helperPath,
+    `#!/bin/sh\ncase "$1" in\n  Username*) printf '%%s' 'x-access-token' ;;\n  *) printf '%%s' '${token.replace(/'/g, "'\\''")}' ;;\nesac\n`,
+    { mode: 0o600 },
+  );
+
+  env.GIT_ASKPASS = helperPath;
+  // Git 在未关联 tty 时若 GIT_ASKPASS 未设置,可能直接失败;此处显式指定
+  return {
+    env,
+    cleanup: () => {
+      try {
+        rmSync(dir, { recursive: true, force: true });
+      } catch {
+        /* 忽略 */
+      }
+    },
+  };
 }
 
 // ─────────── GET /branches — 获取分支列表 ───────────
@@ -208,20 +259,22 @@ router.post("/:repoId/clone", authMiddleware, async (req: Request<{ repoId: stri
     return;
   }
 
+  // token 通过 GIT_ASKPASS 走凭据机制,绝不在 URL/命令行/进程列表里出现
+  const { env, cleanup } = buildAuthEnv(user?.githubToken);
   try {
     mkdirSync(REPO_BASE, { recursive: true });
-    // 用数组参数调用 git,绝不经过 shell;token 通过环境变量传递
-    const env = { ...process.env, GIT_TERMINAL_PROMPT: "0" } as NodeJS.ProcessEnv;
-    if (user?.githubToken) {
-      // 将 token 嵌入 URL (https://<token>@github.com/...) 而非用不可靠的 askpass
-      const tokenUrl = cloneUrl.replace(/^https:\/\/github\.com\//, `https://x-access-token:${user.githubToken}@github.com/`);
-      execFileSync("git", ["clone", tokenUrl, dir], { env, timeout: 120000, shell: false, encoding: "utf-8" });
-    } else {
-      execFileSync("git", ["clone", cloneUrl, dir], { env, timeout: 120000, shell: false, encoding: "utf-8" });
-    }
+    await execFileAsync("git", ["clone", cloneUrl, dir], {
+      env,
+      timeout: 120000,
+      shell: false,
+      encoding: "utf-8",
+      maxBuffer: 50 * 1024 * 1024,
+    });
     res.json({ data: { message: "克隆成功", path: dir } });
   } catch (err) {
     res.status(500).json({ message: `克隆失败: ${(err as Error).message}` });
+  } finally {
+    cleanup();
   }
 });
 
@@ -233,8 +286,21 @@ router.post("/:repoId/pull", authMiddleware, async (req: Request<{ repoId: strin
     return;
   }
   try {
-    const output = git(dir, ["pull", "--rebase"]);
-    res.json({ data: { output } });
+    const user = await userRepo.getByIdWithCredentials(req.user!.id);
+    const { env, cleanup } = buildAuthEnv(user?.githubToken);
+    try {
+      const { stdout } = await execFileAsync("git", ["pull", "--rebase"], {
+        cwd: dir,
+        env,
+        timeout: 60000,
+        shell: false,
+        encoding: "utf-8",
+        maxBuffer: 50 * 1024 * 1024,
+      });
+      res.json({ data: { output: stdout.trim() } });
+    } finally {
+      cleanup();
+    }
   } catch (err) {
     res.status(500).json({ message: `拉取失败: ${(err as Error).message}` });
   }
@@ -327,8 +393,21 @@ router.post("/:repoId/push", authMiddleware, async (req: Request<{ repoId: strin
   try {
     const branch = git(dir, ["rev-parse", "--abbrev-ref", "HEAD"]);
     assertRef(branch, "当前分支");
-    const output = git(dir, ["push", "origin", branch]);
-    res.json({ data: { output, branch } });
+    const user = await userRepo.getByIdWithCredentials(req.user!.id);
+    const { env, cleanup } = buildAuthEnv(user?.githubToken);
+    try {
+      const { stdout } = await execFileAsync("git", ["push", "origin", branch], {
+        cwd: dir,
+        env,
+        timeout: 60000,
+        shell: false,
+        encoding: "utf-8",
+        maxBuffer: 50 * 1024 * 1024,
+      });
+      res.json({ data: { output: stdout.trim(), branch } });
+    } finally {
+      cleanup();
+    }
   } catch (err) {
     res.status(500).json({ message: `推送失败: ${(err as Error).message}` });
   }

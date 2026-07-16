@@ -36,22 +36,33 @@ const actionItems: CommandItem[] = [
   { id: "act-new-pr", title: "新建合并请求", group: "操作", icon: "GitPullRequest", keywords: "new pr", action: "new-pr" },
 ];
 
-let cache: { repos: Repo[]; users: User[]; ts: number } | null = null;
+let cache: { repos: Repo[]; users: User[]; teamId: string | null; ts: number } | null = null;
+const CACHE_TTL = 60_000;
 
-async function loadIndex(): Promise<{ repos: Repo[]; users: User[] }> {
+async function loadIndex(currentTeamId: string | null): Promise<{ repos: Repo[]; users: User[] }> {
   const now = Date.now();
-  if (cache && now - cache.ts < 60_000) return { repos: cache.repos, users: cache.users };
+  // 团队切换或缓存过期时都重新拉取,避免显示旧团队数据
+  if (cache && cache.teamId === currentTeamId && now - cache.ts < CACHE_TTL) {
+    return { repos: cache.repos, users: cache.users };
+  }
   const [repos, users] = await Promise.all([
     api.getRepos().catch(() => [] as Repo[]),
     api.getTeam().catch(() => [] as User[]),
   ]);
-  cache = { repos, users, ts: now };
+  cache = { repos, users, teamId: currentTeamId, ts: now };
   return { repos, users };
 }
 
-export async function searchCommands(query: string): Promise<CommandItem[]> {
+/**
+ * 主动让缓存失效。登录、退出、切换团队、加入/离开团队时调用。
+ */
+export function invalidateCommandCache(): void {
+  cache = null;
+}
+
+export async function searchCommands(query: string, teamId: string | null = null): Promise<CommandItem[]> {
   const q = query.trim().toLowerCase();
-  const { repos, users } = await loadIndex().catch(() => ({ repos: [] as Repo[], users: [] as User[] }));
+  const { repos, users } = await loadIndex(teamId).catch(() => ({ repos: [] as Repo[], users: [] as User[] }));
 
   const repoItems: CommandItem[] = repos.map((r) => ({
     id: `repo-${r.id}`,
@@ -83,3 +94,4 @@ export async function searchCommands(query: string): Promise<CommandItem[]> {
       item.subtitle?.toLowerCase().includes(q),
   );
 }
+

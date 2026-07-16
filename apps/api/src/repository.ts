@@ -79,6 +79,21 @@ export const repoRepo = {
     const rows = await db.select().from(schema.repos).where(eq(schema.repos.id, id)).limit(1);
     return (rows[0] as Repo) ?? null;
   },
+  async getByName(name: string): Promise<Repo | null> {
+    const rows = await db.select().from(schema.repos).where(eq(schema.repos.name, name)).limit(1);
+    return (rows[0] as Repo) ?? null;
+  },
+  async create(data: { name: string; description: string; visibility: "public" | "private"; ownerId: string }): Promise<Repo> {
+    const id = `r${Date.now()}`;
+    const ts = now();
+    const row = {
+      id, name: data.name, description: data.description, visibility: data.visibility,
+      ownerId: data.ownerId, defaultBranch: "main", createdAt: ts, updatedAt: ts,
+      stars: 0, forks: 0, openIssues: 0, language: "Other",
+    };
+    await db.insert(schema.repos).values(row);
+    return row as Repo;
+  },
   async getFileTree(repoId: string): Promise<FileNode[]> {
     const rows = await db.select().from(schema.fileTrees).where(eq(schema.fileTrees.repoId, repoId)).limit(1);
     return (rows[0]?.nodes as FileNode[]) ?? [];
@@ -112,11 +127,17 @@ export const issueRepo = {
       .where(and(eq(schema.issues.repoId, repoId), eq(schema.issues.id, issueId)));
     return this.getById(repoId, issueId);
   },
-  async create(data: { repoId: string; number: number; title: string; body: string; priority?: string; assigneeId?: string | null }): Promise<Issue> {
+  async create(data: { repoId: string; title: string; body: string; priority?: string; assigneeId?: string | null }): Promise<Issue> {
+    // 服务端自增 number — 避免调用方传入导致重复 / 唯一性冲突
+    const [{ max }] = await db
+      .select({ max: sql<number>`COALESCE(MAX(${schema.issues.number}), 0)` })
+      .from(schema.issues)
+      .where(eq(schema.issues.repoId, data.repoId));
+    const number = (max ?? 0) + 1;
     const id = `i${Date.now()}`;
     const ts = now();
     const row = {
-      id, repoId: data.repoId, number: data.number, title: data.title, body: data.body,
+      id, repoId: data.repoId, number, title: data.title, body: data.body,
       status: "open" as IssueStatus, priority: (data.priority ?? "normal") as "low" | "normal" | "high",
       assigneeId: data.assigneeId ?? null, labels: [], milestone: null,
       createdAt: ts, updatedAt: ts,

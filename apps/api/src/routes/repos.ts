@@ -4,6 +4,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { repoRepo, commitRepo, labelRepo } from "../repository.js";
+import { authMiddleware } from "../auth.js";
 import type { FileNode } from "@codezone/shared";
 
 const router = Router();
@@ -12,6 +13,31 @@ const router = Router();
 router.get("/", async (_req: Request, res: Response) => {
   const repos = await repoRepo.list();
   res.json({ data: repos });
+});
+
+// 创建仓库
+router.post("/", authMiddleware, async (req: Request, res: Response) => {
+  const { name, description, visibility } = req.body as { name: string; description?: string; visibility?: "public" | "private" };
+  if (!name) {
+    res.status(400).json({ message: "仓库名称为必填" });
+    return;
+  }
+  if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/.test(name)) {
+    res.status(400).json({ message: "仓库名称仅支持字母、数字、_、.、- ,且首字符必须为字母或数字" });
+    return;
+  }
+  const existing = await repoRepo.getByName(name);
+  if (existing) {
+    res.status(409).json({ message: "仓库名称已存在" });
+    return;
+  }
+  const repo = await repoRepo.create({
+    name,
+    description: description ?? "",
+    visibility: visibility ?? "private",
+    ownerId: req.user!.id,
+  });
+  res.status(201).json({ data: repo });
 });
 
 // 仓库详情

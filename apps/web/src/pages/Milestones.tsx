@@ -339,8 +339,13 @@ function RoadmapView({ milestones, repoMap }: { milestones: Milestone[]; repoMap
         {/* 里程碑行 */}
         <div className="space-y-3">
           {milestones.map((m) => {
-            const left = pct(now - 20 * day);
-            const width = Math.max(4, pct(m.dueDate) - left);
+            // 以 createdAt 为起点(无 createdAt 则回退到「现在向前 7 天」),
+            // 这样横条反映真实的计划周期,不再硬编码从「20 天前」开始
+            const createdTs = (m as { createdAt?: number }).createdAt ?? (now - 7 * day);
+            const startPct = pct(Math.max(spanStart, Math.min(spanEnd, createdTs)));
+            const endPct = pct(Math.max(spanStart, Math.min(spanEnd, m.dueDate)));
+            const left = Math.max(0, Math.min(startPct, endPct));
+            const width = Math.max(4, endPct - left);
             const barColor =
               m.status === "closed" ? "bg-success" : m.progress >= 80 ? "bg-[var(--color-accent)]" : "bg-neutral-5 dark:bg-[var(--neutral-5)]";
             return (

@@ -36,8 +36,8 @@
 
 [data-theme="dark"] {
   --surface-paper: rgb(28, 28, 30);    /* 暖灰夜色 */
-  --color-accent: #f596aa;             /* 桃 */
-  --color-accent-soft: rgba(245, 150, 170, 0.14);
+  --color-accent: #33a6b8;             /* 保持品牌浅葱，避免暗色下变粉 */
+  --color-accent-soft: rgba(51, 166, 184, 0.18);
   --color-border: rgba(255, 255, 255, 0.1);
 
   /* 深色模式中性灰自动反转为纯灰 */

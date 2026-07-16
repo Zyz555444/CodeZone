@@ -78,6 +78,21 @@ function CurrentProfileRedirect() {
   return null;
 }
 
+// 根路径 — 根据登录态显式重定向，确保 URL 实际更新
+function RootRedirect() {
+  const { currentUser, initialized } = useAppStore();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!initialized) return;
+    if (currentUser) {
+      navigate("/dashboard", { replace: true });
+    } else {
+      navigate("/login", { replace: true });
+    }
+  }, [initialized, currentUser, navigate]);
+  return null;
+}
+
 export default function App() {
   useWebSocket();
   return (
@@ -94,8 +109,10 @@ export default function App() {
         <Route path="/docs" element={<Docs />} />
         <Route path="/api" element={<ApiDocs />} />
 
+        {/* 根路径 — 在 AppLayout 之外判断登录态,确保 URL 实际更新 */}
+        <Route path="/" element={<RootRedirect />} />
+
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
 
           {/* 全局跨仓库视图 */}

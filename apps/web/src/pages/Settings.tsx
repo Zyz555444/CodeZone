@@ -1,399 +1,156 @@
 import { useEffect, useState } from "react";
-import { User as UserIcon, Palette, Bell, Shield, Plus, Key, Github, Unlink, ExternalLink } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useTheme } from "@/hooks/useTheme";
+import { useNavigate } from "react-router-dom";
+import { Copy, Check, Eye, EyeOff, RefreshCw, LogOut, AlertTriangle, ArrowLeft } from "lucide-react";
+import { useTitle } from "@/hooks/useTitle";
+import { api, tokenStore } from "@/lib/api";
 import { useAppStore } from "@/store/useAppStore";
-import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
-import { api } from "@/lib/api";
-
-type Section = "profile" | "appearance" | "notifications" | "security" | "github";
-
-const navItems: { key: Section; label: string; icon: typeof UserIcon }[] = [
-  { key: "profile", label: "个人资料", icon: UserIcon },
-  { key: "appearance", label: "外观", icon: Palette },
-  { key: "notifications", label: "通知", icon: Bell },
-  { key: "security", label: "安全", icon: Shield },
-  { key: "github", label: "GitHub", icon: Github },
-];
-
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      onClick={() => onChange(!on)}
-      className={cn(
-        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ease-breathe",
-        on ? "bg-[var(--color-accent)]" : "bg-neutral-4 dark:bg-[var(--neutral-4)]",
-      )}
-    >
-      <span
-        className={cn(
-          "inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ease-breathe",
-          on ? "translate-x-6" : "translate-x-1",
-        )}
-      />
-    </button>
-  );
-}
-
-const inputClass =
-  "mt-1 w-full rounded-md bg-neutral-1 dark:bg-[var(--neutral-1)] ring-1 ring-border px-3 py-2 text-copy-14 text-neutral-9 dark:text-[var(--neutral-9)] focus:outline-none focus:ring-[var(--color-accent)]";
 
 export default function Settings() {
-  const { toggleTheme, isDark } = useTheme();
-  const currentUser = useAppStore((s) => s.currentUser);
-  const [section, setSection] = useState<Section>("profile");
+  const navigate = useNavigate();
+  const { team, setTeam, setCurrentUser } = useAppStore();
+  useTitle("设置 · CodeZone");
 
-  const [name, setName] = useState(currentUser?.name ?? "");
-  const [email, setEmail] = useState(currentUser?.email ?? "");
-  const [bio, setBio] = useState("");
-
-  const [fontSize, setFontSize] = useState<"sm" | "md" | "lg">("md");
-
-  const [notifications, setNotifications] = useState({
-    email: true,
-    web: true,
-    mention: true,
-    review: false,
-    issue: true,
-  });
-
-  // GitHub 集成
-  const [githubConnected, setGithubConnected] = useState(false);
-  const [githubUsername, setGithubUsername] = useState<string | null>(null);
-  const [githubLoading, setGithubLoading] = useState(false);
+  const [apiToken, setApiToken] = useState<string | null>(null);
+  const [reveal, setReveal] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    if (section === "github") {
-      setGithubLoading(true);
-      api.githubConnected()
-        .then((res) => {
-          setGithubConnected(res.connected);
-          setGithubUsername(res.githubUsername);
-        })
-        .finally(() => setGithubLoading(false));
+    // 取 JWT 副本用于展示,不改变原 token
+    setApiToken(tokenStore.get());
+  }, []);
+
+  const copyToken = async () => {
+    if (!apiToken) return;
+    try {
+      await navigator.clipboard.writeText(apiToken);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = apiToken;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
     }
-  }, [section]);
+  };
+
+  const mask = (t: string) => t ? `${t.slice(0, 6)}••••••••••••${t.slice(-4)}` : "";
+
+  const handleLeaveTeam = async () => {
+    if (!team) {
+      setError("你未加入任何团队");
+      return;
+    }
+    if (!window.confirm(`确定要离开「${team.name}」吗?此操作不可撤销。`)) return;
+    setLeaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      await api.leaveTeam();
+      setTeam(null, null);
+      setSuccess("已离开团队");
+      setTimeout(() => navigate("/"), 1000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "离开失败");
+    } finally {
+      setLeaving(false);
+    }
+  };
+
+  const handleLogout = () => {
+    tokenStore.clear();
+    setCurrentUser(null);
+    setTeam(null, null);
+    navigate("/login");
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="reveal">
-        <h2 className="font-serif text-title-24 font-medium text-neutral-10 dark:text-[var(--neutral-10)]">
+    <div className="p-6 max-w-3xl mx-auto space-y-6">
+      <header>
+        <p className="text-caption-10 uppercase tracking-eyebrow text-[var(--color-accent)] mb-1">
+          账户
+        </p>
+        <h1 className="font-serif text-title-28 font-medium text-neutral-10 dark:text-[var(--neutral-10)]">
           设置
-        </h2>
-      </div>
+        </h1>
+      </header>
 
-      <div className="grid lg:grid-cols-[200px_1fr] gap-6">
-        {/* 左侧导航 */}
-        <nav className="reveal reveal-1 flex lg:flex-col gap-1 overflow-x-auto">
-          {navItems.map((n) => {
-            const Icon = n.icon;
-            const active = section === n.key;
-            return (
-              <button
-                key={n.key}
-                onClick={() => setSection(n.key)}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-md text-copy-14 whitespace-nowrap transition-colors duration-300 ease-breathe",
-                  active
-                    ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)] font-medium"
-                    : "text-neutral-7 dark:text-[var(--neutral-7)] hover:bg-neutral-2 dark:hover:bg-[var(--neutral-2)]",
-                )}
-              >
-                <Icon className="w-icon-sm h-icon-sm" strokeWidth={1.75} />
-                {n.label}
-              </button>
-            );
-          })}
-        </nav>
+      {error && (
+        <div className="card p-3 text-copy-13 text-error bg-error/10 ring-error/30">{error}</div>
+      )}
+      {success && (
+        <div className="card p-3 text-copy-13 text-[var(--color-accent)] bg-[var(--color-accent-soft)]">{success}</div>
+      )}
 
-        {/* 右侧面板 */}
+      {/* API Token */}
+      <section className="card p-5 space-y-3">
         <div>
-          {section === "profile" && (
-            <div className="reveal reveal-2 card space-y-5">
-              <h3 className="font-serif text-title-20 font-medium text-neutral-10 dark:text-[var(--neutral-10)]">
-                个人资料
-              </h3>
-              <div className="flex items-center gap-4">
-                <Avatar user={currentUser!} size="lg" />
-                <Button variant="secondary" size="sm">
-                  更换头像
-                </Button>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <label className="block">
-                  <span className="text-label-12 text-neutral-6 dark:text-[var(--neutral-6)]">姓名</span>
-                  <input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className={inputClass}
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-label-12 text-neutral-6 dark:text-[var(--neutral-6)]">邮箱</span>
-                  <input
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className={inputClass}
-                  />
-                </label>
-              </div>
-              <label className="block">
-                <span className="text-label-12 text-neutral-6 dark:text-[var(--neutral-6)]">简介</span>
-                <textarea
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  rows={3}
-                  placeholder="一句话介绍自己"
-                  className={cn(inputClass, "resize-none")}
-                />
-              </label>
-              <div>
-                <Button variant="primary" size="md">
-                  保存
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {section === "appearance" && (
-            <div className="reveal reveal-2 card space-y-6">
-              <h3 className="font-serif text-title-20 font-medium text-neutral-10 dark:text-[var(--neutral-10)]">
-                外观
-              </h3>
-              <div>
-                <p className="text-label-12 text-neutral-6 dark:text-[var(--neutral-6)] mb-2">主题</p>
-                <div className="grid grid-cols-2 gap-3 max-w-md">
-                  <button
-                    onClick={() => {
-                      if (isDark) toggleTheme();
-                    }}
-                    className={cn(
-                      "rounded-lg p-4 ring-1 transition-colors duration-300 ease-breathe text-left",
-                      !isDark
-                        ? "ring-[var(--color-accent)] bg-[var(--color-accent-soft)]"
-                        : "ring-border bg-neutral-2 dark:bg-[var(--neutral-2)]",
-                    )}
-                  >
-                    <div className="h-10 rounded-md bg-neutral-1 ring-1 ring-border mb-2" />
-                    <span className="text-copy-14 font-medium text-neutral-9 dark:text-[var(--neutral-9)]">
-                      浅色
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!isDark) toggleTheme();
-                    }}
-                    className={cn(
-                      "rounded-lg p-4 ring-1 transition-colors duration-300 ease-breathe text-left",
-                      isDark
-                        ? "ring-[var(--color-accent)] bg-[var(--color-accent-soft)]"
-                        : "ring-border bg-neutral-2 dark:bg-[var(--neutral-2)]",
-                    )}
-                  >
-                    <div className="h-10 rounded-md bg-[var(--neutral-3)] mb-2" />
-                    <span className="text-copy-14 font-medium text-neutral-9 dark:text-[var(--neutral-9)]">
-                      深色
-                    </span>
-                  </button>
-                </div>
-              </div>
-              <div>
-                <p className="text-label-12 text-neutral-6 dark:text-[var(--neutral-6)] mb-2">字号</p>
-                <div className="flex items-center gap-4">
-                  {[
-                    { key: "sm", label: "小" },
-                    { key: "md", label: "中" },
-                    { key: "lg", label: "大" },
-                  ].map((o) => (
-                    <label key={o.key} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="fontsize"
-                        checked={fontSize === o.key}
-                        onChange={() => setFontSize(o.key as typeof fontSize)}
-                        className="accent-[var(--color-accent)]"
-                      />
-                      <span className="text-copy-14 text-neutral-8 dark:text-[var(--neutral-8)]">
-                        {o.label}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {section === "notifications" && (
-            <div className="reveal reveal-2 card space-y-1">
-              <h3 className="font-serif text-title-20 font-medium text-neutral-10 dark:text-[var(--neutral-10)] mb-4">
-                通知
-              </h3>
-              {[
-                { key: "email" as const, label: "邮件通知", desc: "重要事件通过邮件送达" },
-                { key: "web" as const, label: "网页通知", desc: "站内即时提示" },
-                { key: "mention" as const, label: "提及通知", desc: "被 @ 时通知" },
-                { key: "review" as const, label: "PR 评审", desc: "被请求评审时通知" },
-                { key: "issue" as const, label: "议题更新", desc: "关注的议题有新动态" },
-              ].map((n) => (
-                <div
-                  key={n.key}
-                  className="flex items-center justify-between gap-4 py-3 border-b border-border last:border-0"
-                >
-                  <div>
-                    <p className="text-copy-14 font-medium text-neutral-9 dark:text-[var(--neutral-9)]">
-                      {n.label}
-                    </p>
-                    <p className="text-label-12 text-neutral-5 dark:text-[var(--neutral-5)]">{n.desc}</p>
-                  </div>
-                  <Toggle
-                    on={notifications[n.key]}
-                    onChange={(v) => setNotifications((prev) => ({ ...prev, [n.key]: v }))}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {section === "security" && (
-            <div className="reveal reveal-2 space-y-4">
-              <div className="card">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-serif text-title-20 font-medium text-neutral-10 dark:text-[var(--neutral-10)]">
-                    SSH 密钥
-                  </h3>
-                  <Button variant="secondary" size="sm">
-                    <Plus className="w-icon-sm h-icon-sm" strokeWidth={1.75} />
-                    添加
-                  </Button>
-                </div>
-                <ul className="space-y-2">
-                  {[
-                    { name: "MacBook Pro", fp: "SHA256:9k7g...x2Qa", added: "2025-03-12" },
-                    { name: "工作站", fp: "SHA256:m3dp...8nLc", added: "2025-01-08" },
-                  ].map((k) => (
-                    <li
-                      key={k.fp}
-                      className="flex items-center justify-between gap-3 rounded-md px-3 py-2.5 ring-1 ring-border bg-neutral-1 dark:bg-[var(--neutral-1)]"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <Key
-                          className="w-icon-sm h-icon-sm text-neutral-5 dark:text-[var(--neutral-5)] shrink-0"
-                          strokeWidth={1.75}
-                        />
-                        <div className="min-w-0">
-                          <p className="text-copy-14 font-medium text-neutral-9 dark:text-[var(--neutral-9)] truncate">
-                            {k.name}
-                          </p>
-                          <p className="text-label-12 font-mono text-neutral-5 dark:text-[var(--neutral-5)] truncate">
-                            {k.fp}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="text-label-12 text-neutral-5 dark:text-[var(--neutral-5)] shrink-0">
-                        {k.added}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="card">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-serif text-title-20 font-medium text-neutral-10 dark:text-[var(--neutral-10)]">
-                    访问令牌
-                  </h3>
-                  <Button variant="secondary" size="sm">
-                    <Plus className="w-icon-sm h-icon-sm" strokeWidth={1.75} />
-                    添加
-                  </Button>
-                </div>
-                <ul className="space-y-2">
-                  {[
-                    { name: "CLI", scope: "repo, read", added: "2025-06-01" },
-                    { name: "CI 部署", scope: "deploy", added: "2025-04-22" },
-                  ].map((t) => (
-                    <li
-                      key={t.name}
-                      className="flex items-center justify-between gap-3 rounded-md px-3 py-2.5 ring-1 ring-border bg-neutral-1 dark:bg-[var(--neutral-1)]"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-copy-14 font-medium text-neutral-9 dark:text-[var(--neutral-9)]">
-                          {t.name}
-                        </p>
-                        <p className="text-label-12 text-neutral-5 dark:text-[var(--neutral-5)]">
-                          范围: {t.scope}
-                        </p>
-                      </div>
-                      <span className="text-label-12 text-neutral-5 dark:text-[var(--neutral-5)] shrink-0">
-                        {t.added}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
-
-          {section === "github" && (
-            <div className="reveal reveal-2 card space-y-5">
-              <h3 className="font-serif text-title-20 font-medium text-neutral-10 dark:text-[var(--neutral-10)]">
-                GitHub 集成
-              </h3>
-              {githubLoading ? (
-                <p className="text-copy-14 text-neutral-5 dark:text-[var(--neutral-5)]">加载中…</p>
-              ) : githubConnected ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 rounded-lg px-4 py-3 ring-1 ring-border bg-neutral-1 dark:bg-[var(--neutral-2)]">
-                    <div className="grid place-items-center w-10 h-10 rounded-full bg-[var(--color-accent-soft)]">
-                      <Github className="w-icon-md h-icon-md text-[var(--color-accent)]" strokeWidth={1.75} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-copy-14 font-medium text-neutral-9 dark:text-[var(--neutral-9)]">
-                        已连接 GitHub
-                      </p>
-                      <p className="text-label-12 text-neutral-5 dark:text-[var(--neutral-5)]">
-                        用户名: {githubUsername}
-                      </p>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={async () => {
-                        try {
-                          await api.githubDisconnect();
-                          setGithubConnected(false);
-                          setGithubUsername(null);
-                        } catch { /* 断开失败 */ }
-                      }}
-                    >
-                      <Unlink className="w-icon-sm h-icon-sm" strokeWidth={1.75} />
-                      断开连接
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 space-y-4">
-                  <Github className="w-icon-lg h-icon-lg text-neutral-5 dark:text-[var(--neutral-5)] mx-auto" strokeWidth={1.75} />
-                  <p className="text-copy-14 text-neutral-6 dark:text-[var(--neutral-6)]">
-                    连接 GitHub 账户以导入仓库、同步代码
-                  </p>
-                  <Button
-                    variant="primary"
-                    size="md"
-                    onClick={() => window.location.href = "/api/auth/github"}
-                  >
-                    <ExternalLink className="w-icon-sm h-icon-sm" strokeWidth={1.75} />
-                    连接 GitHub
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
+          <h2 className="text-copy-15 font-medium text-neutral-10 dark:text-[var(--neutral-10)]">API Token</h2>
+          <p className="text-caption-10 text-neutral-6 dark:text-[var(--neutral-6)] mt-0.5">
+            用于调用 REST API。泄露后请立即在「账号安全」中重置。
+          </p>
         </div>
-      </div>
+        <div className="flex items-center gap-2 p-3 rounded-md ring-1 ring-border bg-neutral-1 dark:bg-[var(--neutral-1)]">
+          <code className="flex-1 font-mono text-copy-13 text-neutral-9 break-all">
+            {reveal ? apiToken : mask(apiToken ?? "")}
+          </code>
+          <button
+            onClick={() => setReveal((v) => !v)}
+            className="grid place-items-center w-8 h-8 rounded text-neutral-6 hover:text-[var(--color-accent)] hover:bg-neutral-2 transition-colors"
+            aria-label={reveal ? "隐藏" : "显示"}
+            disabled={!apiToken}
+          >
+            {reveal ? <EyeOff className="w-icon-sm h-icon-sm" /> : <Eye className="w-icon-sm h-icon-sm" />}
+          </button>
+          <button
+            onClick={copyToken}
+            className="grid place-items-center w-8 h-8 rounded text-neutral-6 hover:text-[var(--color-accent)] hover:bg-neutral-2 transition-colors"
+            aria-label="复制"
+            disabled={!apiToken}
+          >
+            {copied ? <Check className="w-icon-sm h-icon-sm text-[var(--color-accent)]" /> : <Copy className="w-icon-sm h-icon-sm" />}
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={handleLogout}>
+            <RefreshCw className="w-icon-sm h-icon-sm" /> 重新登录
+          </Button>
+          <span className="text-caption-10 text-neutral-5">重新登录后会刷新 Token</span>
+        </div>
+      </section>
+
+      {/* 离开团队 */}
+      {team && (
+        <section className="card p-5 space-y-3">
+          <div>
+            <h2 className="text-copy-15 font-medium text-neutral-10 dark:text-[var(--neutral-10)] flex items-center gap-2">
+              <AlertTriangle className="w-icon-sm h-icon-sm text-warn" strokeWidth={1.75} />
+              离开团队
+            </h2>
+            <p className="text-caption-10 text-neutral-6 dark:text-[var(--neutral-6)] mt-0.5">
+              你当前属于「{team.name}」。离开后将无法访问该团队的仓库、议题、文档等数据。
+            </p>
+          </div>
+          <Button variant="danger" onClick={handleLeaveTeam} disabled={leaving}>
+            <LogOut className="w-icon-sm h-icon-sm" />
+            {leaving ? "处理中…" : "离开团队"}
+          </Button>
+        </section>
+      )}
+
+      <button
+        onClick={() => navigate(-1)}
+        className="inline-flex items-center gap-1.5 text-copy-13 text-neutral-6 hover:text-[var(--color-accent)] transition-colors"
+      >
+        <ArrowLeft className="w-icon-sm h-icon-sm" /> 返回
+      </button>
     </div>
   );
 }

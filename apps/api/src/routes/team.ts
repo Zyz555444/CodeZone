@@ -233,6 +233,21 @@ router.delete("/members/:userId", authMiddleware, async (req: Request<{ userId: 
   res.json({ data: { success: true } });
 });
 
+// ─────────── POST /leave — 当前用户离开团队 ───────────
+router.post("/leave", authMiddleware, async (req: Request, res: Response) => {
+  const membership = await teamMemberRepo.getByUser(req.user!.id);
+  if (!membership) {
+    res.status(400).json({ message: "你未加入任何团队" });
+    return;
+  }
+  if (membership.role === "owner") {
+    res.status(403).json({ message: "所有者请先转让团队或解散团队后再离开" });
+    return;
+  }
+  await teamMemberRepo.remove(membership.teamId, req.user!.id);
+  res.json({ data: { success: true } });
+});
+
 // ─────────── GET /online — 获取在线人数 ───────────
 router.get("/online", authMiddleware, async (req: Request, res: Response) => {
   const membership = await teamMemberRepo.getByUser(req.user!.id);

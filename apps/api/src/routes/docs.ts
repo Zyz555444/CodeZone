@@ -82,19 +82,28 @@ router.get("/:id", authMiddleware, async (req: Request<{ id: string }>, res: Res
   res.json({ data: access.doc });
 });
 
-// ─────────── PATCH /:id — 更新标题 ───────────
+// ─────────── PATCH /:id — 更新标题/内容 ───────────
 router.patch("/:id", authMiddleware, async (req: Request<{ id: string }>, res: Response) => {
   const access = await ensureDocAccess(req.user!.id, req.params.id);
   if ("error" in access) {
     res.status(access.status).json({ message: access.error });
     return;
   }
-  const { title } = req.body as { title?: string };
-  if (!title) {
-    res.status(400).json({ message: "标题为必填" });
+  const { title, content } = req.body as { title?: string; content?: string };
+  if (title === undefined && content === undefined) {
+    res.status(400).json({ message: "至少需要更新 title 或 content 之一" });
     return;
   }
-  await docRepo.updateTitle(access.doc.id, title);
+  if (title !== undefined) {
+    if (!title.trim()) {
+      res.status(400).json({ message: "标题不能为空" });
+      return;
+    }
+    await docRepo.updateTitle(access.doc.id, title);
+  }
+  if (content !== undefined) {
+    await docRepo.updateContent(access.doc.id, content, req.user!.id);
+  }
   const updated = await docRepo.getById(access.doc.id);
   res.json({ data: updated });
 });

@@ -51,12 +51,9 @@ router.post("/", authMiddleware, async (req: Request<RepoParams>, res: Response)
     res.status(400).json({ message: "标题为必填" });
     return;
   }
-  // 计算下一个 number
-  const existing = await issueRepo.list(req.params.repoId!);
-  const number = existing.length + 1;
+  // number 由仓储层基于现有议题最大编号自增,这里不再传入
   const issue = await issueRepo.create({
     repoId: req.params.repoId!,
-    number,
     title,
     body: body ?? "",
     priority,

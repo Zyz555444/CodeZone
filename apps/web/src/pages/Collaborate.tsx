@@ -4,7 +4,7 @@ import {
   ArrowLeft, FileCode, FileText, GitBranch,
   Radio, Zap, Shield, Layers, MessageSquare,
   Plus, Trash2, History, Clock, CheckCircle2, Circle,
-  Send, Users, Wifi, Loader, X,
+  Send, Users, Wifi, Loader, X, Check,
 } from "lucide-react";
 import CollaborativeEditor from "@/components/CollaborativeEditor";
 import { api } from "@/lib/api";
@@ -41,6 +41,7 @@ export default function CollaboratePage() {
   const [versionMessage, setVersionMessage] = useState("");
   const [creatingVersion, setCreatingVersion] = useState(false);
   const [activeError, setActiveError] = useState<string | null>(null);
+  const [versionSuccess, setVersionSuccess] = useState<string>("");
   const latestContentRef = useRef<string>("");
   // 请求序列号:防止快速切换文档时旧请求覆盖新数据
   const loadSeqRef = useRef(0);
@@ -256,8 +257,9 @@ export default function CollaboratePage() {
       await api.saveDoc(activeDocId, v.content);
       setActiveDoc((prev) => (prev ? { ...prev, content: v.content, updatedAt: Date.now() } : prev));
       latestContentRef.current = v.content;
-      // 触发刷新以提示用户重新加载协作会话
-      window.location.reload();
+      // 显示成功提示,保留编辑器状态,不强制刷新页面
+      setVersionSuccess(`已恢复到版本「${v.message || "无标题"}」`);
+      setTimeout(() => setVersionSuccess(""), 3000);
     } catch (e) {
       setActiveError(e instanceof Error ? e.message : "恢复版本失败");
     }
@@ -334,6 +336,14 @@ export default function CollaboratePage() {
           <button onClick={() => setActiveError(null)} className="text-error/70 hover:text-error">
             <X className="w-3.5 h-3.5" />
           </button>
+        </div>
+      )}
+
+      {/* 成功提示条 (例如恢复版本) */}
+      {versionSuccess && (
+        <div className="px-4 py-2 bg-success/10 text-success text-label-12 flex items-center gap-2">
+          <Check className="w-3.5 h-3.5" />
+          <span>{versionSuccess}</span>
         </div>
       )}
 

@@ -49,11 +49,28 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "assign", label: "指派" },
 ];
 
+// 记忆筛选 — 刷新后保留上次选择
+const FILTER_STORAGE_KEY = "codezone.notifications.filter";
+const VALID_FILTERS: Filter[] = ["all", "unread", "mention", "review", "assign"];
+
+function readStoredFilter(): Filter {
+  try {
+    const v = localStorage.getItem(FILTER_STORAGE_KEY) as Filter | null;
+    if (v && VALID_FILTERS.includes(v)) return v;
+  } catch { /* 忽略 */ }
+  return "all";
+}
+
 export default function Notifications() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [actorMap, setActorMap] = useState<Record<string, User>>({});
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>(readStoredFilter);
+
+  // 切换筛选时写入 localStorage
+  useEffect(() => {
+    try { localStorage.setItem(FILTER_STORAGE_KEY, filter); } catch { /* 忽略 */ }
+  }, [filter]);
 
   useEffect(() => {
     Promise.all([api.getNotifications(), api.getTeam()])
