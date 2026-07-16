@@ -331,7 +331,6 @@ export default function CodeBrowser() {
       <aside
         className="card p-2 max-h-[75vh] overflow-y-auto shrink-0"
         style={{ width: sidebarWidth }}
-        ref={sidebarRef}
       >
         <div className="flex items-center justify-between px-2 py-1.5">
           <p className="text-caption-10 uppercase tracking-eyebrow text-neutral-5 dark:text-[var(--neutral-5)]">

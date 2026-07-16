@@ -26,13 +26,18 @@ const execFileAsync = promisify(execFile);
 
 const router = Router();
 
+// 把 err 转为安全字符串,避免模板里 (err as Error).message 在某些 TS 版本下解析失败
+function errMsg(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 const REPO_BASE = join(process.cwd(), ".repos");
 
 // 分支/引用名合法性校验 — 阻止命令注入与路径穿越
 const REF_RE = /^[A-Za-z0-9][A-Za-z0-9._/\-]{0,63}$/;
 function assertRef(name: string, label = "名称"): void {
   if (!name || !REF_RE.test(name)) {
-    throw new Error(`${label}不合法`);
+    throw new Error(label + "不合法");
   }
 }
 
@@ -71,8 +76,8 @@ function repoDir(repoId: string): string {
 
 /**
  * 为带认证的 Git 操作准备环境变量与临时凭据文件。
- * 通过 `GIT_ASKPASS` + `GIT_CONFIG_COUNT/GIT_CONFIG_KEY_*/GIT_CONFIG_VALUE_*`
- * 让 token 走 Git 凭据机制,而不是出现在 URL / 命令行参数 / 进程列表里。
+ * 通过 GIT_ASKPASS + GIT_CONFIG_KEY/GIT_CONFIG_VALUE 让 token 走 Git 凭据机制,
+ * 而不是出现在 URL / 命令行参数 / 进程列表里。
  * 返回的 cleanup() 在使用完毕后必须调用,以清理临时文件。
  */
 interface AuthHandle {
@@ -90,11 +95,19 @@ function buildAuthEnv(token: string | undefined): AuthHandle {
   const dir = mkdtempSync(join(tmpdir(), "cz-git-"));
   const helperPath = join(dir, "askpass.sh");
   // 用 printf %s 避免 echo 在带特殊字符时出问题
-  writeFileSync(
-    helperPath,
-    `#!/bin/sh\ncase "$1" in\n  Username*) printf '%%s' 'x-access-token' ;;\n  *) printf '%%s' '${token.replace(/'/g, "'\\''")}' ;;\nesac\n`,
-    { mode: 0o600 },
-  );
+  // 转义单引号: ' => '\''  (POSIX shell 标准转义)
+  const escaped = token.replace(/'/g, "'\\''");
+  // 每一行单独写,避免模板里出现 * ) ; 等字符触发解析
+  const lines = [
+    "#!/bin/sh",
+    "case \"$1\" in",
+    "  Username" + "*) printf '%s' 'x-access-token' ;;",
+    "  " + "*" + ") printf '%s' '" + escaped + "' ;;",
+    "esac",
+    "",
+  ];
+  const script = lines.join("\n");
+  writeFileSync(helperPath, script, { mode: 0o600 });
 
   env.GIT_ASKPASS = helperPath;
   // Git 在未关联 tty 时若 GIT_ASKPASS 未设置,可能直接失败;此处显式指定
@@ -123,7 +136,8 @@ router.get("/:repoId/branches", authMiddleware, async (req: Request<{ repoId: st
     const current = raw.split("\n").find((b) => b.startsWith("*"))?.replace("* ", "") ?? "";
     res.json({ data: { branches: [...new Set(branches)], current } });
   } catch (err) {
-    res.status(500).json({ message: `获取分支失败: ${(err as Error).message}` });
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ message: "获取分支失败: " + msg });
   }
 });
 
@@ -146,7 +160,8 @@ router.post("/:repoId/branch", authMiddleware, async (req: Request<{ repoId: str
     git(dir, ["checkout", "-b", name, base]);
     res.json({ data: { name, from: base } });
   } catch (err) {
-    res.status(500).json({ message: `创建分支失败: ${(err as Error).message}` });
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ message: "创建分支失败: " + msg });
   }
 });
 
@@ -173,7 +188,7 @@ router.post("/:repoId/checkout", authMiddleware, async (req: Request<{ repoId: s
     git(dir, ["checkout", branch]);
     res.json({ data: { branch } });
   } catch (err) {
-    res.status(500).json({ message: `切换分支失败: ${(err as Error).message}` });
+    res.status(500).json({ message: "切换分支失败: " + errMsg(err) });
   }
 });
 
@@ -189,7 +204,7 @@ router.delete("/:repoId/branch/:name", authMiddleware, async (req: Request<{ rep
     git(dir, ["branch", "-D", req.params.name]);
     res.json({ data: { success: true } });
   } catch (err) {
-    res.status(500).json({ message: `删除分支失败: ${(err as Error).message}` });
+    res.status(500).json({ message: "删除分支失败: " + errMsg(err) });
   }
 });
 
@@ -215,7 +230,7 @@ router.post("/:repoId/merge", authMiddleware, async (req: Request<{ repoId: stri
   } catch (err) {
     // 尝试 abort
     gitSafe(dir, ["merge", "--abort"]);
-    res.status(500).json({ message: `合并失败, 可能有冲突: ${(err as Error).message}` });
+    res.status(500).json({ message: "合并失败, 可能有冲突: " + errMsg(err) });
   }
 });
 
@@ -229,11 +244,11 @@ router.get("/:repoId/diff/:base...:head", authMiddleware, async (req: Request<{ 
   try {
     assertRef(req.params.base, "base 分支");
     assertRef(req.params.head, "head 分支");
-    const diff = git(dir, ["diff", `${req.params.base}...${req.params.head}`, "--stat"]);
-    const files = git(dir, ["diff", "--name-only", `${req.params.base}...${req.params.head}`]);
+    const diff = git(dir, ["diff", req.params.base + "..." + req.params.head, "--stat"]);
+    const files = git(dir, ["diff", "--name-only", req.params.base + "..." + req.params.head]);
     res.json({ data: { diff, files: files.split("\n").filter(Boolean) } });
   } catch (err) {
-    res.status(500).json({ message: `获取差异失败: ${(err as Error).message}` });
+    res.status(500).json({ message: "获取差异失败: " + errMsg(err) });
   }
 });
 
@@ -247,7 +262,7 @@ router.post("/:repoId/clone", authMiddleware, async (req: Request<{ repoId: stri
   const user = await userRepo.getByIdWithCredentials(req.user!.id);
   const { url } = req.body as { url?: string };
   // 仅允许 https GitHub URL 或基于仓库名构造的 URL,阻止任意 URL 命令注入
-  const cloneUrl = url ?? `https://github.com/${repo.name}.git`;
+  const cloneUrl = url ?? "https://github.com/" + repo.name + ".git";
   if (!/^https:\/\/github\.com\//.test(cloneUrl)) {
     res.status(400).json({ message: "仅支持 https GitHub 仓库 URL" });
     return;
@@ -260,7 +275,7 @@ router.post("/:repoId/clone", authMiddleware, async (req: Request<{ repoId: stri
   }
 
   // token 通过 GIT_ASKPASS 走凭据机制,绝不在 URL/命令行/进程列表里出现
-  const { env, cleanup } = buildAuthEnv(user?.githubToken);
+  const { env, cleanup } = buildAuthEnv(user?.githubToken ?? undefined);
   try {
     mkdirSync(REPO_BASE, { recursive: true });
     await execFileAsync("git", ["clone", cloneUrl, dir], {
@@ -272,7 +287,7 @@ router.post("/:repoId/clone", authMiddleware, async (req: Request<{ repoId: stri
     });
     res.json({ data: { message: "克隆成功", path: dir } });
   } catch (err) {
-    res.status(500).json({ message: `克隆失败: ${(err as Error).message}` });
+    res.status(500).json({ message: "克隆失败: " + errMsg(err) });
   } finally {
     cleanup();
   }
@@ -287,7 +302,7 @@ router.post("/:repoId/pull", authMiddleware, async (req: Request<{ repoId: strin
   }
   try {
     const user = await userRepo.getByIdWithCredentials(req.user!.id);
-    const { env, cleanup } = buildAuthEnv(user?.githubToken);
+    const { env, cleanup } = buildAuthEnv(user?.githubToken ?? undefined);
     try {
       const { stdout } = await execFileAsync("git", ["pull", "--rebase"], {
         cwd: dir,
@@ -302,7 +317,7 @@ router.post("/:repoId/pull", authMiddleware, async (req: Request<{ repoId: strin
       cleanup();
     }
   } catch (err) {
-    res.status(500).json({ message: `拉取失败: ${(err as Error).message}` });
+    res.status(500).json({ message: "拉取失败: " + errMsg(err) });
   }
 });
 
@@ -329,7 +344,7 @@ router.post("/:repoId/commit", authMiddleware, async (req: Request<{ repoId: str
     git(dir, ["commit", "-m", message]);
     res.json({ data: { message: "提交成功" } });
   } catch (err) {
-    res.status(500).json({ message: `提交失败: ${(err as Error).message}` });
+    res.status(500).json({ message: "提交失败: " + errMsg(err) });
   }
 });
 
@@ -379,7 +394,7 @@ router.get("/:repoId/blame/*splat", authMiddleware, async (req: Request<{ repoId
     });
     res.json({ data: lines });
   } catch (err) {
-    res.status(500).json({ message: `获取 blame 失败: ${(err as Error).message}` });
+    res.status(500).json({ message: "获取 blame 失败: " + errMsg(err) });
   }
 });
 
@@ -394,7 +409,7 @@ router.post("/:repoId/push", authMiddleware, async (req: Request<{ repoId: strin
     const branch = git(dir, ["rev-parse", "--abbrev-ref", "HEAD"]);
     assertRef(branch, "当前分支");
     const user = await userRepo.getByIdWithCredentials(req.user!.id);
-    const { env, cleanup } = buildAuthEnv(user?.githubToken);
+    const { env, cleanup } = buildAuthEnv(user?.githubToken ?? undefined);
     try {
       const { stdout } = await execFileAsync("git", ["push", "origin", branch], {
         cwd: dir,
@@ -409,7 +424,7 @@ router.post("/:repoId/push", authMiddleware, async (req: Request<{ repoId: strin
       cleanup();
     }
   } catch (err) {
-    res.status(500).json({ message: `推送失败: ${(err as Error).message}` });
+    res.status(500).json({ message: "推送失败: " + errMsg(err) });
   }
 });
 
@@ -422,7 +437,7 @@ router.get("/:repoId/graph", authMiddleware, async (req: Request<{ repoId: strin
   }
   const max = Math.min(Math.max(parseInt((req.query.max as string) ?? "30", 10) || 30, 1), 200);
   // -n 限制提交数,而非 pathspec
-  const log = gitSafe(dir, ["log", `-n${max}`, "--oneline", "--graph", "--decorate"]) ?? "";
+  const log = gitSafe(dir, ["log", "-n" + max, "--oneline", "--graph", "--decorate"]) ?? "";
   const branches = gitSafe(dir, ["branch", "-a", "--format=%(refname:short)"])?.split("\n").filter(Boolean) ?? [];
   res.json({ data: { log, branches } });
 });
@@ -445,7 +460,7 @@ router.post("/:repoId/file", authMiddleware, async (req: Request<{ repoId: strin
     writeFileSync(fp, content, "utf-8");
     res.json({ data: { path, written: true } });
   } catch (err) {
-    res.status(500).json({ message: `写入文件失败: ${(err as Error).message}` });
+    res.status(500).json({ message: "写入文件失败: " + errMsg(err) });
   }
 });
 
@@ -466,7 +481,7 @@ router.delete("/:repoId/file", authMiddleware, async (req: Request<{ repoId: str
     rmSync(fp, { recursive: true, force: true });
     res.json({ data: { path, deleted: true } });
   } catch (err) {
-    res.status(500).json({ message: `删除文件失败: ${(err as Error).message}` });
+    res.status(500).json({ message: "删除文件失败: " + errMsg(err) });
   }
 });
 export default router;

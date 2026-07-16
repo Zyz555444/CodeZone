@@ -92,7 +92,7 @@ export const repoRepo = {
       stars: 0, forks: 0, openIssues: 0, language: "Other",
     };
     await db.insert(schema.repos).values(row);
-    return row as Repo;
+    return row as unknown as Repo;
   },
   async getFileTree(repoId: string): Promise<FileNode[]> {
     const rows = await db.select().from(schema.fileTrees).where(eq(schema.fileTrees.repoId, repoId)).limit(1);

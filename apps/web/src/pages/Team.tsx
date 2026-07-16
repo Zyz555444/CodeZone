@@ -184,17 +184,23 @@ export default function Team() {
           const meta = ROLE_META[m.role];
           return (
             <div key={m.userId} className="flex items-center gap-3 p-3.5">
-              <Avatar user={{ id: m.userId, name: m.name, email: m.email }} size="md" />
+              <Avatar
+                user={{
+                  name: m.user?.name || m.name || "",
+                  avatar: m.user?.avatar ?? m.avatar ?? null,
+                }}
+                size="md"
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-copy-14 font-medium text-neutral-10 dark:text-[var(--neutral-10)] truncate">
-                    {m.name}
+                    {m.user?.name || m.name}
                   </span>
                   {m.userId === currentUser?.id && (
                     <span className="text-caption-10 text-neutral-5">（你）</span>
                   )}
                 </div>
-                <div className="text-caption-10 text-neutral-5 dark:text-[var(--neutral-5)] truncate">{m.email}</div>
+                <div className="text-caption-10 text-neutral-5 dark:text-[var(--neutral-5)] truncate">{m.user?.email || m.email}</div>
               </div>
               <div className={`flex items-center gap-1 text-label-12 ${meta.tone}`}>
                 <meta.Icon className="w-icon-sm h-icon-sm" strokeWidth={1.75} />

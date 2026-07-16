@@ -238,6 +238,10 @@ export interface TeamMember {
   userId: string;
   role: TeamRole;
   joinedAt: number;
+  // 后端额外填充的成员信息(便于前端直接展示)
+  name?: string;
+  email?: string;
+  avatar?: string | null;
   user?: User;
 }
 

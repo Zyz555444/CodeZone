@@ -112,9 +112,15 @@ export const api = {
   // ─────────── 仓库 ───────────
   getRepos: () => request<Repo[]>("/repos"),
   getRepo: (id: string) => request<Repo>(`/repos/${id}`),
+  createRepo: (data: { name: string; description?: string; visibility?: "public" | "private" }) =>
+    request<Repo>("/repos", { method: "POST", body: JSON.stringify(data) }),
   getFileTree: (repoId: string, path = "") =>
     request<any>(`/repos/${repoId}/contents/${path}`),
   getCommits: (repoId: string) => request<Commit[]>(`/repos/${repoId}/commits`),
+  githubRepos: () => request<{ id: number; name: string; fullName: string; description: string; language: string; stars: number; defaultBranch: string; private: boolean; updatedAt: number; cloneUrl: string; htmlUrl: string }[]>(
+    "/github/repos"
+  ),
+  githubImport: (fullName: string) => request<Repo>("/github/import", { method: "POST", body: JSON.stringify({ fullName }) }),
 
   // ─────────── 第三方登录 ───────────
   getAuthProviders: () => request<{ github: boolean; google: boolean }>("/auth/providers"),
@@ -129,13 +135,6 @@ export const api = {
   githubConnected: () => request<{ connected: boolean; githubUsername: string | null }>("/github/connected"),
   githubDisconnect: () => request<{ success: boolean }>("/github/disconnect", { method: "POST" }),
 
-  // ─────────── 仓库 ───────────
-  getRepos: () => request<Repo[]>("/repos"),
-  getRepo: (id: string) => request<Repo>(`/repos/${id}`),
-  createRepo: (data: { name: string; description?: string; visibility?: "public" | "private" }) =>
-    request<Repo>("/repos", { method: "POST", body: JSON.stringify(data) }),
-  githubRepos: () => request<{ id: number; name: string; fullName: string; description: string; language: string; stars: number; defaultBranch: string; private: boolean; updatedAt: number; cloneUrl: string; htmlUrl: string }[]>("/github/repos"),
-  githubImport: (fullName: string) => request<Repo>("/github/import", { method: "POST", body: JSON.stringify({ fullName }) }),
   // ─────────── Git 操作 ───────────
   gitBranches: (repoId: string) => request<{ branches: string[]; current: string }>(`/git/${repoId}/branches`),
   gitCreateBranch: (repoId: string, name: string, from?: string) => request<{ name: string; from: string }>(`/git/${repoId}/branch`, { method: "POST", body: JSON.stringify({ name, from }) }),
