@@ -203,7 +203,7 @@ export const api = {
     request<Pipeline>(`/pipelines/run/${runId}/cancel`, { method: "POST" }),
 
   // ─────────── 团队 ───────────
-  getTeam: () => request<User[]>("/team"),
+  getTeam: () => request<User[]>("/team/members"),
   getTeamDetail: () => request<{ team: Team; members: TeamMember[]; myRole: TeamRole }>("/team"),
   createTeam: (name: string) =>
     request<{ team: Team; members: TeamMember[]; myRole: TeamRole }>("/team", {

@@ -136,7 +136,7 @@ export default function Login() {
         />
         <Link to="/dashboard" className="flex items-center gap-2.5 relative reveal">
           <span className="grid place-items-center w-8 h-8 rounded-md bg-[var(--color-accent)] text-white">
-            <Hash className="w-4.5 h-4.5" strokeWidth={2.5} />
+            <Hash className="w-4 h-4" strokeWidth={2.5} />
           </span>
           <span className="font-logo text-title-24 font-medium tracking-tight text-neutral-10 dark:text-[var(--neutral-10)]">
             CodeZone

@@ -94,6 +94,12 @@ function RootRedirect() {
 }
 
 export default function App() {
+  const { initUser } = useAppStore();
+  // 顶层初始化一次,确保任何路径(包括 "/")都能拿到 initialized 状态,
+  // 避免 RootRedirect 永远返回 null 导致空白页面
+  useEffect(() => {
+    initUser();
+  }, [initUser]);
   useWebSocket();
   return (
     <Router>

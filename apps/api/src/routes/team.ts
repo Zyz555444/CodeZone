@@ -248,6 +248,22 @@ router.post("/leave", authMiddleware, async (req: Request, res: Response) => {
   res.json({ data: { success: true } });
 });
 
+// ─────────── GET /members — 获取团队成员(纯 User 列表) ───────────
+// 用作 CommandPalette 提及、看板分配等仅需 User[] 的场景,
+// 与 GET / 返回完整 {team, members, myRole} 区分。
+router.get("/members", authMiddleware, async (req: Request, res: Response) => {
+  const membership = await teamMemberRepo.getByUser(req.user!.id);
+  if (!membership) {
+    res.json({ data: [] });
+    return;
+  }
+  const members = await teamMemberRepo.listByTeam(membership.teamId);
+  const memberUsers = (
+    await Promise.all(members.map(async (m) => userRepo.getById(m.userId)))
+  ).filter((u): u is NonNullable<typeof u> => Boolean(u));
+  res.json({ data: memberUsers });
+});
+
 // ─────────── GET /online — 获取在线人数 ───────────
 router.get("/online", authMiddleware, async (req: Request, res: Response) => {
   const membership = await teamMemberRepo.getByUser(req.user!.id);
